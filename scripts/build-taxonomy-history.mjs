@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Builds `frontend/src/assets/ebird-taxonomy-history.json`, the bundled record of
-// species-level splits and lumps in eBird's annual taxonomy updates that the
-// Species Detail "Splits and lumps" view reads (taxonomic-splits-lumps,
-// schema.md section 4).
+// species-level splits, lumps and word-changing renames in eBird's annual
+// taxonomy updates that the Species Detail "Splits/Lumps/Renames" view reads
+// (taxonomic-splits-lumps, schema.md section 4; recorded-names-in-splits-and-
+// lumps, schema.md section 4).
 //
 // A DEVELOPER STEP, never a CI or runtime step: it reads Cornell's published
 // files from the GITIGNORED `scripts/taxonomy-history-input/` (its README lists
@@ -66,7 +67,7 @@ async function main() {
     throw new HistoryInputError(`no input files in ${INPUT_DIR} (see its README.md)`)
   }
   const snapshot = JSON.parse(await readFile(SNAPSHOT, 'utf8'))
-  const { history } = deriveHistory({ files, snapshot, generated: GENERATED })
+  const { history, report } = deriveHistory({ files, snapshot, generated: GENERATED })
 
   const json = stableStringify(history)
   await writeFile(ASSET, json)
@@ -75,7 +76,27 @@ async function main() {
   const range = history.coverage
     ? `${history.coverage.earliest.year} to ${history.coverage.latest.year}`
     : 'nothing'
-  console.log(`wrote ${ASSET}: ${splits} splits and ${lumps} lumps covering ${range}, ${Buffer.byteLength(json)} bytes`)
+  console.log(`wrote ${ASSET}: ${splits} splits, ${lumps} lumps and ${history.renames.length} renames covering ${range}, ${Buffer.byteLength(json)} bytes`)
+
+  // The rename printout (schema.md 4.5, the runbook's "Read the rename
+  // printout" step). For a person to read, never typed into a test.
+  console.log('renames per update: kept / left out as the same name (FR-03) / excluded for sharing a split or lump')
+  for (const r of report.renames) {
+    console.log(`  ${r.year}: ${r.kept} / ${r.leftOut} / ${r.excluded}`)
+    for (const c of r.cited) console.log(`    cited, unannotated: ${c.code} "${c.from}" to "${c.to}"`)
+    for (const w of r.awaiting) console.log(`    LEFT OUT, unannotated and not yet cited (RENAMES_AWAITING_SOURCE): ${w.code} "${w.from}" to "${w.to}"`)
+    const n = r.annotatedWithoutRename
+    const parts = [
+      n.newCode ? `${n.newCode} code new in this update` : null,
+      n.onEvent ? `${n.onEvent} on a split or lump of this update` : null,
+      n.equalUnderCutoff ? `${n.equalUnderCutoff} the same name under FR-03` : null,
+      n.nameUnchanged ? `${n.nameUnchanged} name unchanged in eBird's file` : null,
+      n.joinsNoSpecies ? `${n.joinsNoSpecies} join no taxonomy species` : null,
+    ].filter(Boolean)
+    if (parts.length) console.log(`    annotated as an English name change with no rename: ${parts.join(', ')}`)
+  }
+  const k = report.keptForms
+  console.log(`lump earlier names: ${k.traced} traced to a kept form, ${k.survivor} carried on as the lumped species, ${k.noForm} with no kept form`)
 }
 
 main().catch((err) => {

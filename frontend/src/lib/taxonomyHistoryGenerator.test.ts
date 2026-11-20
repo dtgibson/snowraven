@@ -14,8 +14,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
-  deriveHistory, checkHistory, HistoryInputError, parseCsv, changeTokens, splitSubject, tally,
-  type PublishedRow, type SnapshotLike, type HistoryLike, type Recount,
+  deriveHistory, checkHistory, HistoryInputError, parseCsv, changeTokens, splitSubject, tally, renameKey,
+  RENAMES_AWAITING_SOURCE, RENAMES_UNANNOTATED,
+  type PublishedRow, type SnapshotLike, type HistoryLike, type Recount, type RenameRow,
 } from '../../../scripts/lib/taxonomyHistoryDerive.mjs'
 
 const TAX_HEAD = 'TAXON_ORDER,CATEGORY,SPECIES_CODE,PRIMARY_COM_NAME,SCI_NAME,REPORT_AS'
@@ -65,12 +66,15 @@ const INT_2024 = [
   '2,,,species,Gamma Bird,Genus gamma,3',
 ].join('\r\n')
 
-/** The "current" snapshot for the fixture: the 2024 taxonomy's five maps. */
+/** The "current" snapshot for the fixture: the 2024 taxonomy's maps. Both lumped
+ *  codes survive as forms of the lumped species, so each earlier name of the
+ *  2024 lump is traced to a kept form (FR-06). */
 const SNAPSHOT: SnapshotLike = {
   version: 'T1',
   byCode: { vvv: 'Vee Bird', www: 'Vee Bird (Delta)', yyy: 'Vee Bird (Beta)', zzz: 'Gamma Bird', xxx: 'Beta/Gamma Bird' },
   byCom: { 'vee bird': 'vvv', 'gamma bird': 'zzz' },
   bySci: { 'genus beta': 'vvv', 'genus gamma': 'zzz' },
+  reportAs: { www: 'vvv', yyy: 'vvv' },
 }
 
 // eBird's announced tally is required for every covered year (big-old-life-
@@ -91,12 +95,17 @@ const BASE: Files = {
   'clements-integrated-v2024.csv': INT_2024,
 }
 
+/** The fixture's own rename tables: none. The shipped tables name real 2019 and
+ *  2022 renames, and a row that matches nothing stops the run. */
+const FIXTURE_RENAME_TABLES = { renamesUnannotated: {}, renamesAwaitingSource: {} }
+
 function run(files: Files = BASE, published: Record<number, PublishedRow> = PUBLISHED) {
   return deriveHistory({
     files: Object.entries(files).map(([name, text]) => ({ name, text })),
     snapshot: SNAPSHOT,
     generated: '2026-09-30',
     published,
+    ...FIXTURE_RENAME_TABLES,
   }).history
 }
 
@@ -142,9 +151,10 @@ describe('the chained fixture (QA-02, QA-03)', () => {
     expect(split.slashes).toEqual([{ code: 'xxx', sci: 'Genus beta/gamma', com: 'Beta/Gamma Bird' }])
 
     expect(lump).toMatchObject({ kind: 'lump', year: 2024, published: '2024-10-22', slashes: [] })
+    // Each earlier name carries the present name of the form eBird kept for it.
     expect(lump.before).toEqual([
-      { code: 'www', sci: 'Genus delta', com: 'Delta Bird', retired: true },
-      { code: 'yyy', sci: 'Genus beta', com: 'Beta Bird', retired: true },
+      { code: 'www', sci: 'Genus delta', com: 'Delta Bird', retired: true, form: 'Vee Bird (Delta)' },
+      { code: 'yyy', sci: 'Genus beta', com: 'Beta Bird', retired: true, form: 'Vee Bird (Beta)' },
     ])
     expect(lump.after).toEqual([{ code: 'vvv', sci: 'Genus beta', com: 'Vee Bird' }])
   })
@@ -163,6 +173,21 @@ describe('the chained fixture (QA-02, QA-03)', () => {
 
   it('passes the shared invariant checker CI runs', () => {
     expect(checkHistory(h, SNAPSHOT)).toBe(true)
+  })
+
+  it('is version 2, with a renames array that is empty when no name changed', () => {
+    expect(h.v).toBe(2)
+    expect(h.renames).toEqual([])
+  })
+
+  it('keeps no form where the snapshot keeps none (FR-06): a split, and a lumped code the snapshot dropped', () => {
+    expect(h.events[0].before.every(b => !Object.hasOwn(b, 'form'))).toBe(true)
+    const noForms = deriveHistory({
+      files: Object.entries(BASE).map(([name, text]) => ({ name, text })),
+      snapshot: { ...SNAPSHOT, reportAs: { yyy: 'vvv' } },
+      generated: '2026-09-30', published: PUBLISHED, ...FIXTURE_RENAME_TABLES,
+    }).history
+    expect(noForms.events[1].before.map(b => b.form)).toEqual([undefined, 'Vee Bird (Beta)'])
   })
 
   it('a no-input run yields the stated empty coverage and zero events (QA-02)', () => {
@@ -409,6 +434,7 @@ function run2023(files: Files, extra: Sp[], announced: { gained: number; lost: n
     generated: '2026-10-21',
     published: { 2023: { published: '2023-10-24', mark: 'measured', announced } },
     recounts: recounts ?? {},
+    ...FIXTURE_RENAME_TABLES,
   }).history
 }
 function failsClosed2023(files: Files, extra: Sp[], announced: { gained: number; lost: number }, what: RegExp, recounts?: Record<number, readonly Recount[]>) {
@@ -597,7 +623,7 @@ function expectFailsClosedWithSnapshot(snapshot: SnapshotLike, what: RegExp) {
   try {
     out = deriveHistory({
       files: Object.entries(BASE).map(([name, text]) => ({ name, text })),
-      snapshot, generated: '2026-09-30', published: PUBLISHED,
+      snapshot, generated: '2026-09-30', published: PUBLISHED, ...FIXTURE_RENAME_TABLES,
     })
   } catch (e) { err = e }
   expect(out).toBeUndefined()
@@ -678,4 +704,333 @@ describe('the shared checker admits a code eBird re-used or dropped, and nothing
   it('but not a current before code that is neither kept nor created again later (I6)', () => {
     expect(() => checkHistory(mutate(h => { h.events[1].before[0].code = 'zzz' }), SNAPSHOT)).toThrow(/before code "zzz" is still a species, is not among its own event's after side, and no later event creates it/)
   })
+})
+
+// ── Renames (recorded-names-in-splits-and-lumps; QA-02 to QA-05, QA-10) ──────
+//
+// A second fixture, over three updates. In 2023 Ash Bird (aaa) is renamed
+// Ashy Bird and, in 2024, Ashen Bird; Dun Bird (ddd) is split into Dun Finch
+// (the kept code, renamed by the split) and Elm Bird (eee); Cedar Bird (ccc)
+// changes only its scientific name; Gray Bird (ggg) is replaced by Grey Finch
+// under a NEW code (hhh); Ice-Bird (iii) loses only its hyphen; Fen Bird (fff)
+// is a species in the 2023 file alone. In 2024 Kite Bird (kkk) is split into
+// Kite Bird and Lark Kite (lll). Exactly two renames follow, both of aaa.
+
+const RN_TAX_2022 = [
+  TAX_HEAD,
+  '1,species,aaa,Ash Bird,Genus ash,',
+  '2,species,ccc,Cedar Bird,Genus cedar,',
+  '3,species,ddd,Dun Bird,Genus dun,',
+  '4,issf,eee,Dun Bird (Elm),Genus dun elm,ddd',
+  '5,species,ggg,Gray Bird,Genus gray,',
+  '6,species,iii,Ice-Bird,Genus ice,',
+  '7,species,jjj,Jay Bird,Genus jay,',
+  '8,species,kkk,Kite Bird,Genus kite,',
+].join('\r\n')
+
+const RN_TAX_2023 = [
+  TAX_HEAD,
+  '1,species,aaa,Ashy Bird,Genus ash,',
+  '2,species,ccc,Cedar Bird,Genus cedrus,',
+  '3,species,ddd,Dun Finch,Genus dun,',
+  '4,species,eee,Elm Bird,Genus elm,',
+  '5,species,hhh,Grey Finch,Genus grisea,',
+  '6,species,iii,Ice Bird,Genus ice,',
+  '7,species,jjj,Jay Bird,Genus jay,',
+  '8,species,kkk,Kite Bird,Genus kite,',
+  '9,issf,lll,Kite Bird (Lark),Genus kite lark,kkk',
+  '10,species,fff,Fen Bird,Genus fen,',
+].join('\r\n')
+
+const RN_TAX_2024 = [
+  TAX_HEAD,
+  '1,species,aaa,Ashen Bird,Genus ash,',
+  '2,species,ccc,Cedar Bird,Genus cedrus,',
+  '3,species,ddd,Dun Finch,Genus dun,',
+  '4,species,eee,Elm Bird,Genus elm,',
+  '5,species,hhh,Grey Finch,Genus grisea,',
+  '6,species,iii,Ice Bird,Genus ice,',
+  '7,species,jjj,Jay Bird,Genus jay,',
+  '8,species,kkk,Kite Bird,Genus kite,',
+  '9,species,lll,Lark Kite,Genus lark,',
+  '10,species,fff,Fen Bird,Genus fen,',
+].join('\r\n')
+
+const RN_INT_2022 = [
+  'sort v2022,category,English name,scientific name',
+  '1,species,Ash Bird,Genus ash', '2,species,Cedar Bird,Genus cedar', '3,species,Dun Bird,Genus dun',
+  '5,species,Gray Bird,Genus gray', '6,species,Ice-Bird,Genus ice', '7,species,Jay Bird,Genus jay',
+  '8,species,Kite Bird,Genus kite',
+].join('\r\n')
+
+const DUN_TEXT = '"Dun Bird Genus dun is split into Dun Finch Genus dun and Elm Bird Genus elm."'
+const RN_INT_2023 = [
+  'sort v2023,Clements v2023 change,text for website v2023,category,English name,scientific name,sort v2022',
+  '1,name change - English name,,species,Ashy Bird,Genus ash,1',
+  '2,,,species,Cedar Bird,Genus cedrus,2',
+  `3,split,${DUN_TEXT},species,Dun Finch,Genus dun,3`,
+  `4,split,${DUN_TEXT},species,Elm Bird,Genus elm,`,
+  '5,,,species,Grey Finch,Genus grisea,',
+  '6,name change - English name,,species,Ice Bird,Genus ice,6',
+  '7,,,species,Jay Bird,Genus jay,7',
+  '8,,,species,Kite Bird,Genus kite,8',
+  '10,,,species,Fen Bird,Genus fen,',
+].join('\r\n')
+
+const KITE_TEXT = '"Kite Bird Genus kite is split into Kite Bird Genus kite and Lark Kite Genus lark."'
+const RN_INT_2024 = [
+  'sort v2024,Clements v2024 change,text for website v2024,category,English name,scientific name,sort v2023',
+  '1,name change - English,,species,Ashen Bird,Genus ash,1',
+  '2,,,species,Cedar Bird,Genus cedrus,2',
+  '3,,,species,Dun Finch,Genus dun,3',
+  '4,,,species,Elm Bird,Genus elm,4',
+  '5,,,species,Grey Finch,Genus grisea,5',
+  '6,,,species,Ice Bird,Genus ice,6',
+  '7,,,species,Jay Bird,Genus jay,7',
+  `8,split,${KITE_TEXT},species,Kite Bird,Genus kite,8`,
+  `9,split,${KITE_TEXT},species,Lark Kite,Genus lark,`,
+  '10,,,species,Fen Bird,Genus fen,10',
+].join('\r\n')
+
+const RN_FILES: Files = {
+  'ebird-taxonomy-v2022.csv': RN_TAX_2022, 'ebird-taxonomy-v2023.csv': RN_TAX_2023, 'ebird-taxonomy-v2024.csv': RN_TAX_2024,
+  'clements-integrated-v2022.csv': RN_INT_2022, 'clements-integrated-v2023.csv': RN_INT_2023, 'clements-integrated-v2024.csv': RN_INT_2024,
+}
+const RN_PUBLISHED: Record<number, PublishedRow> = {
+  2023: { published: '2023-10-24', mark: 'measured', announced: { gained: 1, lost: 0 } },
+  2024: { published: '2024-10-22', mark: 'measured', announced: { gained: 1, lost: 0 } },
+}
+/** The 2024 taxonomy as the bundled snapshot. */
+function rnSnapshot(names: Record<string, string> = {}): SnapshotLike {
+  const rows: [string, string, string][] = [
+    ['aaa', 'Ashen Bird', 'genus ash'], ['ccc', 'Cedar Bird', 'genus cedrus'], ['ddd', 'Dun Finch', 'genus dun'],
+    ['eee', 'Elm Bird', 'genus elm'], ['hhh', 'Grey Finch', 'genus grisea'], ['iii', 'Ice Bird', 'genus ice'],
+    ['jjj', names.jjj ?? 'Jay Bird', 'genus jay'], ['kkk', 'Kite Bird', 'genus kite'], ['lll', 'Lark Kite', 'genus lark'],
+    ['fff', 'Fen Bird', 'genus fen'],
+  ]
+  return {
+    version: 'T2',
+    byCode: Object.fromEntries(rows.map(([c, n]) => [c, n])),
+    byCom: Object.fromEntries(rows.map(([c, n]) => [n.toLowerCase(), c])),
+    bySci: Object.fromEntries(rows.map(([c, , s]) => [s, c])),
+    reportAs: {},
+  }
+}
+const NO_ROWS: Readonly<Record<number, readonly RenameRow[]>> = {}
+function runRn(opts: {
+  files?: Files, snapshot?: SnapshotLike,
+  unannotated?: Readonly<Record<number, readonly RenameRow[]>>, awaiting?: Readonly<Record<number, readonly RenameRow[]>>,
+} = {}) {
+  return deriveHistory({
+    files: Object.entries(opts.files ?? RN_FILES).map(([name, text]) => ({ name, text })),
+    snapshot: opts.snapshot ?? rnSnapshot(),
+    generated: '2026-11-19',
+    published: RN_PUBLISHED,
+    renamesUnannotated: opts.unannotated ?? NO_ROWS,
+    renamesAwaitingSource: opts.awaiting ?? NO_ROWS,
+  })
+}
+function expectRnFails(what: RegExp, opts: Parameters<typeof runRn>[0]) {
+  let out: unknown
+  let err: unknown
+  try { out = runRn(opts) } catch (e) { err = e }
+  expect(out, 'no object is returned').toBeUndefined()
+  expect(err).toBeInstanceOf(HistoryInputError)
+  expect((err as Error).message).toMatch(what)
+}
+/** Jay Bird becomes Jade Bird in 2023 with no annotation (2024 and the snapshot follow). */
+const JADE = {
+  files: {
+    ...RN_FILES,
+    'ebird-taxonomy-v2023.csv': RN_TAX_2023.replace('jjj,Jay Bird', 'jjj,Jade Bird'),
+    'ebird-taxonomy-v2024.csv': RN_TAX_2024.replace('jjj,Jay Bird', 'jjj,Jade Bird'),
+  },
+  snapshot: rnSnapshot({ jjj: 'Jade Bird' }),
+}
+const JADE_ROW: RenameRow = { code: 'jjj', from: 'Jay Bird', to: 'Jade Bird' }
+
+describe('the generator derives renames (recorded-names-in-splits-and-lumps; FR-01 to FR-04, QA-02, QA-04)', () => {
+  const { history: h, report } = runRn()
+
+  it('yields exactly the word-changing renames, each a species in both files and on no event of its update', () => {
+    // Not Cedar Bird (scientific name only), not Dun Bird (on the split), not
+    // Gray Bird or Grey Finch (a changed code), not Ice-Bird (spelling only),
+    // not Fen Bird or Elm Bird (species in one file only).
+    expect(h.renames.map(r => `${r.year} ${r.before[0].code} ${r.before[0].com} > ${r.after[0].com}`)).toEqual([
+      '2023 aaa Ash Bird > Ashy Bird',
+      '2024 aaa Ashy Bird > Ashen Bird',
+    ])
+  })
+
+  it('reads A to B, then B to C: a current name is the update file\'s own, never the snapshot\'s (FR-01)', () => {
+    const [first, second] = h.renames
+    expect(first).toEqual({
+      kind: 'rename', year: 2023, published: '2023-10-24',
+      before: [{ code: 'aaa', sci: 'Genus ash', com: 'Ash Bird', retired: true }],
+      after: [{ code: 'aaa', sci: 'Genus ash', com: 'Ashy Bird' }],
+      slashes: [],
+    })
+    expect(second.before[0]).toEqual({ code: 'aaa', sci: 'Genus ash', com: 'Ashy Bird', retired: true })
+    expect(second.after[0].com).toBe('Ashen Bird')
+  })
+
+  it('dates each rename to the update whose file first carries the new name, and to nothing finer (FR-04)', () => {
+    for (const r of h.renames) expect(h.updates).toContainEqual({ year: r.year, published: r.published })
+  })
+
+  it('leaves every split and lump exactly as derived without renames', () => {
+    expect(h.events.map(e => `${e.kind} ${e.year} ${e.before.map(b => b.code)}>${e.after.map(a => a.code)}`)).toEqual([
+      'split 2023 ddd>ddd,eee',
+      'split 2024 kkk>kkk,lll',
+    ])
+  })
+
+  it('prints kept, left out and excluded per update, and the annotated rows that made no rename (FR-05)', () => {
+    expect(report.renames.map(r => [r.year, r.kept, r.leftOut, r.excluded])).toEqual([[2023, 1, 1, 1], [2024, 1, 0, 0]])
+    expect(report.renames[0].annotatedWithoutRename).toMatchObject({ equalUnderCutoff: 1, onEvent: 0, newCode: 0 })
+    expect(report.renames.every(r => r.cited.length === 0 && r.awaiting.length === 0)).toBe(true)
+  })
+
+  it('passes the shared invariant checker CI runs', () => {
+    expect(checkHistory(h, rnSnapshot())).toBe(true)
+  })
+})
+
+describe('R8: every rename is annotated by Cornell or cited from eBird (schema.md 4.3)', () => {
+  it('an unannotated rename that no row cites stops the run, naming it', () => {
+    expectRnFails(/2023 rename jjj "Jay Bird" to "Jade Bird" is not annotated as an English name change/, JADE)
+  })
+
+  it('a cited row with its source admits it, and the printout lists it as cited', () => {
+    const { history, report } = runRn({ ...JADE, unannotated: { 2023: [{ ...JADE_ROW, source: 'https://science.ebird.org/example', mark: 'measured' }] } })
+    expect(history.renames.map(r => r.before[0].code)).toEqual(['aaa', 'jjj', 'aaa'])
+    expect(report.renames[0].cited).toEqual([JADE_ROW])
+  })
+
+  it('a cited row matches by year, code and BOTH names exactly: a wrong name admits nothing', () => {
+    expectRnFails(/is not annotated as an English name change/, { ...JADE, unannotated: { 2023: [{ ...JADE_ROW, from: 'Jay Birds', source: 'https://x.example' }] } })
+    expectRnFails(/is not annotated as an English name change/, { ...JADE, unannotated: { 2024: [{ ...JADE_ROW, source: 'https://x.example' }] } })
+  })
+
+  it('a cited row marked assumed, or with no source URL, stops the run', () => {
+    expectRnFails(/marked assumed/, { ...JADE, unannotated: { 2023: [{ ...JADE_ROW, source: 'https://x.example', mark: 'assumed' }] } })
+    expectRnFails(/missing its source URL/, { ...JADE, unannotated: { 2023: [JADE_ROW] } })
+  })
+
+  it('a rename awaiting a source is left out of the record and printed by name', () => {
+    const { history, report } = runRn({ ...JADE, awaiting: { 2023: [JADE_ROW] } })
+    expect(history.renames.map(r => r.before[0].code)).toEqual(['aaa', 'aaa'])
+    expect(report.renames[0].awaiting).toEqual([JADE_ROW])
+    expect(report.renames[0].kept).toBe(1)
+  })
+
+  it('neither table can outlive its reason: a row matching nothing, an annotated rename, or both tables at once stop the run', () => {
+    expectRnFails(/RENAMES_AWAITING_SOURCE row 2023 jjj "Jay Bird" to "Jade Bird" matches no unannotated rename/, { awaiting: { 2023: [JADE_ROW] } })
+    expectRnFails(/RENAMES_UNANNOTATED row 2023 jjj .* matches no unannotated rename/, { unannotated: { 2023: [{ ...JADE_ROW, source: 'https://x.example' }] } })
+    expectRnFails(/RENAMES_AWAITING_SOURCE row 2023 aaa "Ash Bird" to "Ashy Bird" is annotated/, { awaiting: { 2023: [{ code: 'aaa', from: 'Ash Bird', to: 'Ashy Bird' }] } })
+    expectRnFails(/both cited and awaiting a source/, { ...JADE, awaiting: { 2023: [JADE_ROW] }, unannotated: { 2023: [{ ...JADE_ROW, source: 'https://x.example' }] } })
+  })
+
+  it('ships no cited row, and exactly the three renames that await a person\'s reading of eBird\'s pages', () => {
+    // Literal on purpose: adding, removing or editing a row is a deliberate,
+    // reviewable act (the runbook's "Read the rename printout" step).
+    expect(RENAMES_UNANNOTATED).toEqual({})
+    expect(RENAMES_AWAITING_SOURCE).toEqual({
+      2019: [
+        { code: 'rutbuh1', from: 'Rufous-tailed Bush-hen', to: 'Pale-vented Bush-hen' },
+        { code: 'yegfin1', from: 'Yellow-green Finch', to: 'Yellow-green Brushfinch' },
+      ],
+      2022: [{ code: 'grasal3', from: 'Blue-gray Saltator', to: 'Bluish-gray Saltator' }],
+    })
+  })
+})
+
+describe('the rename cutoff, renameKey (FR-03; QA-03)', () => {
+  // Every code point the steps name, written as an escape (testing.md v1.0.52).
+  const same: [string, string, string][] = [
+    ['case', 'Ash Bird', 'ash bird'],
+    ['an accent', 'R\u00fcppell Bird', 'Ruppell Bird'],
+    ['a decomposed accent', 'Ru\u0308ppell Bird', 'Ruppell Bird'],
+    ['a hyphen', 'Ice-Bird', 'Ice Bird'],
+    ['a space', 'Ice Bird', 'IceBird'],
+    ['a straight apostrophe', "McCown's Longspur", 'McCowns Longspur'],
+    ['a right curly apostrophe', 'McCown\u2019s Longspur', 'McCowns Longspur'],
+    ['a left curly apostrophe', 'McCown\u2018s Longspur', 'McCowns Longspur'],
+    ['a grave accent as apostrophe', 'McCown`s Longspur', 'McCowns Longspur'],
+    ['a modifier-letter apostrophe', 'McCown\u02bcs Longspur', 'McCowns Longspur'],
+    ['an okina', 'Hawai\u02bbi Bird', 'Hawaii Bird'],
+    ['grey and gray', 'Grey-headed Bird', 'Gray-headed Bird'],
+    ['several at once', 'Grey-headed R\u00fcppell\u2019s Bird', 'grayheaded ruppells bird'],
+  ]
+  for (const [what, a, b] of same) {
+    it(`ignores ${what}`, () => expect(renameKey(a)).toBe(renameKey(b)))
+  }
+  const different: [string, string, string][] = [
+    ['a changed word', 'Ash Bird', 'Ash Finch'],
+    ['a changed letter', 'Ash Bird', 'Ask Bird'],
+    ['an ignored difference beside a changed word', 'Grey-headed Bird', 'Gray-headed Finch'],
+    ['a period', 'St. Helena Rail', 'St Helena Rail'],
+    ['a non-breaking hyphen', 'Ice\u2011Bird', 'Ice-Bird'],
+    ['a no-break space', 'Ice\u00a0Bird', 'Ice Bird'],
+  ]
+  for (const [what, a, b] of different) {
+    it(`counts ${what} as a rename`, () => expect(renameKey(a)).not.toBe(renameKey(b)))
+  }
+  it('pins the code points it was written with (the escapes an editing tool can flatten)', () => {
+    const points = new Set([...same, ...different].flatMap(([, a, b]) => [...a, ...b]).map(ch => ch.codePointAt(0)!).filter(c => c > 0x7f))
+    expect([...points].sort((x, y) => x - y)).toEqual([0xa0, 0xfc, 0x2bb, 0x2bc, 0x308, 0x2011, 0x2018, 0x2019].sort((x, y) => x - y))
+  })
+})
+
+describe('the shared checker refuses each rename and kept-form fault (schema.md 3.3, 3.4; QA-05)', () => {
+  const good = runRn().history
+  const snap = rnSnapshot()
+  const mutate = (fn: (h: HistoryLike) => void): HistoryLike => {
+    const h = structuredClone(good)
+    fn(h)
+    return h
+  }
+  const rows: [string, (h: HistoryLike) => void, RegExp][] = [
+    ['R1, a rename with a slash', h => { h.renames[0].slashes.push({ code: 'aaa', sci: 'Genus a/b', com: 'A/B Bird' }) }, /one earlier name, one current name and no slashes/],
+    ['R1, two different codes', h => { h.renames[0].after[0].code = 'ccc' }, /is not the current code/],
+    ['R1, a date outside updates', h => { h.renames[0].published = '2023-10-25' }, /not a member of updates/],
+    // Each asserts the checker's OWN message, so the row goes red when that
+    // check is removed even though a later invariant would still refuse.
+    ['R1, a rename with no code', h => { h.renames[0].before[0].code = ''; h.renames[0].after[0].code = '' }, /rename 0 \(2023\): an entry has no code/],
+    ['R1, a rename with no name', h => { h.renames[0].after[0].com = '' }, /rename 0 \(2023\): an entry has no com/],
+    ['R2, two names equal under the cutoff', h => { h.renames[0].after[0].com = 'ash-bird' }, /same name under the rename cutoff/],
+    ['R3, a code on a split of the same update', h => { h.renames[0].before[0].code = 'ddd'; h.renames[0].after[0].code = 'ddd' }, /also on a split or lump of the same update/],
+    ['R4, two renames of one code in one update', h => { h.renames.splice(1, 0, structuredClone(h.renames[0])) }, /two renames in the 2023 update/],
+    ['R5, a flipped retired flag', h => { h.renames[0].before[0].retired = false }, /retired flag disagrees/],
+    ['R6, a chain that does not connect', h => { h.renames[1].before[0].com = 'Oak Bird' }, /earlier name "Oak Bird" is not the 2023 new name "Ashy Bird"/],
+    ['R7, a last rename that is not the snapshot\'s name', h => { h.renames[1].after[0].com = 'Ashes Bird' }, /last new name "Ashes Bird" is not the snapshot's "Ashen Bird"/],
+    ['R9, unsorted renames', h => { h.renames.reverse() }, /not sorted|is not the 2024 new name/],
+    ['I2, a rename moved into events', h => { h.events.push(h.renames.pop() as unknown as HistoryLike['events'][number]) }, /kind "rename"/],
+    ['K2, a form on a rename entry', h => { h.renames[0].before[0].form = 'Ash Bird (Ash)' }, /a rename entry carries a form/],
+    ['K2, a form on a split earlier name', h => { h.events[0].before[0].form = 'Dun Finch (Dun)' }, /a split's earlier name carries a form/],
+  ]
+  for (const [label, fn, msg] of rows) {
+    it(label, () => {
+      expect(() => checkHistory(mutate(fn), snap)).toThrow(msg)
+    })
+  }
+
+  const lumpGood = run()
+  const mutateLump = (fn: (h: HistoryLike) => void): HistoryLike => {
+    const h = structuredClone(lumpGood)
+    fn(h)
+    return h
+  }
+  const formRows: [string, (h: HistoryLike) => void, SnapshotLike, RegExp][] = [
+    ['K1, a wrong kept form', h => { h.events[1].before[0].form = 'Vee Bird (Gamma)' }, SNAPSHOT, /kept form is "Vee Bird \(Gamma\)", not the snapshot's "Vee Bird \(Delta\)"/],
+    ['K1, a kept form removed', h => { delete h.events[1].before[0].form }, SNAPSHOT, /kept form is "\(absent\)"/],
+    ['K1, a form where the snapshot keeps none', () => {}, { ...SNAPSHOT, reportAs: { yyy: 'vvv' } }, /carries the form "Vee Bird \(Delta\)" where the snapshot keeps none/],
+    ['K1 and K3, a form set to a species name', h => { h.events[1].before[0].form = 'Gamma Bird' }, SNAPSHOT, /kept form is "Gamma Bird"/],
+    ['K2, a form on an after entry', h => { h.events[1].after[0].form = 'Vee Bird' }, SNAPSHOT, /an after or slash entry carries a form/],
+  ]
+  for (const [label, fn, s, msg] of formRows) {
+    it(label, () => {
+      expect(() => checkHistory(mutateLump(fn), s)).toThrow(msg)
+    })
+  }
 })

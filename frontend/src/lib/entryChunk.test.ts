@@ -260,6 +260,22 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(loader).toMatch(/import\(\s*'\.\.\/assets\/ebird-taxonomy-history\.json'\s*\)/)
   })
 
+  // The rename cutoff and the kept-form rule live in the generator alone
+  // (recorded-names-in-splits-and-lumps, NFR-07, schema.md 4.2): the app never
+  // re-derives them at runtime, so no shipped module imports the derive core,
+  // while the two generator-facing guards do (the positive that keeps this live).
+  it('no non-test module imports the history generator\'s core, and the two generator guards do', () => {
+    const importsDerive = (file: string) =>
+      /from\s+'[^']*scripts\/lib\/taxonomyHistoryDerive(\.mjs)?'/.test(stripComments(readFileSync(resolve(SRC, file), 'utf8')))
+    const all = (readdirSync(SRC, { recursive: true, withFileTypes: true }))
+      .filter(d => d.isFile() && /\.(ts|tsx)$/.test(d.name))
+      .map(d => resolve(d.parentPath, d.name).slice(SRC.length))
+    const shipped = all.filter(f => !/\.test\.tsx?$/.test(f) && !f.startsWith('test/'))
+    expect(shipped.length).toBeGreaterThan(100)
+    expect(shipped.filter(importsDerive)).toEqual([])
+    expect(all.filter(importsDerive).sort()).toEqual(['lib/taxonomyHistoryAsset.test.ts', 'lib/taxonomyHistoryGenerator.test.ts'])
+  })
+
   // ── Species code search (species-code-search NFR-01 / QA-43). Paired, per
   // this file's convention: each negative has the positive that makes it live.
   it('the alpha-code asset and its modules are off the entry graph', () => {

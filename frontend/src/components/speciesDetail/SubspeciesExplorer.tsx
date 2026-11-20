@@ -28,7 +28,7 @@ export function SubspeciesExplorerControl({ entries, selectedSpecies, onPick, pa
    *  (FR-06) — the same code path as the selector, not a parallel one. */
   onPick: (species: string) => void
   /** Where the open panel renders (taxonomic-splits-lumps). This control now
-   *  shares a row with "Splits and lumps", and each control's panel opens BELOW
+   *  shares a row with "Splits/Lumps/Renames", and each control's panel opens BELOW
    *  that row at full width, so the page hands both controls one host element
    *  after the row and each portals its panel into it. DOM order is then the
    *  visual order: both toggles, then the panels (WCAG 2.4.3, never `order`).

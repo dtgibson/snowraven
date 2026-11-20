@@ -18,7 +18,11 @@ export function SectionCard({ children, style }: { children: React.ReactNode; st
   )
 }
 
-export function SectionHead({ icon, title }: { icon: React.ReactNode; title: string }) {
+/** `title` may be a node, and `titleClassName` a hook for the title's own
+ *  layout, both optional so every other section renders byte-identically
+ *  (recorded-names-in-splits-and-lumps: "Splits/Lumps/Renames" breaks after
+ *  its slashes and may shrink, design-spec R1). */
+export function SectionHead({ icon, title, titleClassName }: { icon: React.ReactNode; title: React.ReactNode; titleClassName?: string }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
@@ -32,7 +36,7 @@ export function SectionHead({ icon, title }: { icon: React.ReactNode; title: str
       }}>
         {icon}
       </div>
-      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
+      <span className={titleClassName} style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
     </div>
   )
 }

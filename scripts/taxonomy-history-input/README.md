@@ -127,7 +127,9 @@ and eBird's announcement all exist; they do not always land on the same day.
    either to UTF-8 if it is not already (see "Legacy encodings" above), check
    an accented name by eye, and keep the original bytes of any file you changed
    in `originals/`, with a line in `originals/SOURCES.md`. Add both files to the
-   table of files above.
+   table of files above. The integrated checklist's change column now also
+   feeds the rename check (step 6), so a CSV exported by hand from the XLSX
+   keeps that column exactly as stored.
 
 3. **Bump the two cache counters together, by one:** `VERSION` in
    `scripts/build-ebird-taxonomy.mjs` and `CACHE_KEY` in
@@ -176,8 +178,11 @@ and eBird's announcement all exist; they do not always land on the same day.
    It writes `frontend/src/assets/ebird-taxonomy-history.json`, or nothing. It
    fails closed on an unreadable file, a split daughter with no single parent,
    a lump with fewer than two species, a year whose events do not reproduce
-   eBird's announced tally, or an output that breaks any of the asset's
-   invariants.
+   eBird's announced tally, a rename Cornell does not annotate and no one has
+   cited (step 6), or an output that breaks any of the asset's invariants.
+   eBird announces no rename total, so nothing is typed for renames: the
+   generator derives them from the two taxonomy files and checks each against
+   the integrated checklist's annotation.
 
    If a year's events differ from eBird's tally only because eBird counts one
    reorganization by its net change (three species became two: one lost, none
@@ -201,9 +206,53 @@ and eBird's announcement all exist; they do not always land on the same day.
    species looks like an old name, so a joined sibling's Escapee row could
    reach a species that used to count (security report I-1 in
    `pipeline/escapee-check-new-taxonomy/`). If one is joined, decide before
-   shipping whether its stand-ins need a second signal.
+   shipping whether its stand-ins need a second signal. Renames never reach
+   that join (they live in the record's own `renames` array, which the join
+   does not read), so a new year's renames are never a reason to raise
+   `UNMATCHED_JOIN_VERSION`.
 
-6. **Re-derive every figure measured on the old snapshot.** Until the commit,
+6. **Read the rename printout.** After the split and lump line, the generator
+   prints, per covered update, renames kept / name changes left out as the
+   same name under the cutoff (`renameKey`: case, accents, hyphens, spaces,
+   apostrophes and gray/grey ignored) / name changes excluded because the code
+   is on a split or lump of that update, then the annotated rows that produced
+   no rename, by reason, and the lump earlier names traced to a kept form, the
+   ones that carried on as the lumped species and the ones with no kept form.
+   Read it: a jump in "left out" or "excluded" is worth a look.
+   - **If the run stopped on a rename Cornell does not annotate:** read eBird's
+     update page for that year in a browser (its pages refuse scripts). If the
+     rename is real, add a row to `RENAMES_UNANNOTATED` in
+     `scripts/lib/taxonomyHistoryDerive.mjs` with the year, the code, both
+     names exactly as the two files spell them and the page's URL as `source`,
+     and re-run. **Never add a row to make the run pass.** If the page cannot be
+     read before the release, add the row to `RENAMES_AWAITING_SOURCE` instead:
+     the rename is then left out of the record and printed by name as left out,
+     and the release ships without it.
+   - **Three renames await this reading now** (recorded-names-in-splits-and-
+     lumps, 2026-11-19), each printed as LEFT OUT on every run until it moves:
+     2019 `rutbuh1` Rufous-tailed Bush-hen to Pale-vented Bush-hen and 2019
+     `yegfin1` Yellow-green Finch to Yellow-green Brushfinch (the 2019 file first
+     carries each new name), and 2022 `grasal3` Blue-gray Saltator to
+     Bluish-gray Saltator (the 2022 file). To ship one: read eBird's 2019 or
+     2022 update page in a browser; if the page confirms the rename, move its row
+     from `RENAMES_AWAITING_SOURCE` to `RENAMES_UNANNOTATED` with the page's URL
+     as `source` and the confirming wording in a comment beside it, update the
+     literal row in `taxonomyHistoryGenerator.test.ts` that names the two tables,
+     and re-run. A row in either table that matches no derived rename stops the
+     run, so neither table can outlive its reason.
+   - **If the run stopped on a chain end (R7):** a renamed code's last new name
+     is not the snapshot's. That is usually Cornell's file lagging eBird by
+     days: wait, and download again.
+
+7. **Diff the record against the last one.** Compare
+   `git show HEAD:frontend/src/assets/ebird-taxonomy-history.json` with the new
+   file. Every earlier update's renames are unchanged apart from `retired`, and
+   every earlier split and lump is unchanged apart from present names,
+   `retired` and `form`. Read each changed `form`: eBird renamed a kept form,
+   and a backup exported before this refresh counts those reports as "Earlier
+   name not recorded" until a fresh backup is loaded (the stated limit).
+
+8. **Re-derive every figure measured on the old snapshot.** Until the commit,
    the old snapshot is still in git; print its code and species counts:
 
    ```
@@ -229,16 +278,24 @@ and eBird's announcement all exist; they do not always land on the same day.
    corrections), `ebirdTaxonomyDerive.mjs` (`MIN_ALPHA_CODE_ENTRIES` and
    `MAX_HYPHENATED_TOKENS`) and the plausibility floors in
    `build-ebird-taxonomy.mjs`. If `frivolousLists.test.ts` turns red, a listed
-   species was renamed or split: change the list to eBird's current name.
+   species was renamed or split: change the list to eBird's current name. Check
+   the history record's byte length against `historyMaxBytes` in
+   `frontend/src/lib/taxonomyHistoryAsset.ts` too: renames are most of the
+   record now, and if it is close, the lever is the compact rename shape
+   (schema.md 3.5 of recorded-names-in-splits-and-lumps), decided with a
+   measurement, never a raised constant on its own.
 
-7. **Run every check:** the full frontend suite (`cd frontend && npx vitest
+9. **Run every check:** the full frontend suite (`cd frontend && npx vitest
    run`, because pinned text was edited), the backend suite
    (`cd backend && .venv/bin/python -m pytest tests/ -v`), `npm run build` and
    `npx eslint .` in `frontend/`. `entryChunk.test.ts` confirms the snapshot
    stays off the entry chunk and the countability asset stays small, and
-   `cmp` on the two snapshot twins confirms they are identical.
+   `cmp` on the two snapshot twins confirms they are identical. If
+   `taxonomyHistoryAsset.test.ts` goes red on a kept form that is not countable
+   or does not fold to its lump's surviving species (K4), stop and bring it to
+   a design decision; never exclude the form by hand.
 
-8. **Ship it as a patch release on every platform**, through the release
+10. **Ship it as a patch release on every platform**, through the release
    skill. The F-Droid changelogs and the App Store "What's New" are published
    copy and wait for the user's yes.
 

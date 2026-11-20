@@ -511,7 +511,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
     requestAnimationFrame(() => jumpTo(breakdownRef.current, { block: 'nearest' }))
   }, [revealAndSelect])
 
-  // ── Splits and lumps (taxonomic-splits-lumps) ──────────────────────────
+  // ── Splits/Lumps/Renames (taxonomic-splits-lumps, recorded-names) ──────
   // The bundled history asset, loaded through its one dynamic import once the
   // tab is ready (it rides its own chunk, off the entry graph). The loader
   // memoizes its promise for the session and resolves null on failure, which is
@@ -839,10 +839,10 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
       </div>
 
       {/* The taxonomy tools row, directly below the selector and above the
-          filter row: "Subspecies and forms" (FR-04) with "Splits and lumps"
+          filter row: "Subspecies and forms" (FR-04) with "Splits/Lumps/Renames"
           beside it (taxonomic-splits-lumps FR-10). Merged mode only (FR-19,
           FR-24); ready state only by position in this branch (FR-23). The
-          Splits and lumps control also waits for its asset and is absent if it
+          Splits/Lumps/Renames control also waits for its asset and is absent if it
           fails to load (FR-28). Each control's panel opens in the host below
           the row, at full width. */}
       {mergeSubspecies && (
@@ -1217,7 +1217,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
             />
           )}
 
-          {/* Splits and Lumps lineage (taxonomic-splits-lumps), immediately
+          {/* Splits/Lumps/Renames lineage (taxonomic-splits-lumps), immediately
               after Subspecies and Forms and before Graph Options (OQ-03), full
               width. Merged mode only, and never silently absent for a selected
               species there (FR-21): outside the Sightings fragment, so it

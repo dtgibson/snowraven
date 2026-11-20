@@ -262,3 +262,51 @@ describe('a current export is never cross-joined', () => {
     expect([...cache.unmatchedSet(Date.now())]).toEqual(['willet2'])
   })
 })
+
+// ── Renames never reach the join (recorded-names-in-splits-and-lumps; FR-33,
+// QA-34, schema.md section 9) ────────────────────────────────────────────────
+//
+// The record keeps renames in their own array precisely so this join admits
+// exactly what it admitted before: `buildEscapeeJoin` reads `coverage` and
+// `events`, and no rename is ever a member of `events`. Tested three ways, by
+// removal (the structural form, testing.md v1.0.32), by a control that can
+// fail, and by a source pin.
+
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
+
+describe('the join admits exactly what it admitted before renames joined the record (FR-33)', () => {
+  const flat = (j: EscapeeJoin) => JSON.stringify(j === NO_ESCAPEE_JOIN ? null
+    : [...(j as { byBeforeName: Map<string, unknown> }).byBeforeName].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+
+  it('equals, key for key and value for value, the join from the same record with every rename removed, and with every kept form stripped', () => {
+    const noRenames = { ...HISTORY, renames: [] }
+    const noForms = { ...HISTORY, events: HISTORY.events.map(e => ({ ...e, before: e.before.map(b => { const c = { ...b }; delete c.form; return c }) })) }
+    expect(HISTORY.renames.length, 'the record carries renames').toBeGreaterThan(0)
+    expect(flat(buildEscapeeJoin(noRenames))).toBe(flat(JOIN))
+    expect(flat(buildEscapeeJoin(noForms))).toBe(flat(JOIN))
+  })
+
+  it('and the removal can fail: renames moved into events DO widen it', () => {
+    // Without this leg the row above would pass against a record with no
+    // renames at all (schema.md 9, measured 185 entries against 39).
+    const merged = { ...HISTORY, events: [...HISTORY.events, ...HISTORY.renames] } as unknown as TaxonomyHistory
+    const size = (j: EscapeeJoin) => (j === NO_ESCAPEE_JOIN ? 0 : (j as { byBeforeName: Map<string, unknown> }).byBeforeName.size)
+    expect(size(buildEscapeeJoin(merged))).toBeGreaterThan(size(JOIN))
+  })
+
+  it('reads no renames: the join module never names the array (comments stripped)', () => {
+    const src = readFileSync(new URL('./exoticTaxonomyJoin.ts', import.meta.url), 'utf8')
+    const code = stripComments(src)
+    expect(code).toMatch(/history\.events/) // non-vacuity: the reader is the one it should be
+    expect(code).not.toMatch(/renames/)
+    // The strip, proved: the word in a comment is not read, in code it is.
+    expect(stripComments(`${src}\n// renames\n`)).not.toMatch(/renames/)
+    expect(stripComments(`${src}\nconst renames = 1\n`)).toMatch(/renames/)
+  })
+
+  it('does not reopen the recorded absences: the marker has the prior release\'s value', async () => {
+    const { UNMATCHED_JOIN_VERSION } = await import('./exoticProvenanceCache')
+    expect(UNMATCHED_JOIN_VERSION).toBe(1)
+  })
+})

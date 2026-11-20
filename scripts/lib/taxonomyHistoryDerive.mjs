@@ -248,6 +248,75 @@ export function tally(events) {
 /** eBird released no taxonomy update in these years. */
 export const YEARS_WITHOUT_UPDATE = Object.freeze([2020])
 
+// ── Renames (recorded-names-in-splits-and-lumps, schema.md 4.1 to 4.3) ───────
+// A rename is a species code present in this update's eBird taxonomy file and
+// the previous update's, a species in both, on no split or lump of this
+// update, whose two common names differ under renameKey. They live in the
+// record's own `renames` array, never in `events`: the Statistics escapee join
+// reads `events` and must admit exactly what it admitted before (schema.md 2.1).
+
+/**
+ * The rename cutoff (FR-03), stated once. Two common names are the same name,
+ * and yield no rename, exactly when their keys are equal. The steps, in order:
+ * decompose accented letters and drop the marks (U+0300 to U+036F); lowercase;
+ * "grey" becomes "gray"; delete every hyphen-minus, space, straight
+ * apostrophe, grave accent, modifier-letter apostrophe, okina and left or right
+ * curly apostrophe. Any other difference is a rename: a changed letter, a
+ * period, a non-breaking hyphen (U+2011) or a no-break space (U+00A0) all
+ * count, because the steps do not name them. Every code point is written as an
+ * escape: an agent's editing tools have turned written escapes into literal
+ * combining marks before (`.claude/rules/testing.md`, v1.0.55). The app never
+ * evaluates this; only the generator and its CI guards do.
+ */
+export function renameKey(name) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/grey/g, 'gray')
+    .replace(/[\u002d\u0020\u0027\u0060\u02bb\u02bc\u2018\u2019]/g, '')
+}
+
+// ── Renames Cornell does not annotate (R8, cited) ────────────────────────────
+// Every emitted rename must sit on a species row of that update's integrated
+// checklist whose change cell names an English name change ("name change -
+// English name" in 2019, "name change: English name" in 2021 and 2022, "name
+// change - English" and "name change - English and sciname" from 2023): a
+// different file from the taxonomy the rename is derived from, so it is the
+// independent check that plays the announced tally's role (schema.md 4.3). A
+// rename Cornell did not annotate is admitted only as a row here, each a
+// person's reading of eBird's update page for that year, with its URL. A row
+// matches by year, code and both names exactly, so an invented entry admits
+// nothing else. A row marked `assumed` is refused like an assumed published
+// date. None is cited yet.
+export const RENAMES_UNANNOTATED = Object.freeze({})
+
+// ── Renames awaiting a source (recorded-names-in-splits-and-lumps) ───────────
+// Departure from schema.md 4.3, at the orchestrator's direction (2026-11-19):
+// the schema's R8 refuses an unannotated, uncited rename and so aborts the run;
+// these three are known, real-looking renames Cornell's checklist does not
+// annotate, and eBird's 2019 and 2022 update pages (which refuse scripts) have
+// not yet been read in a browser. Rather than hold the build, each is LEFT OUT
+// of the record and printed by name. A row matches by year, code and both names
+// exactly, exactly as a cited row does; a row that matches no derived rename,
+// or one Cornell does annotate, or one also cited above, fails the run, so this
+// table cannot outlive its reason. To ship one: read eBird's page for its year,
+// move it to RENAMES_UNANNOTATED with the URL, and re-run
+// (scripts/taxonomy-history-input/README.md).
+export const RENAMES_AWAITING_SOURCE = Object.freeze({
+  2019: Object.freeze([
+    Object.freeze({ code: 'rutbuh1', from: 'Rufous-tailed Bush-hen', to: 'Pale-vented Bush-hen' }),
+    Object.freeze({ code: 'yegfin1', from: 'Yellow-green Finch', to: 'Yellow-green Brushfinch' }),
+  ]),
+  2022: Object.freeze([
+    Object.freeze({ code: 'grasal3', from: 'Blue-gray Saltator', to: 'Bluish-gray Saltator' }),
+  ]),
+})
+
+/** Whether a table row (by year) names this rename exactly. */
+const rowFor = (table, year, code, from, to) =>
+  (table[year] ?? []).find(r => r.code === code && r.from === from && r.to === to) ?? null
+
 /** The eBird update immediately before `year`. */
 export function previousUpdate(year, withoutUpdate = YEARS_WITHOUT_UPDATE) {
   let p = year - 1
@@ -480,6 +549,8 @@ export function deriveHistory(input) {
   const published = input.published ?? UPDATE_PUBLISHED
   const withoutUpdate = input.withoutUpdate ?? YEARS_WITHOUT_UPDATE
   const recountsFor = input.recounts ?? ANNOUNCED_RECOUNTS
+  const unannotated = input.renamesUnannotated ?? RENAMES_UNANNOTATED
+  const awaiting = input.renamesAwaitingSource ?? RENAMES_AWAITING_SOURCE
   const snapshot = input.snapshot
 
   // File names are the provenance; anything else is refused.
@@ -541,6 +612,9 @@ export function deriveHistory(input) {
 
   const updates = []
   const events = []
+  const renames = []
+  /** What a person reads after a run (schema.md 4.5); never typed into a test. */
+  const report = { renames: [], keptForms: { traced: 0, survivor: 0, noForm: 0 } }
   for (const year of covered) {
     const rec = published[year]
     if (!rec) fail(`no published date for the ${year} update in UPDATE_PUBLISHED`)
@@ -573,6 +647,23 @@ export function deriveHistory(input) {
     if (yearEvents.length === 0) fail(`the ${year} update produced no events; remove its inputs rather than claim coverage${note}`)
     updates.push({ year, published: rec.published })
     events.push(...yearEvents)
+    const yr = deriveRenames(year, {
+      intY: integrated.get(year),
+      taxY: taxonomy.get(year), taxP: taxonomy.get(previousUpdate(year, withoutUpdate)),
+      yearEvents, published: rec.published, unannotated, awaiting,
+    })
+    renames.push(...yr.renames)
+    report.renames.push(yr.report)
+  }
+  // A table row that matched no derived rename is stale or invented: refuse it,
+  // so neither table can admit or excuse anything it does not name.
+  for (const [label, table, used] of [['RENAMES_UNANNOTATED', unannotated, 'cited'], ['RENAMES_AWAITING_SOURCE', awaiting, 'awaiting']]) {
+    for (const [y, rows] of Object.entries(table)) {
+      for (const row of rows) {
+        const hit = report.renames.find(r => r.year === Number(y))?.[used].some(r => r.code === row.code && r.from === row.from && r.to === row.to)
+        if (!hit) fail(`${label} row ${y} ${row.code} "${row.from}" to "${row.to}" matches no unannotated rename the ${y} files derive (remove it, or correct its year, code or names)`)
+      }
+    }
   }
 
   // Names: after/slash entries carry current names wherever the code is still
@@ -589,23 +680,127 @@ export function deriveHistory(input) {
       if (now !== undefined && !snapSpecies.has(e.code) && now.includes('/')) e.com = now
     }
     for (const b of ev.before) b.retired = !Object.hasOwn(snapshot.byCom, b.com.toLowerCase())
+    // Kept forms (FR-06, K1), the rule's one definition: a lump's earlier name
+    // has a kept form exactly when the snapshot carries the earlier name's own
+    // code as a taxon that is not a species, is not the lumped species' code,
+    // and reports as the lumped species' code. The form's name is the
+    // snapshot's present name for that code. Nothing else is traced: the
+    // scientific-name match was tested and rejected (schema.md 4.4, OQ-02).
+    if (ev.kind === 'lump') {
+      for (const b of ev.before) {
+        const form = keptFormFor(b.code, ev.after[0].code, snapshot, snapSpecies)
+        if (form !== null) b.form = form
+        if (form !== null) report.keptForms.traced += 1
+        else if (b.code === ev.after[0].code) report.keptForms.survivor += 1
+        else report.keptForms.noForm += 1
+      }
+    }
   }
+  // A rename's earlier name carries the same retired flag (I7, R5). Its new
+  // name is NEVER rewritten to the snapshot's present name, so a code renamed
+  // in two updates reads A to B, then B to C (FR-01).
+  for (const r of renames) r.before[0].retired = !Object.hasOwn(snapshot.byCom, r.before[0].com.toLowerCase())
 
-  events.sort((a, b) =>
+  const bySciThenDate = (a, b) =>
     a.published < b.published ? -1 : a.published > b.published ? 1
-      : a.before[0].sci < b.before[0].sci ? -1 : a.before[0].sci > b.before[0].sci ? 1 : 0)
+      : a.before[0].sci < b.before[0].sci ? -1 : a.before[0].sci > b.before[0].sci ? 1 : 0
+  events.sort(bySciThenDate)
+  renames.sort(bySciThenDate)
 
   const history = {
-    v: 1,
+    v: 2,
     snapshot: snapshot.version,
     generated: input.generated,
     inputs: [...used].sort(),
     updates,
     coverage: updates.length === 0 ? null : { earliest: updates[0], latest: updates[updates.length - 1] },
     events,
+    renames,
   }
   checkHistory(history, snapshot)
-  return { history }
+  return { history, report }
+}
+
+/** The kept form's present name for a lump's earlier name, or null (K1). */
+export function keptFormFor(code, lumpedCode, snapshot, snapSpecies) {
+  const reportAs = snapshot.reportAs ?? {}
+  if (code === lumpedCode) return null
+  if (!Object.hasOwn(snapshot.byCode, code)) return null
+  if (snapSpecies.has(code)) return null
+  if (!Object.hasOwn(reportAs, code) || reportAs[code] !== lumpedCode) return null
+  return snapshot.byCode[code]
+}
+
+/**
+ * The renames of update `year` (FR-02, schema.md 4.1), checked against the
+ * integrated checklist's English-name-change annotation (R8, 4.3). Returns the
+ * renames to emit and the printout's row for the year.
+ */
+function deriveRenames(year, { intY, taxY, taxP, yearEvents, published, unannotated, awaiting }) {
+  const onEvent = new Set()
+  for (const ev of yearEvents) for (const e of [...ev.before, ...ev.after, ...ev.slashes]) onEvent.add(e.code)
+
+  // Codes whose species row this update's checklist annotates as an English
+  // name change, joined to the taxonomy by scientific name (the shipped join).
+  const annotated = new Set()
+  let annotatedUnjoined = 0
+  for (const r of intY.rows) {
+    if (r.category !== 'species' || !r.change.toLowerCase().includes('english')) continue
+    const t = taxY.speciesBySci.get(joinKey(r.sci))
+    if (t) annotated.add(t.code)
+    else annotatedUnjoined += 1
+  }
+
+  const out = []
+  const report = {
+    year, kept: 0, leftOut: 0, excluded: 0,
+    cited: [], awaiting: [],
+    annotatedWithoutRename: { newCode: 0, onEvent: 0, equalUnderCutoff: 0, nameUnchanged: 0, joinsNoSpecies: annotatedUnjoined },
+  }
+  for (const t of taxY.byCode.values()) {
+    if (t.category !== 'species') continue
+    const p = taxP.byCode.get(t.code)
+    const isRename = p !== undefined && p.category === 'species' && !onEvent.has(t.code) && renameKey(p.com) !== renameKey(t.com)
+    if (annotated.has(t.code) && !isRename) {
+      const why = report.annotatedWithoutRename
+      if (p === undefined || p.category !== 'species') why.newCode += 1
+      else if (onEvent.has(t.code)) why.onEvent += 1
+      else if (p.com === t.com) why.nameUnchanged += 1
+      else why.equalUnderCutoff += 1
+    }
+    if (p === undefined || p.category !== 'species' || p.com === t.com) continue
+    if (onEvent.has(t.code)) { report.excluded += 1; continue }
+    if (!isRename) { report.leftOut += 1; continue }
+    // R8. An annotated rename is kept; an unannotated one only as a cited row,
+    // or it is left out by name while it awaits a source; anything else stops.
+    const row = { code: t.code, from: p.com, to: t.com }
+    const waiting = rowFor(awaiting, year, t.code, p.com, t.com)
+    const cited = rowFor(unannotated, year, t.code, p.com, t.com)
+    if (annotated.has(t.code)) {
+      if (waiting) fail(`RENAMES_AWAITING_SOURCE row ${year} ${t.code} "${p.com}" to "${t.com}" is annotated in ${intY.file}; remove the row`)
+      if (cited) fail(`RENAMES_UNANNOTATED row ${year} ${t.code} "${p.com}" to "${t.com}" is annotated in ${intY.file}; remove the row`)
+    } else if (cited && waiting) {
+      fail(`the ${year} rename ${t.code} "${p.com}" to "${t.com}" is both cited and awaiting a source; keep one row`)
+    } else if (cited) {
+      if (cited.mark === 'assumed' || typeof cited.source !== 'string' || !/^https?:\/\//.test(cited.source)) {
+        fail(`RENAMES_UNANNOTATED row ${year} ${t.code} "${p.com}" to "${t.com}" is ${cited.mark === 'assumed' ? 'marked assumed' : 'missing its source URL'}; read eBird's ${year} update page in a browser before this rename can ship`)
+      }
+      report.cited.push(row)
+    } else if (waiting) {
+      report.awaiting.push(row)
+      continue
+    } else {
+      fail(`the ${year} rename ${t.code} "${p.com}" to "${t.com}" is not annotated as an English name change in ${intY.file} and is not a cited row of RENAMES_UNANNOTATED: read eBird's ${year} update page in a browser, and cite it only if the rename is real`)
+    }
+    report.kept += 1
+    out.push({
+      kind: 'rename', year, published,
+      before: [{ code: t.code, sci: p.sci, com: p.com, retired: false }],
+      after: [{ code: t.code, sci: t.sci, com: t.com }],
+      slashes: [],
+    })
+  }
+  return { renames: out, report }
 }
 
 /** The snapshot stores lowercase scientific names; restore the genus capital. */
@@ -1009,10 +1204,10 @@ function realDate(s) {
  */
 export function checkHistory(h, snapshot) {
   const bad = (msg) => fail(`asset invariant: ${msg}`)
-  // I1
-  if (h.v !== 1) bad(`v is ${h.v}, expected 1`)
+  // I1 (version 2 since renames joined)
+  if (h.v !== 2) bad(`v is ${h.v}, expected 2`)
   if (h.snapshot !== snapshot.version) bad(`snapshot "${h.snapshot}" does not equal the bundled snapshot version "${snapshot.version}"`)
-  if (!Array.isArray(h.updates) || !Array.isArray(h.events) || !Array.isArray(h.inputs)) bad('updates, events and inputs must be arrays')
+  if (!Array.isArray(h.updates) || !Array.isArray(h.events) || !Array.isArray(h.inputs) || !Array.isArray(h.renames)) bad('updates, events, renames and inputs must be arrays')
   // I9: updates ascending, unique, coverage derived
   const years = new Set()
   h.updates.forEach((u, i) => {
@@ -1110,5 +1305,103 @@ export function checkHistory(h, snapshot) {
     }
   })
   for (const u of h.updates) if (!eventsPerYear.get(u.year)) bad(`update ${u.year} has no events`)
+
+  // K1 to K3: kept forms on lump earlier names (FR-06), and nowhere else.
+  const forms = new Set()
+  h.events.forEach((ev, i) => {
+    const at = `event ${i} (${ev.kind} ${ev.year})`
+    for (const e of [...ev.after, ...ev.slashes]) if (Object.hasOwn(e, 'form')) bad(`${at}: an after or slash entry carries a form`)
+    for (const b of ev.before) {
+      if (ev.kind !== 'lump') {
+        if (Object.hasOwn(b, 'form')) bad(`${at}: a split's earlier name carries a form`)
+        continue
+      }
+      const want = keptFormFor(b.code, ev.after[0].code, snapshot, snapSpecies)
+      const has = Object.hasOwn(b, 'form')
+      if (want === null && has) bad(`${at}: "${b.code}" carries the form "${b.form}" where the snapshot keeps none`)
+      if (want !== null && (!has || b.form !== want)) bad(`${at}: "${b.code}" kept form is "${has ? b.form : '(absent)'}", not the snapshot's "${want}"`)
+      if (has) {
+        if (forms.has(b.form)) bad(`${at}: kept form "${b.form}" repeats`)
+        if (Object.hasOwn(snapshot.byCom, b.form.toLowerCase())) bad(`${at}: kept form "${b.form}" is a species name`)
+        forms.add(b.form)
+      }
+    }
+  })
+
+  // R1 to R7, R9: renames (FR-01 to FR-05). R8, the annotation check, needs
+  // Cornell's files and is the generator's alone.
+  const slCodesByYear = new Map()  // year -> every code on a split or lump of that year
+  const slAt = new Map()           // code -> published dates of splits and lumps carrying it
+  for (const ev of h.events) {
+    if (!slCodesByYear.has(ev.year)) slCodesByYear.set(ev.year, new Set())
+    for (const e of [...ev.before, ...ev.after, ...ev.slashes]) {
+      slCodesByYear.get(ev.year).add(e.code)
+      if (!slAt.has(e.code)) slAt.set(e.code, [])
+      slAt.get(e.code).push(ev.published)
+    }
+  }
+  const renamesByCode = new Map()
+  h.renames.forEach((r, i) => {
+    const at = `rename ${i} (${r.year})`
+    // R1
+    if (r.kind !== 'rename') bad(`${at}: kind "${r.kind}"`)
+    if (!Number.isInteger(r.year) || !realDate(r.published)) bad(`${at}: incomplete year or date`)
+    if (!h.updates.some(u => u.year === r.year && u.published === r.published)) bad(`${at}: (year, published) is not a member of updates`)
+    if (!Array.isArray(r.before) || !Array.isArray(r.after) || !Array.isArray(r.slashes)) bad(`${at}: sides must be arrays`)
+    if (r.before.length !== 1 || r.after.length !== 1 || r.slashes.length !== 0) bad(`${at}: a rename needs one earlier name, one current name and no slashes`)
+    const [b] = r.before
+    const [a] = r.after
+    for (const e of [b, a]) {
+      for (const k of ['code', 'sci', 'com']) {
+        if (typeof e[k] !== 'string' || e[k].trim() === '') bad(`${at}: an entry has no ${k}`)
+        if (e[k].includes('\ufffd')) bad(`${at}: U+FFFD in ${e[k]}`)
+      }
+      if (!CODE_RE.test(e.code)) bad(`${at}: code "${e.code}" fails the species-code shape`)
+      if (Object.hasOwn(e, 'form')) bad(`${at}: a rename entry carries a form`)
+    }
+    if (b.code !== a.code) bad(`${at}: earlier code "${b.code}" is not the current code "${a.code}"`)
+    // R2
+    if (renameKey(b.com) === renameKey(a.com)) bad(`${at}: "${b.com}" and "${a.com}" are the same name under the rename cutoff`)
+    // R3
+    if (slCodesByYear.get(r.year)?.has(b.code)) bad(`${at}: code "${b.code}" is also on a split or lump of the same update`)
+    // R5
+    if (typeof b.retired !== 'boolean') bad(`${at}: the earlier name has no retired flag`)
+    if (b.retired !== !Object.hasOwn(snapshot.byCom, b.com.toLowerCase())) bad(`${at}: the earlier name's retired flag disagrees with the snapshot`)
+    // R9
+    if (i > 0) {
+      const p = h.renames[i - 1]
+      const ok = p.published < r.published || (p.published === r.published && p.before[0].sci <= b.sci)
+      if (!ok) bad(`${at}: renames are not sorted by (published, earlier sci)`)
+    }
+    if (!renamesByCode.has(b.code)) renamesByCode.set(b.code, [])
+    renamesByCode.get(b.code).push(r)
+  })
+  for (const [code, list] of renamesByCode) {
+    const ordered = [...list].sort((x, y) => (x.published < y.published ? -1 : x.published > y.published ? 1 : 0))
+    for (let i = 0; i < ordered.length; i += 1) {
+      const r = ordered[i]
+      // R4
+      if (i > 0 && ordered[i - 1].year === r.year) bad(`rename of "${code}": two renames in the ${r.year} update`)
+      // R6: consecutive renames of one code connect, unless a split or lump
+      // between them (the later's own update included) carries the code.
+      if (i > 0) {
+        const prev = ordered[i - 1]
+        const between = (slAt.get(code) ?? []).some(p => p > prev.published && p <= r.published)
+        if (!between && renameKey(r.before[0].com) !== renameKey(prev.after[0].com)) {
+          bad(`rename of "${code}": the ${r.year} earlier name "${r.before[0].com}" is not the ${prev.year} new name "${prev.after[0].com}"`)
+        }
+      }
+    }
+    // R7: the last rename ends at eBird's present name, unless a later split or
+    // lump carries the code (it is then that event's to explain).
+    const last = ordered[ordered.length - 1]
+    const later = (slAt.get(code) ?? []).some(p => p > last.published)
+    if (!later) {
+      if (!snapSpecies.has(code)) bad(`rename of "${code}": its last rename's code is not a species in the snapshot and no later split or lump carries it`)
+      else if (renameKey(last.after[0].com) !== renameKey(snapshot.byCode[code])) {
+        bad(`rename of "${code}": its last new name "${last.after[0].com}" is not the snapshot's "${snapshot.byCode[code]}"`)
+      }
+    }
+  }
   return true
 }

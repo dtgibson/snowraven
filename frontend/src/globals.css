@@ -7986,7 +7986,18 @@ select:focus-visible {
   color: var(--sr-text); cursor: pointer;
   transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
 }
-.sr-ssx-toggle:hover { background: var(--sr-surface-subtle); }
+/* A pointer look only: a touch screen keeps :hover on the tapped toggle until
+   the next tap, so an ungated rule painted it after the tap closed its list
+   (ui.md v1.0.65; recorded-names-in-splits-and-lumps D-14). Gated in place, so
+   the open state below still follows it at equal specificity and wins.
+   lib/controlRegisters.test.ts holds it. */
+@media (hover: hover) {
+  .sr-ssx-toggle:hover { background: var(--sr-surface-subtle); }
+}
+/* The control's label may shrink and breaks after each "/" (markup <wbr>), so
+   "Splits/Lumps/Renames" never runs past the control at 320px and 200% text
+   (design-spec R1). */
+.sr-ssx-label { min-width: 0; }
 /* Open state mirrors the county select's active-filter treatment: accent only
    while active (design-spec.md). */
 .sr-ssx-toggle[aria-expanded="true"] {
@@ -8087,9 +8098,9 @@ select:focus-visible {
   }
 }
 
-/* ── Splits and lumps (Species Detail, taxonomic-splits-lumps) ───────────────
-   The taxonomy tools row ("Subspecies and forms" beside "Splits and lumps"),
-   the Splits and lumps list rows, and the lineage section's flow chart. Both
+/* ── Splits/Lumps/Renames (Species Detail, taxonomic-splits-lumps) ───────────
+   The taxonomy tools row ("Subspecies and forms" beside "Splits/Lumps/Renames"),
+   the Splits/Lumps/Renames list rows, and the lineage section's flow chart. Both
    controls reuse the .sr-ssx-* register above byte for byte (toggle, tile,
    count, caret, panel, panel head, list), so only what is new lives here.
    Colors are --sr-* tokens only, both themes, no new tokens. All motion is
@@ -8103,14 +8114,21 @@ select:focus-visible {
 .sr-taxtools { margin-bottom: 16px; flex-shrink: 0; }
 .sr-taxtools-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-start; }
 
-/* A list row: the name on the left, one line per event on the right. */
+/* A list row: the name on the left, one line per event on the right. The row
+   wraps only when the name's full width and the kinds do not fit ("Rename" is
+   the longest kind word), and then the kinds drop under the name,
+   right-aligned by their own margin-left: auto (design-spec R2). */
 .sr-sl-row {
   display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left;
+  flex-wrap: wrap; row-gap: 2px;
   border: none; background: none; cursor: pointer;
   font-family: inherit; padding: 10px 14px;
   transition: background 120ms ease-out;
 }
-.sr-sl-row:hover { background: var(--sr-surface-subtle); }
+/* Gated like the toggle's (D-14), and before the selected row, which wins. */
+@media (hover: hover) {
+  .sr-sl-row:hover { background: var(--sr-surface-subtle); }
+}
 .sr-sl-row[aria-current="true"] { background: var(--sr-accent-bg); }
 .sr-sl-row-name { min-width: 0; overflow-wrap: anywhere; }
 .sr-sl-row-name .sr-birdname-text { font-weight: 600; }
@@ -8265,6 +8283,36 @@ select:focus-visible {
 .sr-lin-sentence .sr-birdname,
 .sr-lin-sentence .sr-birdname-row { display: inline; vertical-align: baseline; }
 .sr-lin-sentence .sr-birdname-text { font: inherit; color: inherit; }
+/* The explanatory paragraph under the sentence (design-spec R4). */
+.sr-lin-sentence + .sr-lin-sentence { margin-top: 6px; }
+
+/* ── recorded-names-in-splits-and-lumps: the earlier-name boxes ──────────────
+   Earlier names now carry a count, a zero state, a "not traceable" or
+   "not counted on this line" marker, and a lump may show an "Earlier name not
+   recorded" box (design-spec 4.2, rules R1 and R5 to R8). Tokens only, both
+   themes; no new token, typeface or motion. */
+/* The section title may shrink and breaks after each "/" (R1). */
+.sr-lin-title { min-width: 0; }
+/* A form or species name quoted in a line reads as part of the line (R5): the
+   BirdName wrapper is an inline-flex column, which would otherwise break it out
+   of the text. */
+.sr-lin-part .sr-birdname,
+.sr-lin-part .sr-birdname-row { display: inline; vertical-align: baseline; }
+.sr-lin-part .sr-birdname-text { font: inherit; color: inherit; }
+/* The "Earlier name not recorded" marker leads its box (R6). */
+.sr-lin-mark--lead { margin-top: 0; }
+/* The "cannot count" markers carry the circle-slash glyph (R7). The marker may
+   wrap to two lines, so the glyph sits on the first, sized in em so it grows
+   with the text. Selected by its own class, never a bare `svg`, which would
+   compete with the map FAB glyph rule (ui.md v1.0.42, mapFabCascade.test.ts). */
+.sr-lin-mark--cannot { align-items: flex-start; }
+.sr-lin-cannot-glyph { width: 1em; height: 1em; margin-top: 0.12em; flex-shrink: 0; }
+/* The earlier-name share bar (R8, design-spec section 8): this box's share of
+   the event's reports dated on or before the update, filled from the left in
+   gray; the accent stays with "recorded since" on current names. It rides the
+   shipped sr-lin-bar-in fill through `.sr-lin-bar i`. */
+.sr-lin-bar--earlier { justify-content: flex-start; background: var(--sr-border); }
+.sr-lin-bar--earlier i { background: var(--sr-gray-400); }
 
 /* Phone tier. A trailing block, like the explorer's above, because these rules
    must follow the base rules they override at equal specificity; the
@@ -8281,7 +8329,7 @@ select:focus-visible {
   .sr-lin-side--multi { padding-left: 42px; }
   .sr-lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
   .sr-lin-rail::before, .sr-lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
-  .sr-lin-badge { white-space: normal; }
+  .sr-lin-badge { white-space: normal; flex-wrap: wrap; }
   /* The glyph follows the flow: it fans out (or converges) downward. */
   .sr-lin-badge .sr-lin-glyph { transform: rotate(90deg); }
   .sr-lin-node::before { display: none; }
@@ -8296,21 +8344,29 @@ select:focus-visible {
    box too narrow for three columns", which is the question the 641 to ~740px
    band at 200% text failed, and the one a container query is sanctioned for
    (ui.md v1.0.23). The em term tracks the text scale (the event's font size is
-   1rem): measured in Chromium and WebKit, the three-column chart first clips at
-   an event about 18em wide (575px at 200%), so 21em keeps a sixth of headroom;
-   the px term is the absolute floor at 100% text, where three columns need
-   about 390px. Written as the disjunction, the sr-wx-col precedent's form.
+   1rem); the px term is the absolute floor at 100% text. Written as the
+   disjunction, the sr-wx-col precedent's form.
+
+   Moved from (max-width: 21em) or (max-width: 420px) by recorded-names-in-
+   splits-and-lumps (design-spec R9, decisions.md D-13): "Not traceable in your
+   backup" with its glyph, and "Your species" beside the wider "Rename by ..."
+   badge, need a wider event. Re-measured in the BUILT app (ui.md v1.0.50), the
+   stacking switched off, text ink against each node's and badge's content box,
+   in Chromium and WebKit with the same result: three columns are clean from an
+   event 485px wide at 100% text, 550px at 125%, 615px at 150% and 745px at
+   200%. 520px covers 100%; 29em (580, 696 and 928px) covers 125% and up. The
+   classic-scrollbar sweep of the real page is in the build's evidence.
 
    THE DECLARATIONS BELOW ARE THE ≤640 TIER'S .sr-lin-* RULES, LOCKED IDENTICAL
    by lib/splitsLumpsCss.test.ts: two blocks holding one layout must not drift.
    Where both apply at once they agree, so which one governs is moot. */
-@container sr-lin (max-width: 21em) or (max-width: 420px) {
+@container sr-lin (max-width: 29em) or (max-width: 520px) {
   .sr-lin-chart { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
   .sr-lin-side--before, .sr-lin-side--after { padding: 0; }
   .sr-lin-side--multi { padding-left: 42px; }
   .sr-lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
   .sr-lin-rail::before, .sr-lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
-  .sr-lin-badge { white-space: normal; }
+  .sr-lin-badge { white-space: normal; flex-wrap: wrap; }
   .sr-lin-badge .sr-lin-glyph { transform: rotate(90deg); }
   .sr-lin-node::before { display: none; }
   .sr-lin-side--multi .sr-lin-node::before { display: block; left: -19px; right: auto; top: var(--lin-stub); }

@@ -350,7 +350,11 @@ interface CascadeReading {
  * anywhere in it, and a selected-state rule when its rightmost compound carries
  * `[aria-pressed="true"]` or a `[data-state=...]` attribute.
  */
-function readCascade(text: string): CascadeReading {
+function readCascade(
+  text: string,
+  registers: readonly string[] = REGISTERS,
+  isSelected: (part: string) => boolean = p => p === '[aria-pressed="true"]' || p.startsWith('[data-state='),
+): CascadeReading {
   const all = collect(blankComments(text))
   const hovers = new Map<string, string[]>()
   const selected = new Map<string, string[]>()
@@ -360,13 +364,13 @@ function readCascade(text: string): CascadeReading {
   all.forEach((rule, index) => {
     for (const selector of rule.selectors) {
       const parts = simpleParts(compoundsOf(selector).at(-1) ?? '')
-      const register = REGISTERS.find(r => parts.includes(`.${r}`))
+      const register = registers.find(r => parts.includes(`.${r}`))
       if (!register) continue
       if (/:hover\b/.test(selector)) {
         hovers.set(register, [...(hovers.get(register) ?? []), selector])
         hoverAt.push({ register, selector, index })
         if (!rule.ancestors.includes(HOVER_GATE)) violations.push(`${selector} is a hover rule outside ${HOVER_GATE}`)
-      } else if (parts.some(p => p === '[aria-pressed="true"]' || p.startsWith('[data-state='))) {
+      } else if (parts.some(isSelected)) {
         selected.set(register, [...(selected.get(register) ?? []), selector])
         selectedAt.push({ register, selector, index })
       }
@@ -393,19 +397,22 @@ function mutate(from: string, to: string, text: string = css): string {
 
 /** Unwrap the `@media (hover: hover)` block that holds one register's hover rule. */
 function ungate(register: string): string {
+  return ungateIn(css, register)
+}
+function ungateIn(text: string, register: string): string {
   const head = `${HOVER_GATE} {\n  .${register}`
-  const start = css.indexOf(head)
+  const start = text.indexOf(head)
   expect(start, `no gated hover block for .${register}`).toBeGreaterThan(-1)
-  expect(css.indexOf(head, start + 1), `more than one gated block for .${register}`).toBe(-1)
+  expect(text.indexOf(head, start + 1), `more than one gated block for .${register}`).toBe(-1)
   const open = start + HOVER_GATE.length + 1
   let depth = 1
   let end = open + 1
-  while (depth && end < css.length) {
-    if (css[end] === '{') depth++
-    else if (css[end] === '}') depth--
+  while (depth && end < text.length) {
+    if (text[end] === '{') depth++
+    else if (text[end] === '}') depth--
     end++
   }
-  return css.slice(0, start) + css.slice(open + 1, end - 1) + css.slice(end)
+  return text.slice(0, start) + text.slice(open + 1, end - 1) + text.slice(end)
 }
 
 describe('hover is a pointer look, and a selected state beats it', () => {
@@ -482,6 +489,45 @@ describe('hover is a pointer look, and a selected state beats it', () => {
     const ungated = '.sr-pill:hover { color: var(--sr-text); }'
     expect(readCascade(`${css}\n/* ${ungated} */\n`).violations).toEqual([])
     expect(readCascade(`${css}\n${ungated}\n`).violations).toContain(`.sr-pill:hover is a hover rule outside ${HOVER_GATE}`)
+  })
+})
+
+// ── The taxonomy tools' toggle and list rows (recorded-names-in-splits-and-
+// lumps, decisions.md D-14) ──────────────────────────────────────────────────
+// `.sr-ssx-toggle` (Subspecies and forms, and Splits/Lumps/Renames) and
+// `.sr-sl-row` (the Splits/Lumps/Renames list) had ungated hover fills, the
+// same touch defect as the three registers above. Their selected states are
+// the open toggle (`[aria-expanded="true"]`) and the current row
+// (`[aria-current="true"]`); each must follow its hover rule at no lower
+// specificity, exactly as the registers' pressed states do.
+
+const TAXTOOLS = ['sr-ssx-toggle', 'sr-sl-row'] as const
+const taxSelected = (p: string) => p === '[aria-expanded="true"]' || p === '[aria-current="true"]'
+
+describe('the taxonomy tools\' hover is a pointer look, and the open toggle and current row beat it (D-14)', () => {
+  it('finds exactly one hover rule each, and the selected states it must lose to', () => {
+    const { hovers, selected } = readCascade(css, TAXTOOLS, taxSelected)
+    expect(Object.fromEntries([...hovers].map(([r, list]) => [r, list.length]))).toEqual({ 'sr-ssx-toggle': 1, 'sr-sl-row': 1 })
+    expect(selected.get('sr-ssx-toggle')).toContain('.sr-ssx-toggle[aria-expanded="true"]')
+    expect(selected.get('sr-sl-row')).toContain('.sr-sl-row[aria-current="true"]')
+  })
+
+  it('keeps both hover rules inside the gate, each selected state at or above it and after it', () => {
+    expect(readCascade(css, TAXTOOLS, taxSelected).violations).toEqual([])
+  })
+
+  it('goes red when the gate is removed from either', () => {
+    for (const register of TAXTOOLS) {
+      const { violations } = readCascade(ungateIn(css, register), TAXTOOLS, taxSelected)
+      expect(violations.some(v => v.startsWith(`.${register}:hover`) && v.endsWith(`outside ${HOVER_GATE}`)), register).toBe(true)
+    }
+  })
+
+  it('goes red when a selected state is declared before its hover rule', () => {
+    const rule = '.sr-sl-row[aria-current="true"] { background: var(--sr-accent-bg); }\n'
+    const head = `${HOVER_GATE} {\n  .sr-sl-row:hover`
+    const moved = mutate(head, rule + head, mutate(rule, ''))
+    expect(readCascade(moved, TAXTOOLS, taxSelected).violations).toContain('.sr-sl-row[aria-current="true"] comes before .sr-sl-row:hover')
   })
 })
 

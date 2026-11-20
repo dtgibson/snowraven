@@ -36,10 +36,12 @@ export const HISTORY_BYTES_CEILING = 1_048_576
 export const historyMaxBytes = (updates: number): number =>
   Math.min(HISTORY_BYTES_CEILING, HISTORY_BYTES_ENVELOPE + HISTORY_BYTES_PER_UPDATE * updates)
 
+/** Version 2 since renames joined (recorded-names-in-splits-and-lumps): a record
+ *  without `renames` is a load failure, never a silent "no renames". */
 function isHistoryShape(value: unknown): value is TaxonomyHistory {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { v?: unknown; events?: unknown; updates?: unknown }
-  return v.v === 1 && Array.isArray(v.events) && Array.isArray(v.updates)
+  const v = value as { v?: unknown; events?: unknown; updates?: unknown; renames?: unknown }
+  return v.v === 2 && Array.isArray(v.events) && Array.isArray(v.updates) && Array.isArray(v.renames)
 }
 
 let pending: Promise<TaxonomyHistory | null> | null = null

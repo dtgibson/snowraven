@@ -317,7 +317,7 @@ describe('H-A4: a chart that is a control is described by its controls', () => {
     expect(para).toContain('A chart drawn as a GRAPHIC')
     expect(para).toContain('A chart that is itself a CONTROL, or holds controls, is described by those controls instead of by an image role')
     expect(para).toContain("The Weather tab's plan timeline is one such chart")
-    expect(para).toContain('the Splits and Lumps chart on Species Detail is another: its species names are buttons')
+    expect(para).toContain('the Splits/Lumps/Renames chart on Species Detail is another: its species names are buttons')
   })
 
   it('is true of the code: the plan timeline is one slider over a hidden canvas', () => {
@@ -327,7 +327,7 @@ describe('H-A4: a chart that is a control is described by its controls', () => {
     expect(chart).not.toContain('role="img"')
   })
 
-  it('is true of the code: the Splits and Lumps chart keeps its name buttons exposed and carries a text equivalent', () => {
+  it('is true of the code: the Splits/Lumps/Renames chart keeps its name buttons exposed and carries a text equivalent', () => {
     const src = read('frontend/src/components/speciesDetail/SplitsLumps.tsx')
     expect(src).toContain("a recorded, non-selected entry's name is a real button")
     expect(src).toContain('the visually hidden text equivalent after it')

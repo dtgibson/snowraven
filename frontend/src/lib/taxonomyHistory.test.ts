@@ -14,8 +14,10 @@ import { readFileSync } from 'node:fs'
 import type { ObservationEntry } from '../types'
 import {
   buildTaxonomyHistoryIndex, historyListEntries, lineageFor,
-  type TaxonomyHistory, type HistoryEvent,
+  type TaxonomyHistory, type HistoryEvent, type HistoryRename, type EventView,
 } from './taxonomyHistory'
+import { normalizeSpeciesName } from './speciesUtils'
+import { bestPerCallCpuMs } from '../test/cpuTiming'
 import ASSET_JSON from '../assets/ebird-taxonomy-history.json'
 
 const U2023 = { year: 2023, published: '2023-10-24' }
@@ -67,10 +69,11 @@ const CHAIN_B: HistoryEvent = {
 }
 
 const HISTORY: TaxonomyHistory = {
-  v: 1, snapshot: 'T', generated: '2026-09-30', inputs: [],
+  v: 2, snapshot: 'T', generated: '2026-09-30', inputs: [],
   updates: [U2023, U2024, U2025],
   coverage: { earliest: U2023, latest: U2025 },
   events: [CHAIN_A, CORYS, CHAIN_B, REDPOLL, WARBLING],
+  renames: [],
 }
 const EV = { chainA: 0, corys: 1, chainB: 2, redpoll: 3, warbling: 4 }
 
@@ -549,33 +552,41 @@ describe('a name current after one update and retired at the next (QA fix errand
 describe('the declared scan is linear (schema.md 6.6, security.md)', () => {
   // Timed through the REAL exported entry point at doubling input sizes, with
   // a same-run quotient (never a wall-clock ceiling): a linear pass grows about
-  // 4x from N to 4N, a quadratic one about 16x. Best of several runs per size.
+  // 4x from N to 4N, a quadratic one about 16x. Since recorded-names-in-splits-
+  // and-lumps each leg reads this process's CPU time through
+  // test/cpuTiming.ts (testing.md v1.0.40), best of 5 interleaved rounds, with
+  // every limit, input and leg of the wall-clock version unchanged.
   const NAMES = ['Eastern Warbling Vireo', 'Redpoll (Common)', 'American Robin', 'Gamma Bird', 'Hoary Redpoll']
   const rowsOf = (n: number, name = (i: number) => `${NAMES[i % NAMES.length]}`, date = (i: number) => `2024-0${(i % 9) + 1}-15`) =>
     Array.from({ length: n }, (_, i) => obs(name(i), date(i), 'Vireo gilvus'))
-  const best = (rows: ObservationEntry[], history: TaxonomyHistory = HISTORY, codes: Record<string, string> = CURRENT_CODES) => {
-    let min = Infinity
-    for (let r = 0; r < 5; r += 1) {
-      const t0 = performance.now()
-      buildTaxonomyHistoryIndex(rows, history, { codes })
-      min = Math.min(min, performance.now() - t0)
+  const quotient = (small: ObservationEntry[], large: ObservationEntry[], history: TaxonomyHistory = HISTORY, codes: Record<string, string> = CURRENT_CODES) => {
+    const { perCall: [s, l] } = bestPerCallCpuMs([
+      () => buildTaxonomyHistoryIndex(small, history, { codes }),
+      () => buildTaxonomyHistoryIndex(large, history, { codes }),
+    ], { rounds: 5 })
+    return l / Math.max(s, 0.05)
+  }
+  const asset = ASSET_JSON as unknown as TaxonomyHistory
+  /** The k-th case variant of a name: each letter's case flipped by k's bits. */
+  const variant = (name: string, k: number): string => {
+    let bit = 0
+    let out = ''
+    for (const ch of name) {
+      const letter = ch.toLowerCase() !== ch.toUpperCase()
+      out += letter && ((k >> bit++) & 1) ? (ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()) : ch
     }
-    return min
+    return out
   }
 
   it('grows about 4x from 10k to 40k rows of the reference export shape', { timeout: 60_000 }, () => {
-    const t10 = best(rowsOf(10_000))
-    const t40 = best(rowsOf(40_000))
-    expect(t40 / Math.max(t10, 0.05)).toBeLessThan(9)
+    expect(quotient(rowsOf(10_000), rowsOf(40_000))).toBeLessThan(9)
   })
 
   it('grows about 4x on a hostile leg of 4,000-character names and dates', { timeout: 60_000 }, () => {
     const long = 'x'.repeat(4_000)
     const name = (i: number) => `${long}${i % 7}`
     const date = (i: number) => `${long}${i % 3}`
-    const t5 = best(rowsOf(5_000, name, date))
-    const t20 = best(rowsOf(20_000, name, date))
-    expect(t20 / Math.max(t5, 0.05)).toBeLessThan(9)
+    expect(quotient(rowsOf(5_000, name, date), rowsOf(20_000, name, date))).toBeLessThan(9)
   })
 
   it('grows about 4x when EVERY row is its own affected key, over the real asset (security review L2)', { timeout: 60_000 }, () => {
@@ -588,19 +599,9 @@ describe('the declared scan is linear (schema.md 6.6, security.md)', () => {
     // case variants of the retired "Slender-billed Crow" (tier 0, so
     // midChainTier0 as well). The explicit timeout is only a backstop: the
     // assertion is the same-run quotient.
-    const asset = ASSET_JSON as unknown as TaxonomyHistory
     const crow = 'Slender-billed Crow'
-    const variant = (k: number): string => {
-      let bit = 0
-      let out = ''
-      for (const ch of crow) {
-        const letter = ch.toLowerCase() !== ch.toUpperCase()
-        out += letter && ((k >> bit++) & 1) ? (ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()) : ch
-      }
-      return out
-    }
     const rows = (n: number) => Array.from({ length: n }, (_, i) =>
-      obs(i % 2 === 0 ? `Corvid ${i}` : variant(i >> 1), `2024-0${(i % 9) + 1}-15`, 'Corvus enca'))
+      obs(i % 2 === 0 ? `Corvid ${i}` : variant(crow, i >> 1), `2024-0${(i % 9) + 1}-15`, 'Corvus enca'))
     const small = rows(10_000)
     const large = rows(40_000)
     // Non-vacuity: every row is its own key and every key is affected, with
@@ -609,8 +610,457 @@ describe('the declared scan is linear (schema.md 6.6, security.md)', () => {
     expect(idx.affected.size).toBe(10_000)
     expect(idx.affected.has('sLender-billed Crow')).toBe(true)
     expect(idx.affected.has('Corvid 0')).toBe(true)
-    const t10 = best(small, asset, {})
-    const t40 = best(large, asset, {})
-    expect(t40 / Math.max(t10, 0.05)).toBeLessThan(9)
+    expect(quotient(small, large, asset, {})).toBeLessThan(9)
+  })
+
+  it('grows about 4x when EVERY row carries a kept-form name, so the kept-form lookup hits on every row (recorded-names schema.md 10)', { timeout: 60_000 }, () => {
+    const forms = asset.events.filter(e => e.kind === 'lump').flatMap(e => e.before.filter(b => b.form !== undefined).map(b => b.form as string))
+    expect(forms.length).toBeGreaterThan(10)
+    const rows = (n: number) => Array.from({ length: n }, (_, i) => obs(forms[i % forms.length], `20${10 + (i % 9)}-05-15`, 'Nulla nulla'))
+    const small = rows(10_000)
+    // Non-vacuity: the lookup does count rows under earlier names.
+    const idx = buildTaxonomyHistoryIndex(small, asset, { codes: {} })
+    expect(idx.events.some(e => e.kind === 'lump' && e.before.some(b => b.earlier.state === 'count' && b.earlier.n > 0))).toBe(true)
+    expect(quotient(small, rows(40_000), asset, {})).toBeLessThan(9)
+  })
+
+  it('grows about 4x when every row is its own key through the rename paths: a retired earlier name (tier 0 and its forward rule) and a twice-renamed current name with no codes (the closure)', { timeout: 60_000 }, () => {
+    const forward = asset.renames.find(r => r.before[0].retired && r.before[0].com.length >= 14
+      && asset.events.some(e => e.published > r.published && e.before.some(b => b.code === r.before[0].code)))!
+    const perCode = new Map<string, HistoryRename[]>()
+    for (const r of asset.renames) perCode.set(r.after[0].code, [...(perCode.get(r.after[0].code) ?? []), r])
+    const twice = [...perCode.values()].find(list => list.length > 1 && list[list.length - 1].after[0].com.length >= 14)!
+    expect(forward, 'a retired earlier name a later split or lump carries forward').toBeTruthy()
+    expect(twice, 'a code renamed twice').toBeTruthy()
+    const twiceName = twice[twice.length - 1].after[0].com
+    const rows = (n: number) => Array.from({ length: n }, (_, i) =>
+      obs(variant(i % 2 === 0 ? forward.before[0].com : twiceName, i >> 1), `2015-0${(i % 9) + 1}-15`, 'Nulla nulla'))
+    const small = rows(10_000)
+    // Non-vacuity: every row is its own affected key, both halves present, the
+    // forward rule reached its later event and the closure both renames.
+    const idx = buildTaxonomyHistoryIndex(small, asset, { codes: {} })
+    expect(idx.affected.size).toBe(10_000)
+    expect(idx.affected.has(forward.before[0].com)).toBe(true)
+    expect(idx.affected.has(twiceName)).toBe(true)
+    const firstOfTwice = idx.events.find(e => e.kind === 'rename' && e.published === twice[0].published && e.after[0].code === twice[0].after[0].code)!
+    expect(firstOfTwice.after[0].count).toBeGreaterThan(0)
+    expect(quotient(small, rows(40_000), asset, {})).toBeLessThan(9)
+  })
+
+  it('a common name that is a prototype member is an ordinary miss: no throw, not affected', () => {
+    const rows = ['__proto__', 'constructor', 'toString', 'hasOwnProperty'].map(n => obs(n, '2024-01-01', n))
+    for (const codes of [{}, CURRENT_CODES]) {
+      const idx = buildTaxonomyHistoryIndex(rows, asset, { codes })
+      expect(idx.affected.size).toBe(0)
+    }
+  })
+})
+
+// ── Recorded names: earlier-name figures and renames (recorded-names-in-
+// splits-and-lumps, schema.md 6 and 7; QA-08 to QA-24, QA-44, QA-45) ─────────
+//
+// A fixture in the record's own shape, with names as eBird prints them. The
+// figures are hand counts over rows written here; nothing reads the real
+// backup. The structural sweeps over the committed record follow it.
+
+const U2019 = { year: 2019, published: '2019-08-21' }
+const U2021 = { year: 2021, published: '2021-09-08' }
+const RN_UPDATES = [U2019, U2021, U2023, U2024, U2025]
+
+const R_WHIMBREL: HistoryEvent = {
+  kind: 'split', ...U2025,
+  before: [{ code: 'whimbr', sci: 'Numenius phaeopus', com: 'Whimbrel', retired: true }],
+  after: [
+    { code: 'hudwhi1', sci: 'Numenius hudsonicus', com: 'Hudsonian Whimbrel' },
+    { code: 'whimbr3', sci: 'Numenius phaeopus', com: 'Eurasian Whimbrel' },
+  ],
+  slashes: [{ code: 'whimbr4', sci: 'Numenius hudsonicus/phaeopus', com: 'Hudsonian/Eurasian Whimbrel' }],
+}
+const R_WESFLY: HistoryEvent = {
+  kind: 'lump', ...U2023,
+  before: [
+    { code: 'pasfly', sci: 'Empidonax difficilis', com: 'Pacific-slope Flycatcher', retired: true, form: 'Western Flycatcher (Pacific-slope)' },
+    { code: 'corfly', sci: 'Empidonax occidentalis', com: 'Cordilleran Flycatcher', retired: true, form: 'Western Flycatcher (Cordilleran)' },
+  ],
+  after: [{ code: 'wesfly', sci: 'Empidonax difficilis', com: 'Western Flycatcher' }],
+  slashes: [],
+}
+const R_CROW: HistoryEvent = {
+  kind: 'lump', ...U2021,
+  before: [
+    { code: 'amecro', sci: 'Corvus brachyrhynchos', com: 'American Crow', retired: false },
+    { code: 'norcro', sci: 'Corvus caurinus', com: 'Northwestern Crow', retired: true },
+  ],
+  after: [{ code: 'amecro', sci: 'Corvus brachyrhynchos', com: 'American Crow' }],
+  slashes: [],
+}
+const R_TROGON: HistoryEvent = {
+  kind: 'lump', ...U2019,
+  before: [
+    { code: 'coltro1', sci: 'Trogon collaris', com: 'Collared Trogon', retired: false },
+    { code: 'orbtro2', sci: 'Trogon aurantiiventris', com: 'Orange-bellied Trogon', retired: true, form: 'Collared Trogon (Orange-bellied)' },
+  ],
+  after: [{ code: 'coltro1', sci: 'Trogon collaris', com: 'Collared Trogon' }],
+  slashes: [],
+}
+// A split whose daughter is later renamed (QA-12), and a rename whose code is
+// later split (QA-45).
+const R_SPLIT_B: HistoryEvent = {
+  kind: 'split', ...U2021,
+  before: [{ code: 'alpbir', sci: 'Genus alpha', com: 'Alpha Bird', retired: true }],
+  after: [{ code: 'betbir', sci: 'Genus beta', com: 'Beta Finch' }, { code: 'gambir', sci: 'Genus gamma', com: 'Gamma Bird' }],
+  slashes: [],
+}
+const R_OWL_SPLIT: HistoryEvent = {
+  kind: 'split', ...U2024,
+  before: [{ code: 'greowl', sci: 'Bubo magnus', com: 'Great Owl', retired: false }],
+  after: [{ code: 'greowl', sci: 'Bubo magnus', com: 'Great Owl' }, { code: 'parowl', sci: 'Bubo paramensis', com: 'Paramo Owl' }],
+  slashes: [],
+}
+const rename = (u: { year: number; published: string }, code: string, sci: string, from: string, to: string, retired = true): HistoryRename => ({
+  kind: 'rename', ...u,
+  before: [{ code, sci, com: from, retired }],
+  after: [{ code, sci, com: to }],
+  slashes: [],
+})
+const R_LONGSPUR = rename(U2021, 'mcclon', 'Rhynchophanes mccownii', "McCown's Longspur", 'Thick-billed Longspur')
+const R_BETA = rename(U2025, 'betbir', 'Genus beta', 'Beta Bird', 'Beta Finch')
+const R_OWL = rename(U2021, 'greowl', 'Bubo magnus', 'Old Owl', 'Great Owl')
+const R_ASH_1 = rename(U2023, 'ashbir', 'Genus ash', 'Ash Bird', 'Ashy Bird')
+const R_ASH_2 = rename(U2025, 'ashbir', 'Genus ash', 'Ashy Bird', 'Ashen Bird')
+// Two names exchanged by two renames in one update (St. Helena's crake and rail
+// shape): each earlier name is now the OTHER species' current name, so neither
+// is retired, and a report under either is that other species (FR-09).
+const R_SWAP_1 = rename(U2023, 'hecrak', 'Zapornia astrictocarpus', 'Helena Crake', 'Helena Rail', false)
+const R_SWAP_2 = rename(U2023, 'herail', 'Aphanocrex podarces', 'Helena Rail', 'Helena Crake', false)
+
+const RN: TaxonomyHistory = {
+  v: 2, snapshot: 'T', generated: '2026-11-19', inputs: [],
+  updates: RN_UPDATES, coverage: { earliest: U2019, latest: U2025 },
+  events: [R_TROGON, R_CROW, R_SPLIT_B, R_WESFLY, R_OWL_SPLIT, R_WHIMBREL],
+  renames: [R_LONGSPUR, R_OWL, R_SWAP_2, R_SWAP_1, R_ASH_1, R_ASH_2, R_BETA]
+    .sort((a, b) => (a.published < b.published ? -1 : a.published > b.published ? 1 : a.before[0].sci < b.before[0].sci ? -1 : 1)),
+}
+const RN_CODES: Record<string, string> = {
+  'Hudsonian Whimbrel': 'hudwhi1', 'Eurasian Whimbrel': 'whimbr3', 'Western Flycatcher': 'wesfly', 'American Crow': 'amecro',
+  'Collared Trogon': 'coltro1', 'Thick-billed Longspur': 'mcclon', 'Beta Finch': 'betbir', 'Gamma Bird': 'gambir',
+  'Great Owl': 'greowl', 'Paramo Owl': 'parowl', 'Ashen Bird': 'ashbir', 'Helena Rail': 'hecrak', 'Helena Crake': 'herail',
+}
+/** The merged event of one kind, year and first code. */
+function find(idx: ReturnType<typeof buildTaxonomyHistoryIndex>, kind: string, year: number, code: string): EventView {
+  const ev = idx.events.find(e => e.kind === kind && e.year === year && (e.before[0].code === code || e.after[0].code === code))
+  expect(ev, `${kind} ${year} ${code}`).toBeTruthy()
+  return ev!
+}
+const rows = (spec: [name: string, date: string, n?: number][]): ObservationEntry[] =>
+  spec.flatMap(([name, date, n = 1]) => Array.from({ length: n }, () => obs(name, date, 'Nulla nulla')))
+
+describe('the record as one dated list (schema.md 6.1)', () => {
+  it('merges renames among splits and lumps by date, splits and lumps first on a tie, and the list kinds follow', () => {
+    const idx = buildTaxonomyHistoryIndex([], RN, { codes: {} })
+    expect(idx.events.map(e => `${e.year}${e.kind[0]}`)).toEqual([
+      '2019l', '2021l', '2021s', '2021r', '2021r', '2023l', '2023r', '2023r', '2023r', '2024s', '2025s', '2025r', '2025r',
+    ])
+  })
+})
+
+describe('a split\'s earlier name (FR-13, FR-14; QA-13, QA-15, QA-21)', () => {
+  it('counts the reassigned figures of every name it became, the slash included, the update day in and the next day out', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([
+      ['Hudsonian Whimbrel', '2024-05-01', 2], ['Hudsonian Whimbrel', '2025-10-31'], ['Hudsonian Whimbrel', '2025-11-01'],
+      ['Eurasian Whimbrel', '2020-05-01'], ['Hudsonian/Eurasian Whimbrel', '2025-01-01'],
+      ['Hudsonian Whimbrel (Hudsonian)', '2024-06-01'], // a form of a new name counts with it (FR-14)
+    ]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'split', 2025, 'whimbr')
+    expect(ev.earlierState).toBe('counted')
+    expect(ev.after.map(a => [a.count, a.onOrBefore])).toEqual([[5, 4], [1, 1]])
+    expect(ev.slashes.map(x => x.onOrBefore)).toEqual([1])
+    expect(ev.before[0].earlier).toEqual({ state: 'count', n: 6 })
+    expect(ev.before[0].count).toBe(0)
+  })
+
+  it('with no reports under the slash the figure is the two shown figures, and no slash is drawn', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Hudsonian Whimbrel', '2024-05-01', 3]]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'split', 2025, 'whimbr')
+    expect(ev.slashes).toEqual([])
+    expect(ev.before[0].earlier).toEqual({ state: 'count', n: 3 })
+  })
+
+  it('shows the zero state when every report is dated after the update (FR-19)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Hudsonian Whimbrel', '2026-01-01', 2]]), RN, { codes: RN_CODES })
+    expect(find(idx, 'split', 2025, 'whimbr').before[0].earlier).toEqual({ state: 'count', n: 0 })
+  })
+})
+
+describe('a rename (FR-08, FR-09, FR-15; QA-08, QA-09, QA-16)', () => {
+  it('affects a species touched only by renames, lists it as a rename, and counts the current name\'s on-or-before figure', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Thick-billed Longspur', '2020-04-01', 3], ['Thick-billed Longspur', '2022-04-01']]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'rename', 2021, 'mcclon')
+    expect(ev.after[0]).toMatchObject({ count: 4, onOrBefore: 3, after: 1, current: true })
+    expect(ev.before[0].earlier).toEqual({ state: 'count', n: 3 })
+    expect(ev.earlierState).toBe('counted')
+    expect(historyListEntries(idx, ['Thick-billed Longspur'])).toEqual([{ species: 'Thick-billed Longspur', events: [{ kind: 'rename', year: 2021 }] }])
+  })
+
+  it('recognizes a retired earlier name in an older backup exactly as a split\'s, and reads the shipped predates state', () => {
+    for (const codes of [RN_CODES, {}]) {
+      const idx = buildTaxonomyHistoryIndex(rows([["McCown's Longspur", '2020-04-01', 2]]), RN, { codes })
+      const ev = find(idx, 'rename', 2021, 'mcclon')
+      expect(ev.before[0]).toMatchObject({ count: 2, speciesKey: "McCown's Longspur", earlier: { state: 'none' } })
+      expect(ev.predates).toBe(true)
+      expect(ev.earlierState).toBe('pre-update')
+      expect(idx.affected.has("McCown's Longspur")).toBe(true)
+    }
+  })
+
+  // FR-09's two halves, held by separate guards over separate paths, so each
+  // owes its own row: tier 1 never reaches a rename's earlier name (its code is
+  // on its own after side), and the name tiers never index it.
+  const handedOn = (codes: Record<string, string>) => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Helena Crake', '2024-01-01']]), RN, { codes })
+    const crakeToRail = find(idx, 'rename', 2023, 'hecrak')
+    const railToCrake = find(idx, 'rename', 2023, 'herail')
+    expect(crakeToRail.before[0].count, 'not an earlier-name report of the rename that retired the name').toBe(0)
+    expect(railToCrake.before[0].count, 'nor of the other rename, by its code').toBe(0)
+    expect(railToCrake.after[0].count, 'the species that holds the name now').toBe(1)
+  }
+  it('never counts a report under a name eBird has since given to another species as a rename\'s earlier name: with the codes lookup', () => {
+    handedOn(RN_CODES)
+  })
+  it('and with no codes lookup (the name tiers)', () => {
+    handedOn({})
+  })
+
+  it('a code renamed twice reads A to B then B to C, each on its own line; the name tiers reach both through the closure', () => {
+    for (const codes of [RN_CODES, {}]) {
+      const idx = buildTaxonomyHistoryIndex(rows([['Ashen Bird', '2020-01-01']]), RN, { codes })
+      const first = find(idx, 'rename', 2023, 'ashbir')
+      const second = find(idx, 'rename', 2025, 'ashbir')
+      expect([first.after[0].count, second.after[0].count], JSON.stringify(codes)).toEqual([1, 1])
+      expect([first.before[0].earlier, second.before[0].earlier]).toEqual([{ state: 'count', n: 1 }, { state: 'count', n: 1 }])
+      // Only the latest rename's name carries the site marks (FR-27).
+      expect([first.after[0].current, second.after[0].current]).toEqual([false, true])
+      expect(lineageFor(idx, 'Ashen Bird')?.events.map(e => [e.kind, e.year])).toEqual([['rename', 2023], ['rename', 2025]])
+    }
+  })
+
+  it('a backup older than the first of two renames shows the first predating and the second in its zero state (schema flag 11)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Ash Bird', '2020-01-01']]), RN, { codes: {} })
+    expect(find(idx, 'rename', 2023, 'ashbir').earlierState).toBe('pre-update')
+    expect(find(idx, 'rename', 2025, 'ashbir').before[0].earlier).toEqual({ state: 'count', n: 0 })
+  })
+})
+
+describe('a lump\'s earlier names (FR-16 to FR-18; QA-17, QA-18, QA-19)', () => {
+  it('counts each traced name\'s kept-form reports dated on or before the lump, and the rest in "Earlier name not recorded"', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([
+      ['Western Flycatcher (Pacific-slope)', '2022-05-01', 2], ['Western Flycatcher (Pacific-slope)', '2024-05-01'],
+      ['Western Flycatcher (Cordilleran)', '2023-10-24'],
+      ['Western Flycatcher', '2021-06-01', 2],
+      ['Western Flycatcher (Pacific slope)', '2022-06-01'], // an out-of-date spelling of a kept form: not traced
+    ]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'lump', 2023, 'wesfly')
+    expect(ev.after[0]).toMatchObject({ count: 7, onOrBefore: 6 })
+    expect(ev.before.map(b => [b.form, b.earlier])).toEqual([
+      ['Western Flycatcher (Pacific-slope)', { state: 'count', n: 2 }],
+      ['Western Flycatcher (Cordilleran)', { state: 'count', n: 1 }],
+    ])
+    expect(ev.residual).toBe(3)
+  })
+
+  it('with every pre-lump report under a kept form, the residual is zero and the box is not drawn', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Western Flycatcher (Cordilleran)', '2022-05-01', 2]]), RN, { codes: RN_CODES })
+    expect(find(idx, 'lump', 2023, 'wesfly').residual).toBe(0)
+  })
+
+  it('a kept-form report tallied on another species is in no traced count (FR-16\'s after-entry test)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Western Flycatcher (Pacific-slope)', '2022-05-01']]), RN, { codes: { 'Western Flycatcher': 'amecro' } })
+    const ev = find(idx, 'lump', 2023, 'wesfly')
+    expect(ev.before[0].earlier).toEqual({ state: 'count', n: 0 })
+  })
+
+  it('reads "not traceable" for both reasons, with no number and no residual, when no name is traced (American Crow)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['American Crow', '2020-03-01', 4]]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'lump', 2021, 'amecro')
+    expect(ev.before.map(b => b.earlier)).toEqual([
+      { state: 'untraceable', reason: 'survivor' },
+      { state: 'untraceable', reason: 'no-form' },
+    ])
+    expect(ev.residual).toBe(0)
+  })
+
+  it('with one traced name and the surviving name, plain reports go to the residual, never to the surviving name (D-08)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([
+      ['Collared Trogon (Orange-bellied)', '2018-01-01'], ['Collared Trogon', '2018-02-01', 6], ['Collared Trogon', '2020-02-01'],
+    ]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'lump', 2019, 'coltro1')
+    expect(ev.before.map(b => b.earlier)).toEqual([{ state: 'untraceable', reason: 'survivor' }, { state: 'count', n: 1 }])
+    expect(ev.residual).toBe(6)
+  })
+})
+
+describe('the states that suppress the new figures (FR-20, FR-21; QA-22, QA-23, QA-45)', () => {
+  it('a backup carrying only an earlier name shows the shipped figures alone, and counts no report twice', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Pacific-slope Flycatcher', '2022-01-01', 2]]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'lump', 2023, 'wesfly')
+    expect(ev).toMatchObject({ earlierState: 'pre-update', predates: true, residual: 0 })
+    expect(ev.before.map(b => [b.count, b.earlier.state])).toEqual([[2, 'none'], [0, 'none']])
+  })
+
+  it('the mixed case: an earlier name still carried beside the lumped name (a pre-2021 American Crow and Northwestern Crow)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Northwestern Crow', '2019-05-01'], ['American Crow', '2019-05-01', 3]]), RN, { codes: RN_CODES })
+    const ev = find(idx, 'lump', 2021, 'amecro')
+    expect(ev).toMatchObject({ earlierState: 'pre-update', predates: false, residual: 0 })
+    expect(ev.before.map(b => [b.code, b.count])).toEqual([['amecro', 0], ['norcro', 1]])
+    expect(ev.after[0].count).toBe(3)
+    expect(ev.before.every(b => b.earlier.state === 'none')).toBe(true)
+  })
+
+  it('a split whose new name a later split or lump changed shows the marker and keeps its current-side figures; the later event counts', () => {
+    const idx = buildTaxonomyHistoryIndex(
+      [obs('Beta Bird', '2022-06-01', 'Genus beta'), obs('Vee Bird', '2023-01-01', 'Genus beta')],
+      HISTORY, { codes: CURRENT_CODES },
+    )
+    const a = idx.events[EV.chainA]
+    expect(a).toMatchObject({ earlierState: 'later-changed', residual: 0 })
+    expect(a.before[0].earlier).toEqual({ state: 'none' })
+    expect(a.after[0].count).toBeGreaterThan(0)
+    expect(idx.events[EV.chainB].earlierState).toBe('pre-update')
+  })
+
+  it('a rename whose code a later update split shows the marker; the later split shows its own figure (QA-45)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Great Owl', '2020-01-01', 2]]), RN, { codes: RN_CODES })
+    const r = find(idx, 'rename', 2021, 'greowl')
+    const split = find(idx, 'split', 2024, 'greowl')
+    expect(r).toMatchObject({ earlierState: 'later-changed' })
+    expect(r.before[0].earlier).toEqual({ state: 'none' })
+    expect(split.before[0].earlier).toEqual({ state: 'count', n: 2 })
+    expect(lineageFor(idx, 'Great Owl')?.events.map(e => [e.kind, e.year])).toEqual([['rename', 2021], ['split', 2024]])
+  })
+
+  it('a split whose daughter a later update renamed is NOT later-changed: each line counts, the report once per event (QA-12)', () => {
+    const idx = buildTaxonomyHistoryIndex(rows([['Beta Finch', '2020-01-01']]), RN, { codes: RN_CODES })
+    const split = find(idx, 'split', 2021, 'alpbir')
+    const r = find(idx, 'rename', 2025, 'betbir')
+    expect([split.earlierState, r.earlierState]).toEqual(['counted', 'counted'])
+    expect(split.before[0].earlier).toEqual({ state: 'count', n: 1 })
+    expect(r.before[0].earlier).toEqual({ state: 'count', n: 1 })
+    expect(historyListEntries(idx, ['Beta Finch'])[0].events).toEqual([{ kind: 'rename', year: 2025 }, { kind: 'split', year: 2021 }])
+  })
+})
+
+// ── Structural sweeps over the committed record (schema.md 10) ──────────────
+
+/** A backup generated from the record: two reports dated before every update
+ *  and one after, under every current-side name and every kept form (section
+ *  7's corpus). `skip` leaves names out. */
+function recordCorpus(h: TaxonomyHistory, skip: ReadonlySet<string> = new Set()): ObservationEntry[] {
+  const out: ObservationEntry[] = []
+  const add = (com: string, sci: string) => {
+    if (skip.has(com)) return
+    out.push(obs(com, '2010-01-01', sci), obs(com, '2010-06-01', sci), obs(com, '2030-01-01', sci))
+  }
+  for (const ev of [...h.events, ...h.renames]) {
+    for (const e of [...ev.after, ...ev.slashes]) add(e.com, e.sci)
+    if (ev.kind === 'lump') for (const b of ev.before) if (b.form !== undefined) add(b.form, ev.after[0].sci)
+  }
+  return out
+}
+
+/** The page's `/taxonomy/codes` answer for a backup: each raw and normalized
+ *  name that is a species name in the bundled snapshot. */
+function snapshotCodes(obsList: readonly ObservationEntry[]): Record<string, string> {
+  const snap = JSON.parse(readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8')) as { byCom: Record<string, string> }
+  const c: Record<string, string> = {}
+  for (const o of obsList) for (const n of [o.commonName, normalizeSpeciesName(o.commonName)]) {
+    if (Object.hasOwn(snap.byCom, n.toLowerCase())) c[n] = snap.byCom[n.toLowerCase()]
+  }
+  return c
+}
+
+describe('the identities hold over the whole committed record (FR-13, FR-15, FR-17; schema.md 7)', () => {
+  const asset = ASSET_JSON as unknown as TaxonomyHistory
+  const corpus = recordCorpus(asset)
+  for (const [label, codes] of [['with no codes lookup', {}], ['with the page\'s codes lookup', snapshotCodes(corpus)]] as const) {
+    it(label, () => {
+      expect(Object.keys(codes).length > 0, label).toBe(label.includes('page'))
+      const idx = buildTaxonomyHistoryIndex(corpus, asset, { codes })
+      const counted = { split: 0, lump: 0, rename: 0 }
+      let residuals = 0
+      let tracedAbove = 0
+      const violations: string[] = []
+      for (const ev of idx.events) {
+        if (ev.earlierState !== 'counted') continue
+        counted[ev.kind] += 1
+        const shown = ev.after.reduce((t, a) => t + a.onOrBefore, 0) + ev.slashes.reduce((t, x) => t + x.onOrBefore, 0)
+        if (ev.kind === 'split' && !(ev.before[0].earlier.state === 'count' && ev.before[0].earlier.n === shown)) violations.push(`split ${ev.year} ${ev.before[0].code}`)
+        if (ev.kind === 'rename' && !(ev.before[0].earlier.state === 'count' && ev.before[0].earlier.n === ev.after[0].onOrBefore)) violations.push(`rename ${ev.year} ${ev.before[0].code}`)
+        if (ev.kind === 'lump') {
+          const traced = ev.before.flatMap(b => (b.earlier.state === 'count' ? [b.earlier.n] : []))
+          if (traced.length > 0 && traced.reduce((t, n) => t + n, 0) + ev.residual !== ev.after[0].onOrBefore) violations.push(`lump ${ev.year} ${ev.after[0].code}`)
+          if (traced.length === 0 && ev.residual !== 0) violations.push(`lump residual ${ev.after[0].code}`)
+          if (ev.residual < 0) violations.push(`negative residual ${ev.after[0].code}`)
+          if (ev.residual > 0) residuals += 1
+          tracedAbove += traced.filter(n => n > 0).length
+        }
+      }
+      expect(violations).toEqual([])
+      // Non-vacuity: every kind reaches 'counted', some lump has a residual,
+      // some traced name counts above zero.
+      expect(counted.split).toBeGreaterThan(0)
+      expect(counted.lump).toBeGreaterThan(0)
+      expect(counted.rename).toBeGreaterThan(0)
+      expect(residuals).toBeGreaterThan(0)
+      expect(tracedAbove).toBeGreaterThan(0)
+    })
+  }
+})
+
+describe('renames leave every split and lump reading alone, but for a rename\'s retired earlier name (FR-20, D-10; QA-44)', () => {
+  const asset = ASSET_JSON as unknown as TaxonomyHistory
+  const bare: TaxonomyHistory = { ...asset, renames: [] }
+  const retiredEarlier = new Set(asset.renames.filter(r => r.before[0].retired).map(r => r.before[0].com))
+  const sl = (idx: ReturnType<typeof buildTaxonomyHistoryIndex>) => idx.events.filter(e => e.kind !== 'rename')
+  const codesOf = snapshotCodes
+
+  it('equality by removal: over the generated backup, with every retired earlier name of a rename left out, every split and lump view is the same with and without renames', () => {
+    const corpus = recordCorpus(asset, retiredEarlier)
+    for (const codes of [codesOf(corpus), {}]) {
+      const a = sl(buildTaxonomyHistoryIndex(corpus, asset, { codes }))
+      const b = sl(buildTaxonomyHistoryIndex(corpus, bare, { codes }))
+      expect(a.length).toBe(asset.events.length)
+      const diff = a.flatMap((ev, i) => (JSON.stringify(ev) === JSON.stringify(b[i]) ? [] : [`${ev.kind} ${ev.year} ${ev.before[0].code}`]))
+      expect(diff).toEqual([])
+    }
+  })
+
+  it('each retired earlier name of a rename moves only toward the export\'s true date: to the after side of an event it outlived, or to "predates" at an event after its rename', { timeout: 60_000 }, () => {
+    let moved = 0
+    const wrong: string[] = []
+    for (const r of asset.renames) {
+      const name = r.before[0].com
+      if (!r.before[0].retired) continue
+      const probe = [obs(name, '2026-07-01', r.before[0].sci)]
+      for (const codes of [codesOf(probe), {}]) {
+      const a = sl(buildTaxonomyHistoryIndex(probe, asset, { codes }))
+      const b = sl(buildTaxonomyHistoryIndex(probe, bare, { codes }))
+      a.forEach((ev, i) => {
+        const was = b[i]
+        const sides = (v: EventView) => ({ before: v.before.some(x => x.count > 0), after: v.after.some(x => x.count > 0) })
+        const now = sides(ev)
+        const then = sides(was)
+        if (now.before === then.before && now.after === then.after) return
+        moved += 1
+        // On the after side now: the name was still current after this event.
+        if (now.after && !then.after && !(ev.published < r.published)) wrong.push(`${name} after ${ev.year}`)
+        // Predating now: the event came after the rename that retired the name.
+        if (now.before && !then.before && !(ev.published > r.published)) wrong.push(`${name} before ${ev.year}`)
+        // Never a reading lost outright (schema.md 6.3, "Narrowing: none").
+        if (!now.before && !now.after) wrong.push(`${name} lost ${ev.year}`)
+      })
+      }
+    }
+    expect(wrong).toEqual([])
+    expect(moved, 'some reading moves (schema.md 6.3)').toBeGreaterThan(0)
   })
 })

@@ -110,4 +110,20 @@ describe('the Splits and Lumps chart stacks on a narrow event as well as a narro
     // The load-bearing one: the chart becomes a single column.
     expect(container.get('.sr-lin-chart')).toContain('grid-template-columns: minmax(0, 1fr)')
   })
+
+  // recorded-names-in-splits-and-lumps (design-spec R3, R9; decisions.md D-13).
+  // The longer labels ("Not traceable in your backup" beside its glyph, "Your
+  // species" beside the wider "Rename by ..." badge) need a wider event before
+  // three columns fit. Measured in the BUILT app with the stacking switched off,
+  // text ink against each node's and badge's content box, Chromium and WebKit
+  // alike: three columns are clean from an event 485px wide at 100% text, 550px
+  // at 125%, 615px at 150%; 520px covers 100% and 29em (464px at 100%) covers
+  // 125% and up. The figures move only with a new measurement.
+  it('stacks below the measured need: (max-width: 29em) or (max-width: 520px)', () => {
+    expect(containerAt).toBe('@container sr-lin (max-width: 29em) or (max-width: 520px)')
+  })
+
+  it('lets the stacked badge wrap its date under the kind word, in both blocks (R3)', () => {
+    for (const at of [PHONE, containerAt!]) expect(block(at).get('.sr-lin-badge'), at).toEqual(['flex-wrap: wrap', 'white-space: normal'])
+  })
 })

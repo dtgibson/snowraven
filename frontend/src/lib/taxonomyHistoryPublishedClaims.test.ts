@@ -1,8 +1,9 @@
-// The published claims about Splits and Lumps (taxonomic-splits-lumps), pinned
-// to the code that makes them true. Scoped to the feature's OWN passages in
-// `docs/HELP.md` (the "Splits and lumps." paragraph and the "- Splits and
-// Lumps:" bullet), each with a non-vacuity leg, so deleting a sentence goes red
-// (.claude/rules/docs-and-website.md). README.md and website/index.html carry
+// The published claims about Splits/Lumps/Renames (taxonomic-splits-lumps,
+// renamed and extended by recorded-names-in-splits-and-lumps), pinned to the
+// code that makes them true. Scoped to the feature's OWN passages in
+// `docs/HELP.md` (the "Splits/Lumps/Renames." paragraph and the
+// "- Splits/Lumps/Renames:" bullet), each with a non-vacuity leg, so deleting a
+// sentence goes red (.claude/rules/docs-and-website.md). README.md and website/index.html carry
 // the feature as one item in the Species Detail paragraph, in the wording the
 // user approved on 2026-09-30 (pipeline/taxonomic-splits-lumps/held-copy.md);
 // the last describe below pins that paragraph, identical on both surfaces.
@@ -21,6 +22,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { CONTROL_LABEL, MARK_RESIDUAL, MARK_UNTRACEABLE, SECTION_TITLE, basisLine } from './taxonomyHistoryCopy'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8')
 const HELP = read('docs/HELP.md')
@@ -36,8 +38,9 @@ function paragraph(start: string): string {
 const stripComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
 
-const CONTROL = paragraph('**Splits and lumps.**')
-const SECTION = paragraph('- Splits and Lumps:')
+// Built from the copy module's own constants, never re-spelled (FR-35).
+const CONTROL = paragraph(`**${CONTROL_LABEL}.**`)
+const SECTION = paragraph(`- ${SECTION_TITLE}:`)
 
 describe('docs/HELP.md, the Splits and Lumps passages', () => {
   it('both passages exist and sit in the Species Detail section', () => {
@@ -85,6 +88,43 @@ describe('docs/HELP.md, the Splits and Lumps passages', () => {
 
   it('"never suggests which new species an older report belongs to" is stated', () => {
     expect(SECTION).toMatch(/never suggests which new species an older report belongs to/)
+  })
+
+  // recorded-names-in-splits-and-lumps (FR-35, QA-36): the new name, the counts,
+  // the lump states, renames, and the four limits a user can meet. Each is a
+  // claim the passage must make, quoted from the copy module where it quotes
+  // the app.
+  it('names the control and the section by the new name, and the control quotes it exactly', () => {
+    expect(CONTROL).toContain(`a "${CONTROL_LABEL}" control`)
+    expect(CONTROL).toContain(`brings the ${SECTION_TITLE} section into view`)
+    expect(CONTROL).toMatch(/split, lumped, or renamed/)
+  })
+
+  it('states the earlier-name count on its fixed basis, and limit 1: from dates and forms, not from what was typed', () => {
+    // The chart's basis is "eBird's name for them until the update" (FR-22).
+    expect(basisLine(2, 'split')).toMatch(/until the update$/)
+    expect(SECTION).toContain('how many of your reports eBird held under that name until the update')
+    expect(SECTION).toMatch(/worked out from each report's date, and for a lump from the form it carries, not from what you typed/)
+    expect(SECTION).toMatch(/a report entered later for an earlier date counts too/)
+  })
+
+  it('limit 2: some earlier names of a lump cannot be traced, in the app\'s own words', () => {
+    expect(SECTION).toContain(`"${MARK_UNTRACEABLE}"`)
+    expect(SECTION).toContain(`"${MARK_RESIDUAL}"`)
+    expect(SECTION).toMatch(/Some earlier names of a lump cannot be traced/)
+  })
+
+  it('limit 3: a rename is dated to the update whose record first carries the new name', () => {
+    expect(SECTION).toMatch(/A rename is dated to the update whose record first carries the new name/)
+  })
+
+  it('limit 4: a rename with a new code, and a change of spelling or scientific name alone, is not listed', () => {
+    expect(CONTROL).toMatch(/neither is a rename where eBird also gave the species a new code/)
+    expect(CONTROL).toMatch(/a change of spelling, punctuation or scientific name alone is not/)
+    // True of the generator: a rename's two names share one code (R1), and the
+    // app never re-derives the cutoff (entryChunk.test.ts holds the import).
+    const gen = stripComments(read('scripts/lib/taxonomyHistoryDerive.mjs'))
+    expect(gen).toMatch(/const p = taxP\.byCode\.get\(t\.code\)/)
   })
 })
 
