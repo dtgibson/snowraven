@@ -337,4 +337,4 @@ daughter, and the tally check would then stop the run. Separately, eBird renamed
 most Latin-epithet subspecies-group slash names to English group names
 (`Red-tailed Hawk (calurus/abieticola)` is now `Red-tailed Hawk
 (Western/Northern)`, same code), which moves the countability figures in step
-6 and the test fixtures that used a renamed name as their example.
+8 and the test fixtures that used a renamed name as their example.

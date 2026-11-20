@@ -126,7 +126,7 @@ italic at 0.71875rem `--sr-text-gray`.
   open panel portals into ONE shared host after the row (`PanelSlot`,
   `speciesDetail/ui.tsx`), so either panel spans the full width below both
   toggles and DOM order is visual order; never reorder with CSS `order`.
-  Subspecies and forms beside Splits and lumps on Species Detail is the exemplar.
+  Subspecies and forms beside Splits/Lumps/Renames on Species Detail is the exemplar.
 - **Confirmation dialog:** any fixed-position confirmation or short note
   that must be read before an action proceeds renders through the shared
   `components/ui/ModalDialog.tsx` shell (`.sr-dlg-*` in globals.css), never
@@ -340,11 +340,12 @@ italic at 0.71875rem `--sr-text-gray`.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
   **A direction glyph that must follow a chart's flow is hand-drawn when Lucide
   has no shape for it.** Lucide's `Split` and `Merge` are both drawn vertically
-  and there is no horizontal fork, so a split or lump badge carries an inline SVG
+  and there is no horizontal fork, so a split, lump or rename badge carries an inline SVG
   on the Lucide grid (24 viewBox, stroke 2.2, round caps, `currentColor`,
-  `aria-hidden`): three strokes fanning out (split) or two converging (lump) in
-  the chart's reading direction, rotated 90deg by CSS in the tier where the chart
-  stacks, so the glyph turns with it. The Lucide icon stays where it identifies
+  `aria-hidden`): three strokes fanning out (split), two converging (lump) or
+  one line in and one out (rename, `M2 12h19` with an arrowhead) in the chart's
+  reading direction, rotated 90deg by CSS in the tier where the chart stacks, so
+  the glyph turns with it. The Lucide icon stays where it identifies
   the feature (control tile, section head) rather than a direction. No dependency.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
 - **Map tools & transient pins:** a pointer gesture on a map (right-click /
@@ -730,6 +731,24 @@ italic at 0.71875rem `--sr-text-gray`.
   resetKey, so the animation replays exactly when the data changed (reduced-motion
   renders final width instantly); bars are reinforcement only — every value is
   present as text. The Species Detail Subspecies and Forms section is the exemplar.
+- **Secondary share bar (a box's part of a whole the section does not headline):**
+  the same 3px bar filled from the start, but `--sr-gray-400` on a `--sr-border`
+  track, so the accent stays with the figure the section exists to answer. Width
+  is the box's figure over the whole its sibling boxes divide (two decimals, one
+  inline `width`); it is full when one box holds the whole, and the boxes of one
+  whole add to 100%. Drawn only on a box whose figure is above zero, `aria-hidden`,
+  with every number it reflects printed as text. The earlier-name boxes of
+  Splits/Lumps/Renames are the exemplar (full for a split or a rename, divided for
+  a lump; the accent bar stays on "recorded since").
+- **A figure the data cannot give is a worded marker, never a zero or a blank:**
+  the words carry the state ("Not traceable in your backup", "Not counted on this
+  line"), with a sentence saying why, and lucide `CircleSlash` leads them (stroke 2.4, `aria-hidden`, `--sr-text-muted` through
+  `currentColor`) sized in em by its own class (1em square, `margin-top: 0.12em`,
+  no shrink) inside an inline-flex row aligned to `flex-start`, so a wrapped
+  marker keeps the glyph on its first line and the glyph grows with the text. No
+  number and no bar are drawn. A true zero keeps its own words ("No reports until
+  the update") so the two states never read alike, and the text equivalent
+  carries the marker in words. Splits/Lumps/Renames is the exemplar.
 - **Two-part partition (one whole split into two complementary parts):** a
   sub-section inside the host card, `SubLabel`, the block, then `Divider`. A
   figures row sits over one bar: each part's percentage at 1rem / 700 in tabular
