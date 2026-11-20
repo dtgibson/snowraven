@@ -27,9 +27,9 @@
     "family": "iphone-6.9",
     "position": 4,
     "file": "appstore/screenshots/iphone-6.9/05-species-detail.png",
-    "bytes": 347519,
-    "md5": "265c8af3a25e5dc2f1dbdd95edca6171",
-    "sha256": "97732a84027a3f1c3c6e29da2874ba4dab6266045d78ef975f68ba256b6fc0db"
+    "bytes": 351831,
+    "md5": "36f81370e7427c208bbde59009f2dd56",
+    "sha256": "5fd9ed014bb8e54dc3556aea5976eecc69723e9549e8b4e92def9d22ee800371"
   },
   {
     "family": "iphone-6.9",
@@ -83,9 +83,9 @@
     "family": "ipad-13",
     "position": 4,
     "file": "appstore/screenshots/ipad-13/05-species-detail.png",
-    "bytes": 423131,
-    "md5": "f8ed82f2e8792f61bbcea861dcad60f0",
-    "sha256": "db1d56fd5af0bfd3a8fe5cb0074c7ba2a2f5c1c62ba1916136f483bd0ad75780"
+    "bytes": 428381,
+    "md5": "aee3e7e25a51687d38b8042f2892cfc4",
+    "sha256": "b0874d6919d1d9ee8cfadfa02ab9285e9a14cac935e0e8ff2654c99892213981"
   },
   {
     "family": "ipad-13",
@@ -139,9 +139,9 @@
     "family": "iphone-duo",
     "position": 4,
     "file": "appstore/screenshots/iphone-duo/05-species-detail.png",
-    "bytes": 422279,
-    "md5": "fef20ca44ec3e6d5847811355d07f86d",
-    "sha256": "05bbaa67ccb7c7b1308ba7ed42112505a18dabfbad0e43613fc60cd8b03cc894"
+    "bytes": 425464,
+    "md5": "4d26213a5620f0bb924d0c5c777e6a86",
+    "sha256": "d19b3dd8e3b4d2708aba297103e7b33e15282f595f9bd646fcf306253774d05b"
   },
   {
     "family": "iphone-duo",
