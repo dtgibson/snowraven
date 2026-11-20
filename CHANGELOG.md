@@ -14,6 +14,7 @@ All notable changes to SnowRaven are documented here.
 - The splits-and-lumps record is version 2: a `renames` array beside `events`, and a kept `form` on lump earlier names. The generator derives renames under one cutoff (`renameKey`), checks each against Cornell's English-name-change annotation, and leaves out by name the three Cornell does not annotate until eBird's 2019 and 2022 pages are read (`RENAMES_AWAITING_SOURCE`); the escapee check's join and its recorded absences are unchanged.
 - `docs/HELP.md` and `ACCESSIBILITY.md` follow the new name; `scripts/taxonomy-history-input/README.md` gains the rename steps; `.claude/rules/security.md` gates `SplitsLumps*.tsx`.
 - README.md, the website and the F-Droid description name renames in their Species Detail sentence, and the website's Species Detail screenshot and the three App Store Species Detail frames are recaptured from the demo data.
+- The six F-Droid tablet screenshots are retaken from this release's Android build on the tablet emulator with the demo data; their side menu now lists Hotspot Reports and Life Lists.
 - The F-Droid changelog for this release is three identical files, one per processor-type build (`10000741.txt`, `10000742.txt`, `10000744.txt`), and the in-repo F-Droid recipe names 1.0.74.
 
 ## [1.0.73] - 2026-11-13
