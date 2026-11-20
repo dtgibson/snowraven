@@ -108,6 +108,9 @@ Shown the built app on their data and the sign-off page (before and after of eve
 ## D-22 — The six retaken F-Droid tablet pictures approved (user, 2026-11-19)
 Shown each published tablet picture beside its retake (Android release build of the tree on the tablet emulator, synthetic demo data only), the user said "Looks good, lets publish". They go into `fastlane/metadata/android/en-US/images/tenInchScreenshots/` in their own commit before the tag. The phone set is not retaken: its bottom bar matches the app today and no frame draws the renamed control.
 
+## D-23 — The user's iPhone check of the TestFlight build passed (user, 2026-11-19)
+Before the Deployer handed back for it, the user wrote "testflight looks good". Taken as the device check of the uploaded 1.0.74 build. The Deployer confirms from App Store Connect that exactly one 1.0.74 build exists and that it was available when the user checked, before the App Store record is created and submitted; if that cannot be shown, the submission waits and the user is asked which build they opened.
+
 ## Open
 - At default test parallelism `lifeListsLinearity.test.ts` "pass 2R" read 20.46 against a limit of 20 once; it imports none of the changed modules and passes alone. A timing suite is judged with nothing else compiling; the Tester settles whether it is pre-existing.
 - Schema section 14, flag 10 misdescribes the night heron rename. Cornell's files give `runher1` as "Rufous Night-Heron" (2019), "Nankeen Night-Heron" (2021, 2022) and "Nankeen Night Heron" (2023 on), so the rename belongs to the 2021 update and the 2023 hyphen drop is spelling-only (design-spec section 11). The Engineer confirms from the regenerated record.
