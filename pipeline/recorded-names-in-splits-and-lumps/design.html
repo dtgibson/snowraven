@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splits/Lumps/Renames design</title>
+<style>
+/* ── SnowRaven tokens, copied from frontend/src/globals.css (:root and
+      [data-theme="dark"]). This design introduces no new token. ── */
+:root {
+  --sr-text-scale: 1;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-note: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-text-disabled: #A1A1AA;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+
+  --sr-accent: #277448;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-text-disabled: #52525B;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+
+  --sr-accent: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans); font-size: 1rem; line-height: 1.5;
+  color: var(--sr-text); background: var(--sr-bg);
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+button { font-family: inherit; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+svg { display: inline-block; flex-shrink: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+
+/* ══ MOCKUP CHROME: the designer's voice. Monospace, dashed, never inside a
+      frame. Nothing in this block would ship. ══════════════════════════════ */
+.sk-bar {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--sr-surface); border-bottom: 1px solid var(--sr-border);
+}
+.sk-bar-in {
+  max-width: 1060px; margin: 0 auto; padding: 10px 20px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px;
+}
+.sk-kicker {
+  font-family: var(--font-note); font-size: 0.6875rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sk-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.sk-seg { display: inline-flex; border: 1.5px solid var(--sr-border); border-radius: 6px; overflow: hidden; background: var(--sr-surface); }
+.sk-seg button {
+  border: none; background: none; cursor: pointer; padding: 5px 11px;
+  font-family: var(--font-note); font-size: 0.6875rem; color: var(--sr-text-muted);
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.sk-seg button + button { border-left: 1px solid var(--sr-border); }
+.sk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sk-seg button:focus-visible { outline-offset: -3px; box-shadow: none; }
+
+.sk-page { max-width: 1060px; margin: 0 auto; padding: 22px 20px 64px; }
+.sk-title { margin: 0 0 4px; font-family: var(--font-note); font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; overflow-wrap: anywhere; }
+.sk-note {
+  font-family: var(--font-note); font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted);
+  border-left: 2px dashed var(--sr-border-medium); padding: 2px 0 2px 12px; margin: 10px 0;
+  max-width: 78ch; overflow-wrap: anywhere;
+}
+.sk-note b { color: var(--sr-text); font-weight: 600; }
+.sk-note p { margin: 0; }
+.sk-note p + p { margin-top: 6px; }
+.sk-jump { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 14px 0 0; padding: 0; list-style: none; font-family: var(--font-note); font-size: 0.75rem; }
+.sk-jump a { color: var(--sr-accent); text-decoration: underline; text-underline-offset: 2px; }
+.sk-h2 {
+  margin: 44px 0 0; padding-top: 16px; border-top: 1px dashed var(--sr-border-medium);
+  font-family: var(--font-note); font-size: 0.875rem; font-weight: 600; color: var(--sr-text);
+  scroll-margin-top: 64px; overflow-wrap: anywhere;
+}
+.sk-h3 {
+  margin: 26px 0 0; font-family: var(--font-note); font-size: 0.75rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text); overflow-wrap: anywhere;
+}
+.sk-h3 span { color: var(--sr-text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* A frame holds app content. Its tag is mockup chrome. */
+.sk-frame-tag {
+  display: inline-block; margin: 12px 0 0; padding: 3px 9px;
+  border: 1px dashed var(--sr-border-medium); border-bottom: none; border-radius: 6px 6px 0 0;
+  font-family: var(--font-note); font-size: 0.6875rem; color: var(--sr-text-muted);
+  max-width: 100%; overflow-wrap: anywhere;
+}
+.sk-frame-tag b { color: var(--sr-text); font-weight: 600; }
+.sk-frame {
+  background: var(--sr-bg); border: 1px dashed var(--sr-border-medium); border-radius: 0 10px 10px 10px;
+  padding: 18px; width: 100%; max-width: 1020px;
+  transition: max-width 200ms ease-out;
+}
+/* Phone frame: 320px wide with 24px gutters, so the card is the app's 272px
+   content column at a 320px viewport. */
+.sk-phone .sk-frame { max-width: 320px; padding: 12px 24px; }
+
+/* The hidden text equivalent, shown as text. */
+.sk-alt {
+  border: 1px dashed var(--sr-border-medium); border-radius: 0 10px 10px 10px;
+  background: var(--sr-surface); padding: 12px 16px; max-width: 78ch;
+  font-size: 0.8125rem; line-height: 1.55; color: var(--sr-text); overflow-wrap: anywhere;
+}
+.sk-alt p { margin: 0; }
+.sk-alt p + p { margin-top: 6px; }
+
+/* The wording list. */
+.sk-words { margin: 12px 0 0; padding: 0; list-style: none; max-width: 86ch; }
+.sk-words li { padding: 10px 0; border-top: 1px dashed var(--sr-border-medium); }
+.sk-words li:last-child { border-bottom: 1px dashed var(--sr-border-medium); }
+.sk-words .w-where { font-family: var(--font-note); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); }
+.sk-words .w-says { margin-top: 2px; font-size: 0.875rem; font-weight: 600; color: var(--sr-text); line-height: 1.45; overflow-wrap: anywhere; }
+.sk-words .w-why { margin-top: 2px; font-family: var(--font-note); font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted); overflow-wrap: anywhere; }
+
+/* ══ APP CONTENT. Everything below mirrors shipped rules: SectionCard and
+      SectionHead from speciesDetail/ui.tsx, and the .sr-birdname-*, .sr-ssx-*,
+      .sr-sl-* and .sr-lin-* rules from globals.css. Class names are the shipped
+      ones. The only new rules are in the block marked PROPOSED. ════════════ */
+.sr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow); }
+.sr-sechead { display: flex; align-items: center; gap: 8px; padding: 14px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-sechead-tile { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-sechead-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+
+.sr-birdname-link {
+  font: inherit; font-weight: 500; color: var(--sr-text);
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left;
+}
+.sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-birdname-text { font-weight: 500; color: var(--sr-text); }
+/* The two site marks after a linked current name, drawn as the bundled glyphs
+   the app shows when a favicon has not loaded (this page makes no request). */
+.sr-marks { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: -2px; white-space: nowrap; }
+.sr-marks a { display: inline-flex; width: 14px; height: 14px; color: var(--sr-text); opacity: 0.75; }
+
+/* The taxonomy tools row and the control (the .sr-ssx-* register). */
+.sr-taxtools { margin-bottom: 16px; flex-shrink: 0; }
+.sr-taxtools-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-start; }
+.sr-ssx-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 12px 0 8px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text); cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.sr-ssx-toggle[aria-expanded="true"] {
+  background: var(--sr-accent-bg);
+  border-color: var(--sr-accent-border-strong);
+  color: var(--sr-accent);
+}
+.sr-ssx-tile {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.sr-ssx-toggle[aria-expanded="true"] .sr-ssx-tile { background: var(--sr-surface); }
+[data-theme="dark"] .sr-ssx-toggle[aria-expanded="true"] .sr-ssx-tile { background: var(--sr-surface-subtle); }
+.sr-ssx-count { color: var(--sr-text-muted); font-weight: 500; }
+.sr-ssx-toggle[aria-expanded="true"] .sr-ssx-count { color: var(--sr-accent); }
+.sr-ssx-caret { color: var(--sr-text-muted); transition: transform 200ms ease-out; }
+.sr-ssx-toggle[aria-expanded="true"] .sr-ssx-caret { transform: rotate(180deg); color: var(--sr-accent); }
+.sr-ssx-panel {
+  margin-top: 8px;
+  border: 1px solid var(--sr-border); border-radius: 10px;
+  background: var(--sr-surface-faint);
+  overflow: hidden;
+  transform-origin: top left;
+  animation: sr-ssx-pop-in 200ms ease-out;
+}
+@keyframes sr-ssx-pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sr-ssx-panel-head { padding: 10px 14px; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5; }
+.sr-ssx-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sr-border-subtle); }
+.sr-ssx-list li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sr-sl-row {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; padding: 10px 14px;
+  transition: background 120ms ease-out;
+}
+.sr-sl-row[aria-current="true"] { background: var(--sr-accent-bg); }
+.sr-sl-row:focus-visible { outline-offset: -3px; box-shadow: none; }
+.sr-sl-row-name { min-width: 0; overflow-wrap: anywhere; }
+.sr-sl-row-name .sr-birdname-text { font-size: 0.84375rem; font-weight: 600; }
+.sr-sl-row[aria-current="true"] .sr-sl-row-name .sr-birdname-text { color: var(--sr-accent); }
+.sr-sl-row-events { margin-left: auto; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.sr-sl-row-ev { display: inline-flex; align-items: center; gap: 5px; font-size: 0.6875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+.sr-sl-row-ev b { font-weight: 600; color: var(--sr-text); }
+.sr-sl-row[aria-current="true"] .sr-sl-row-ev b { color: var(--sr-accent); }
+.sr-sl-dot { color: var(--sr-text-muted); }
+
+/* Hover looks, gated so a touch screen does not keep them after a tap (the
+   project's hover rule; see the notes at the foot of the page). */
+@media (hover: hover) {
+  .sk-seg button:hover { background: var(--sr-surface-subtle); }
+  .sr-ssx-toggle:hover { background: var(--sr-surface-subtle); }
+  .sr-ssx-toggle[aria-expanded="true"]:hover { background: var(--sr-accent-bg); }
+  .sr-sl-row:hover { background: var(--sr-surface-subtle); }
+  .sr-sl-row[aria-current="true"]:hover { background: var(--sr-accent-bg); }
+  .sr-birdname-link:hover { color: var(--sr-accent); text-decoration: underline; }
+  .sr-marks a:hover { opacity: 1; }
+}
+
+/* The section and its flow chart (the .sr-lin-* register). */
+.sr-lin-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-lin-pad { padding: 16px 18px; }
+.sr-lin-body { animation: sr-lin-in 160ms ease-out; }
+@keyframes sr-lin-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.sr-lin-empty { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-lin-coverage {
+  margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5;
+}
+.sr-lin-event { position: relative; container-type: inline-size; container-name: sr-lin; }
+.sr-lin-event + .sr-lin-event { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lin-note {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 9px 12px; margin-bottom: 14px;
+  border: 1px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface-faint);
+  font-size: 0.75rem; line-height: 1.5; color: var(--sr-text);
+}
+.sr-lin-note svg { flex-shrink: 0; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-lin-note b { font-weight: 600; }
+.sr-lin-chart {
+  --lin-stub: calc(10px + 0.55rem);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; column-gap: 0;
+}
+.sr-lin-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: relative; }
+.sr-lin-side--before { padding-right: 18px; }
+.sr-lin-side--after { padding-left: 18px; }
+.sr-lin-node {
+  position: relative; border: 1px solid var(--sr-border); border-radius: 8px;
+  background: var(--sr-surface); padding: 10px 12px; min-width: 0;
+}
+.sr-lin-node.is-you { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); }
+.sr-lin-node.is-absent { border-style: dashed; border-color: var(--sr-border-medium); background: transparent; }
+.sr-lin-node::before { content: ''; position: absolute; width: 18px; height: 1px; background: var(--sr-border-medium); }
+.sr-lin-side--before .sr-lin-node::before { right: -19px; }
+.sr-lin-side--after .sr-lin-node::before { left: -19px; }
+.sr-lin-side--single .sr-lin-node::before { top: 50%; }
+.sr-lin-side--multi .sr-lin-node::before { top: var(--lin-stub); }
+.sr-lin-side--multi .sr-lin-node::after { content: ''; position: absolute; width: 1px; background: var(--sr-border-medium); top: -10px; bottom: -10px; }
+.sr-lin-side--before.sr-lin-side--multi .sr-lin-node::after { right: -19px; }
+.sr-lin-side--after.sr-lin-side--multi .sr-lin-node::after { left: -19px; }
+.sr-lin-side--multi .sr-lin-node:first-child::after { top: var(--lin-stub); }
+.sr-lin-side--multi .sr-lin-node:last-child::after { bottom: calc(100% - var(--lin-stub)); }
+.sr-lin-side--multi .sr-lin-node:only-child::after { display: none; }
+.sr-lin-rail { display: flex; align-items: center; }
+.sr-lin-rail::before, .sr-lin-rail::after { content: ''; width: 22px; height: 1px; background: var(--sr-border-medium); }
+.sr-lin-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 11px; border-radius: 14px;
+  border: 1px solid var(--sr-border); background: var(--sr-surface-faint);
+  font-size: 0.75rem; white-space: nowrap; color: var(--sr-text-muted);
+}
+.sr-lin-badge b { font-weight: 700; color: var(--sr-text); }
+.sr-lin-name { line-height: 1.3; overflow-wrap: anywhere; }
+.sr-lin-name .sr-birdname-text,
+.sr-lin-name .sr-birdname-link {
+  font-size: 0.84375rem; font-weight: 600; line-height: 1.3; color: var(--sr-text);
+  text-align: left; overflow-wrap: anywhere;
+}
+.sr-lin-name .sr-birdname-link:focus-visible { color: var(--sr-accent); }
+.is-absent .sr-lin-name .sr-birdname-text { color: var(--sr-text-muted); font-weight: 500; }
+.sr-lin-sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); line-height: 1.3; overflow-wrap: anywhere; }
+.sr-lin-mark {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sr-text-muted);
+}
+.sr-lin-mark--you { color: var(--sr-accent); }
+.sr-lin-count { margin-top: 6px; font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-lin-part {
+  margin-top: 1px; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5;
+  display: flex; flex-wrap: wrap; gap: 0 12px;
+}
+.sr-lin-part b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-lin-bar { display: flex; justify-content: flex-end; height: 3px; border-radius: 2px; margin-top: 7px; background: var(--sr-gray-400); overflow: hidden; }
+.sr-lin-bar i { display: block; height: 100%; flex: none; background: var(--sr-accent); animation: sr-lin-bar-in 240ms ease-out; }
+@keyframes sr-lin-bar-in { from { width: 0; } }
+.sr-lin-sentence { margin: 14px 0 0; font-size: 0.75rem; line-height: 1.55; color: var(--sr-text-muted); max-width: 66ch; }
+.sr-lin-sentence b { font-weight: 600; color: var(--sr-text); }
+.sr-lin-sentence .sr-birdname-text { font: inherit; color: inherit; }
+
+/* ── PROPOSED: the only new rules. All in the section's own register, tokens
+      only, both themes. ───────────────────────────────────────────────────── */
+/* The title and the control's label may break after a slash (a <wbr> in the
+   markup; the text itself is unchanged), so "Splits/Lumps/Renames" wraps at
+   320px and 200% text instead of running past its box. */
+.sr-sechead-title { min-width: 0; }
+.sr-ssx-label { min-width: 0; }
+/* A list row lets its kinds drop under the name when the two do not fit on one
+   line ("Rename" is the longest kind word; at 320px and 200% text the name was
+   otherwise squeezed to a few letters per line). No breakpoint: the row wraps
+   only when it has to, so wide rows are unchanged. */
+.sr-sl-row { flex-wrap: wrap; row-gap: 2px; }
+/* The explanatory paragraph: a second paragraph under the event sentence. */
+.sr-lin-sentence + .sr-lin-sentence { margin-top: 6px; }
+/* A kept form's name quoted in a line under a count reads as part of the line. */
+.sr-lin-part .sr-birdname-text { font: inherit; color: inherit; }
+/* A marker that leads its box (the "Earlier name not recorded" box has no bird
+   name above it). */
+.sr-lin-mark--lead { margin-top: 0; }
+/* A marker for a figure that cannot be given (not traceable, changed again
+   later) carries a small glyph, so it differs in shape from the zero state. */
+.sr-lin-mark--cannot { align-items: flex-start; }
+.sr-lin-mark--cannot svg { width: 1em; height: 1em; margin-top: 0.12em; }  /* sized in em, so it grows with the text */
+/* "Rename" is a longer kind word than "Split" or "Lump": in the stacked chart
+   the badge may wrap its date under the word (flex-wrap in the two stacked
+   blocks below), or at 320px and 200% text it runs past the event box. */
+/* An earlier name's bar: its share of the reports dated on or before the
+   update. Gray on a faint track, filled from the left; the accent stays with
+   "recorded since" on the current names. Reinforcement only, every number is
+   text. */
+.sr-lin-bar--earlier { justify-content: flex-start; background: var(--sr-border); }
+.sr-lin-bar--earlier i { background: var(--sr-gray-400); }
+
+/* Phone tier (shipped), plus the control row's shipped phone rules. */
+@media (max-width: 640px) {
+  .sr-lin-pad { padding-left: 16px; padding-right: 16px; }
+  .sr-taxtools-row { flex-direction: column; align-items: stretch; }
+  .sr-taxtools-row > .sr-ctl-row > .sr-ssx-toggle { width: 100%; justify-content: flex-start; }
+  .sr-ssx-toggle { flex-wrap: wrap; max-width: 100%; row-gap: 2px; padding-top: 4px; padding-bottom: 4px; }
+  .sr-ctl-row button { font-size: max(16px, 0.75rem); }
+  .sr-lin-chart { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .sr-lin-side--before, .sr-lin-side--after { padding: 0; }
+  .sr-lin-side--multi { padding-left: 42px; }
+  .sr-lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
+  .sr-lin-rail::before, .sr-lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
+  .sr-lin-badge { white-space: normal; flex-wrap: wrap; }
+  .sr-lin-badge .sr-lin-glyph { transform: rotate(90deg); }
+  .sr-lin-node::before { display: none; }
+  .sr-lin-side--multi .sr-lin-node::before { display: block; left: -19px; right: auto; top: var(--lin-stub); }
+  .sr-lin-side--multi .sr-lin-node::after { left: -19px; right: auto; }
+  .sr-lin-side--before.sr-lin-side--multi .sr-lin-node:last-child::after { bottom: 0; }
+  .sr-lin-side--after.sr-lin-side--multi .sr-lin-node:first-child::after { top: 0; }
+}
+/* The same stacked chart when the EVENT is narrow. The container is
+   .sr-lin-event. PROPOSED: the threshold moves from the shipped
+   (max-width: 21em) or (max-width: 420px), because the new left-hand lines
+   ("Not traceable in your backup" with its glyph) and the wider "Rename by ..."
+   badge need more room in three columns. Measured in this mockup's frames, in
+   Chromium and WebKit, with the query switched off: three columns are clean
+   from an event 490px wide at 100% text, 550px at 125%, 610px at 150% and
+   730px at 200% (250px + 15em). 520px covers 100% and 29em covers 125% and up.
+   To be measured again in the built app, with a classic scrollbar too. */
+@container sr-lin (max-width: 29em) or (max-width: 520px) {
+  .sr-lin-chart { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .sr-lin-side--before, .sr-lin-side--after { padding: 0; }
+  .sr-lin-side--multi { padding-left: 42px; }
+  .sr-lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
+  .sr-lin-rail::before, .sr-lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
+  .sr-lin-badge { white-space: normal; flex-wrap: wrap; }
+  .sr-lin-badge .sr-lin-glyph { transform: rotate(90deg); }
+  .sr-lin-node::before { display: none; }
+  .sr-lin-side--multi .sr-lin-node::before { display: block; left: -19px; right: auto; top: var(--lin-stub); }
+  .sr-lin-side--multi .sr-lin-node::after { left: -19px; right: auto; }
+  .sr-lin-side--before.sr-lin-side--multi .sr-lin-node:last-child::after { bottom: 0; }
+  .sr-lin-side--after.sr-lin-side--multi .sr-lin-node:first-child::after { top: 0; }
+}
+
+/* MOCKUP PLUMBING: the phone frame inside a wide window gets the phone tier's
+   non-chart rules too (a media query cannot see a frame). Would not ship. */
+.sk-phone .sr-lin-pad { padding-left: 16px; padding-right: 16px; }
+.sk-phone .sr-taxtools-row { flex-direction: column; align-items: stretch; }
+.sk-phone .sr-taxtools-row > .sr-ctl-row > .sr-ssx-toggle { width: 100%; justify-content: flex-start; }
+.sk-phone .sr-ssx-toggle { flex-wrap: wrap; max-width: 100%; row-gap: 2px; padding-top: 4px; padding-bottom: 4px; }
+.sk-phone .sr-ctl-row button { font-size: max(16px, 0.75rem); }
+/* The state gallery is a set of stills: the entrance and the bar fill play only
+   where content changes, which on this page is the live frame at the top. */
+.sk-static .sr-lin-body, .sk-static .sr-lin-bar i, .sk-static .sr-ssx-panel { animation: none; }
+
+/* Mockup chrome at phone width: the frame runs edge to edge with 24px gutters,
+   so the card is the 272px column it has in the app at 320px. */
+@media (max-width: 640px) {
+  .sk-bar { position: static; }
+  .sk-bar-in { padding: 8px 16px; }
+  .sk-seg[aria-label="Frame width"] { display: none; }
+  .sk-page { padding: 16px 0 48px; }
+  .sk-title, .sk-note, .sk-jump, .sk-h2, .sk-h3, .sk-words, .sk-alt { margin-left: 16px; margin-right: 16px; }
+  .sk-alt { border-radius: 10px; }
+  .sk-frame-tag { margin-left: 12px; max-width: calc(100% - 24px); }
+  .sk-frame, .sk-phone .sk-frame { max-width: none; border-left: none; border-right: none; border-radius: 0; padding: 12px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Icons, inline. Lucide paths (split, chevron-down, check, info, circle-slash,
+     globe, square-library) and the section's hand-drawn direction glyphs; the
+     rename glyph (one line in, one out) is new. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+    <symbol id="i-cannot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 15 6-6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+    <symbol id="i-lib" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></symbol>
+    <symbol id="g-split" viewBox="0 0 24 24"><path d="M2 12h6"/><path d="m8 12 7-6h7"/><path d="m8 12 7 6h7"/></symbol>
+    <symbol id="g-lump" viewBox="0 0 24 24"><path d="M2 6h7l7 6h6"/><path d="M2 18h7l7-6"/></symbol>
+    <symbol id="g-rename" viewBox="0 0 24 24"><path d="M2 12h19"/><path d="m15 6 6 6-6 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="sk-bar">
+  <div class="sk-bar-in">
+    <span class="sk-kicker">Approved design direction, 19 November 2026</span>
+    <div class="sk-controls">
+      <div class="sk-seg" role="group" aria-label="Theme">
+        <button type="button" data-theme-set="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+      </div>
+      <div class="sk-seg" role="group" aria-label="Frame width">
+        <button type="button" data-width-set="wide" aria-pressed="true">Wide</button>
+        <button type="button" data-width-set="phone" aria-pressed="false">Phone, 320px</button>
+      </div>
+      <div class="sk-seg" role="group" aria-label="Text size">
+        <button type="button" data-scale-set="1" aria-pressed="true">Text 100%</button>
+        <button type="button" data-scale-set="2" aria-pressed="false">Text 200%</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="sk-page" id="page">
+  <h1 class="sk-title">Splits/Lumps/Renames: recorded names on each earlier name</h1>
+  <div class="sk-note">
+    <p><b>How to read this page.</b> Anything inside a dashed frame is what the app would draw, in its own type, color and spacing. Anything outside a frame, in this typewriter face, is a note from the designer. The buttons at the top switch every frame between light and dark, wide and a 320px phone, and normal and doubled text.</p>
+    <p><b>Which figures are real.</b> The Whimbrel figures are yours: 25 reports under Hudsonian Whimbrel, 14 dated on or before 31 October 2025 and 11 after, and none under Eurasian Whimbrel. Every other count on this page is illustrative. The species, the updates and their dates are real, from the taxonomy files the app ships from.</p>
+    <p><b>Design system.</b> This sits inside SnowRaven's established look: no new color, type or component. The few new rules are listed at the foot of the page.</p>
+  </div>
+  <ul class="sk-jump">
+    <li><a href="#live">Try it</a></li>
+    <li><a href="#split">Split</a></li>
+    <li><a href="#lump">Lump</a></li>
+    <li><a href="#rename">Rename</a></li>
+    <li><a href="#later">A later change</a></li>
+    <li><a href="#older">An older backup</a></li>
+    <li><a href="#none">No change</a></li>
+    <li><a href="#alt">Screen reader text</a></li>
+    <li><a href="#words">Wording to check</a></li>
+    <li><a href="#long">Longest names</a></li>
+    <li><a href="#build">Notes for the build</a></li>
+  </ul>
+
+  <!-- ═══════════════════════ LIVE ═══════════════════════ -->
+  <h2 class="sk-h2" id="live">Try it: the control, its list and the section</h2>
+  <div class="sk-note"><p>This frame works. Open <b>Splits/Lumps/Renames</b>, pick a species, and the section below changes to it, the way it does in the app. The list now holds renamed species beside split and lumped ones, each with the kind as a word and the update's year. "Subspecies and forms" is unchanged and is not wired here.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, <b id="live-selected">Hudsonian Whimbrel</b> selected</div>
+  <div class="sk-frame" id="live-frame">
+    <div class="sr-taxtools">
+      <div class="sr-taxtools-row">
+        <div class="sr-ctl-row">
+          <button type="button" class="sr-ssx-toggle" aria-expanded="false" title="Unchanged, and not wired in this mockup">
+            <span class="sr-ssx-tile" aria-hidden="true"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-split"/></svg></span>
+            <span class="sr-ssx-label">Subspecies and forms</span>
+            <span class="sr-ssx-count">38 species</span>
+            <svg class="sr-ssx-caret" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>
+          </button>
+        </div>
+        <div class="sr-ctl-row" id="live-ctl">
+          <button type="button" class="sr-ssx-toggle" id="live-toggle" aria-expanded="false" aria-controls="live-panel">
+            <span class="sr-ssx-tile" aria-hidden="true"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-split"/></svg></span>
+            <span class="sr-ssx-label">Splits/<wbr>Lumps/<wbr>Renames</span>
+            <span class="sr-ssx-count" id="live-count"></span>
+            <svg class="sr-ssx-caret" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="live-host"></div>
+    </div>
+    <div id="live-section" tabindex="-1"></div>
+  </div>
+
+  <!-- ═══════════════════════ SPLIT ═══════════════════════ -->
+  <h2 class="sk-h2" id="split">Split: Whimbrel, October 2025</h2>
+  <div class="sk-note"><p>Your own figures. The Whimbrel box was dashed and read "No reports under this name". It now carries the 14 reports eBird held under Whimbrel until the update, which is the 14 "reassigned by eBird" on Hudsonian Whimbrel (you hold none under Eurasian Whimbrel or the slash). A second paragraph under the chart says how the count is worked out. The boxes on the right are untouched.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Hudsonian Whimbrel</div>
+  <div class="sk-frame sk-static" data-species="Hudsonian Whimbrel" data-evs="whimbrel"></div>
+
+  <h3 class="sk-h3">The same split with nothing to count <span>every report is dated after the update</span></h3>
+  <div class="sk-note"><p>For a birder whose first goshawk came after the 2023 split. The earlier name says so in words and stays dashed, and no explanation is shown because there is no count to explain.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, American Goshawk</div>
+  <div class="sk-frame sk-static" data-species="American Goshawk" data-evs="goshawk"></div>
+
+  <!-- ═══════════════════════ LUMP ═══════════════════════ -->
+  <h2 class="sk-h2" id="lump">Lump: four ways it can read</h2>
+
+  <h3 class="sk-h3">1. Traced <span>eBird kept each earlier name as a form</span></h3>
+  <div class="sk-note"><p>A report dated on or before the lump that still carries a form is counted under the name that form came from, and the box names the form. Reports with no form go to their own dashed box, "Earlier name not recorded", never to a guessed name. The three boxes on the left add up to the 58 "reassigned by eBird" on the right, and the thin gray bars show how the 58 divide.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Western Flycatcher</div>
+  <div class="sk-frame sk-static" data-species="Western Flycatcher" data-evs="wesfly"></div>
+
+  <h3 class="sk-h3">2. Traced, with no reports <span>what your own Western Flycatcher will show</span></h3>
+  <div class="sk-note"><p>Your backup starts after this lump, so both earlier names are in the zero state: the backup could show such reports and holds none. This must not read like "Not traceable in your backup" two frames down. The wording here is mine and I would like your eye on it.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Western Flycatcher, every report dated after the lump</div>
+  <div class="sk-frame sk-static" data-species="Western Flycatcher" data-evs="wesflyZero"></div>
+
+  <h3 class="sk-h3">3. Traced in part <span>one name kept as a form, one name carried on</span></h3>
+  <div class="sk-note"><p>Collared Trogon kept its name through the lump, so an older plain Collared Trogon report could have been either species, or the old slash. It reads "Not traceable in your backup" with the reason, and the plain reports sit in "Earlier name not recorded". About half of the covered lumps (52 of 101) have at least one name like this.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Collared Trogon</div>
+  <div class="sk-frame sk-static" data-species="Collared Trogon" data-evs="trogon"></div>
+
+  <h3 class="sk-h3">4. Not traceable <span>eBird kept no form</span></h3>
+  <div class="sk-note"><p>American Crow kept its name and Northwestern Crow was given no form, so nothing on the left can be counted and nothing is guessed. Each box gives its own reason. There is no "Earlier name not recorded" box and no explanation paragraph, because no count is shown.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, American Crow</div>
+  <div class="sk-frame sk-static" data-species="American Crow" data-evs="crow"></div>
+
+  <!-- ═══════════════════════ RENAME ═══════════════════════ -->
+  <h2 class="sk-h2" id="rename">Rename: Thick-billed Longspur, by September 2021</h2>
+  <div class="sk-note">
+    <p>The third kind. A rename is dated only to the yearly update whose file first carries the new name, so nothing here says the name changed at the update: the badge reads "by September 2021", the earlier name's line ends "at the latest", and the paragraph says what that means for the count. The right-hand box reads "renamed by eBird" where a split reads "reassigned by eBird".</p>
+    <p>None of your own species was renamed in the covered updates, so you will meet this only on a different backup.</p>
+  </div>
+  <div class="sk-frame-tag">In the app: Species Detail, Thick-billed Longspur</div>
+  <div class="sk-frame sk-static" data-species="Thick-billed Longspur" data-evs="longspur"></div>
+
+  <h3 class="sk-h3">A rename whose spelling moved again <span>and a count of one</span></h3>
+  <div class="sk-note"><p>eBird's 2021 file spells the new name "Nankeen Night-Heron"; today it is "Nankeen Night Heron". The box and the sentence use today's spelling, the one the rest of the app shows for this bird. Also the singular: "1 report", "eBird's name for it".</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Nankeen Night Heron</div>
+  <div class="sk-frame sk-static" data-species="Nankeen Night Heron" data-evs="nankeen"></div>
+
+  <!-- ═══════════════════════ LATER ═══════════════════════ -->
+  <h2 class="sk-h2" id="later">A later change: Great Horned Owl, 2022 and then 2026</h2>
+  <div class="sk-note"><p>Two splits on one species, each on its own line with its own date, as today. The 2026 split moved some reports to new names, so a count on the 2022 line would miss them. The 2022 line's earlier name therefore carries a marker and no number, and the 2026 line counts as usual. Tropical Horned Owl shows a current name the birder also holds: it keeps its link and its two site marks, as shipped.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Great Horned Owl</div>
+  <div class="sk-frame sk-static" data-species="Great Horned Owl" data-evs="gho2022,gho2026"></div>
+
+  <!-- ═══════════════════════ OLDER BACKUP ═══════════════════════ -->
+  <h2 class="sk-h2" id="older">A backup exported before an update: unchanged</h2>
+  <div class="sk-note">
+    <p>Exactly as the app draws it today. The backup still carries Whimbrel, so the reports are counted as Whimbrel reports, directly. None of the new pieces appears: no "until the update" count, no "Earlier name not recorded", no "Not traceable", no explanation paragraph. A report is never counted both ways.</p>
+    <p>One combination to know about: a backup older than the first of two renames shows the first rename like this frame and the second with "No reports until the update", because none of its reports carries the middle name yet. The zero state's line is worded so it stays true there.</p>
+  </div>
+  <div class="sk-frame-tag">In the app, as shipped: Species Detail, Whimbrel, backup exported before October 2025</div>
+  <div class="sk-frame sk-static" data-species="Whimbrel" data-evs="whimbrelOlder"></div>
+
+  <!-- ═══════════════════════ NONE ═══════════════════════ -->
+  <h2 class="sk-h2" id="none">No change recorded</h2>
+  <div class="sk-note"><p>The line for a species with nothing in the covered updates. It says what the record holds, never that the bird was never renamed: a rename where eBird also changed the species code is not in the record.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, Black Phoebe</div>
+  <div class="sk-frame sk-static" data-species="Black Phoebe" data-evs=""></div>
+
+  <h3 class="sk-h3">And when no species in the backup is affected <span>the control's list</span></h3>
+  <div class="sk-frame-tag">In the app: the control, open, on a backup with no affected species</div>
+  <div class="sk-frame sk-static">
+    <div class="sr-taxtools" style="margin-bottom:0">
+      <div class="sr-taxtools-row">
+        <div class="sr-ctl-row">
+          <button type="button" class="sr-ssx-toggle" aria-expanded="true">
+            <span class="sr-ssx-tile" aria-hidden="true"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-split"/></svg></span>
+            <span class="sr-ssx-label">Splits/<wbr>Lumps/<wbr>Renames</span>
+            <span class="sr-ssx-count">0 species</span>
+            <svg class="sr-ssx-caret" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="sr-ssx-panel"><div class="sr-ssx-panel-head" data-copy="zeroAffected"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ ALT ═══════════════════════ -->
+  <h2 class="sk-h2" id="alt">What a screen reader receives</h2>
+  <div class="sk-note"><p>In the app this text is hidden from sight and the chart is hidden from the screen reader, so each fact is heard once. It is shown here as text. It is built from the same figures and the same strings as the three charts above, so the two cannot drift.</p></div>
+  <h3 class="sk-h3">Split <span>Hudsonian Whimbrel</span></h3>
+  <div class="sk-alt" data-alt="whimbrel" data-species="Hudsonian Whimbrel"></div>
+  <h3 class="sk-h3">Lump <span>Western Flycatcher</span></h3>
+  <div class="sk-alt" data-alt="wesfly" data-species="Western Flycatcher"></div>
+  <h3 class="sk-h3">Rename <span>Thick-billed Longspur</span></h3>
+  <div class="sk-alt" data-alt="longspur" data-species="Thick-billed Longspur"></div>
+
+  <!-- ═══════════════════════ WORDS ═══════════════════════ -->
+  <h2 class="sk-h2" id="words">Wording that is mine, for your eye</h2>
+  <div class="sk-note"><p>Fixed and not reopened here: the title "Splits/Lumps/Renames", "Earlier name not recorded", "Not traceable in your backup", the word "Rename", and "eBird's name for them until the update". Everything below is a proposal.</p></div>
+  <ul class="sk-words">
+    <li><div class="w-where">The control's label</div><div class="w-says">Splits/Lumps/Renames</div><div class="w-why">The same string as the title. The other choice is sentence form, "Splits, lumps, and renames", to sit beside "Subspecies and forms".</div></li>
+    <li><div class="w-where">A species with no change</div><div class="w-says">No split, lump, or rename is recorded for this species in the covered updates.</div><div class="w-why">Today's line with the third kind added. "Is recorded" on purpose: it is a statement about the record.</div></li>
+    <li><div class="w-where">An earlier name with nothing to count</div><div class="w-says">No reports until the update</div><div class="w-why">Followed by one line saying what was looked for: for a lump, "None dated on or before it carries the form Western Flycatcher (Cordilleran)."</div></li>
+    <li><div class="w-where">A rename, three places</div><div class="w-says">Rename, by September 2021 · eBird's name for them until the update, at the latest · 9 renamed by eBird</div><div class="w-why">"By" and "at the latest" carry the dating limit without leaving the fixed wording. If you would sooner keep the earlier name's line identical on all three kinds, the paragraph alone can carry it.</div></li>
+    <li><div class="w-where">A traced lump name</div><div class="w-says">now the form Western Flycatcher (Pacific-slope)</div><div class="w-why">Names the form the count was worked out from, in the words a birder would see on the report today.</div></li>
+    <li><div class="w-where">Not traceable, the two reasons</div><div class="w-says">eBird kept no form for this name, so its reports now read as plain American Crow. · This name carried on as the lumped species, so its earlier reports read the same as any report with no form.</div><div class="w-why">One sentence per box, each true for its own reason.</div></li>
+    <li><div class="w-where">An earlier name on a line a later update changed</div><div class="w-says">Not counted on this line · A later update changed one of the names it became.</div><div class="w-why">No number and no zero, so it cannot be read as "none".</div></li>
+    <li><div class="w-where">The list's opening line</div><div class="w-says" data-copy="panelHead"></div><div class="w-why">Was "that eBird split or lumped". Worded as what is recorded so it never claims a species was not renamed.</div></li>
+  </ul>
+
+  <!-- ═══════════════════════ LONG ═══════════════════════ -->
+  <h2 class="sk-h2" id="long">The longest names in the record</h2>
+  <div class="sk-note"><p>A fit check, not a new state: the lump with the longest kept form name in the record. Switch to Phone and Text 200% above; nothing should run past its box or make the page scroll sideways.</p></div>
+  <div class="sk-frame-tag">In the app: Species Detail, North Solomons Dwarf-Kingfisher</div>
+  <div class="sk-frame sk-static" data-species="North Solomons Dwarf-Kingfisher" data-evs="kingfisher"></div>
+
+  <!-- ═══════════════════════ BUILD ═══════════════════════ -->
+  <h2 class="sk-h2" id="build">Notes for the build</h2>
+  <div class="sk-note">
+    <p><b>What is new in the stylesheet.</b> Eight small rules, all marked PROPOSED in this page's source: a break opportunity after each slash in the title and the control's label; a list row that lets its kinds drop under a long name; the stacked chart's badge allowed to wrap its date under the word "Rename"; the second paragraph's spacing; a form name inheriting its line's type; a marker that leads a box; the glyph on a "cannot be counted" marker; and the earlier name's share bar. No new token, no new component, no new control.</p>
+    <p><b>Motion.</b> None added. The list's pop-in from its control (200ms, ease-out, from the top left), the caret's turn, the section's 160ms entrance when the species changes and the 240ms bar fill are the shipped ones, and the new share bar joins that same fill. All of it collapses under reduced motion. The stills in the gallery do not animate.</p>
+    <p><b>Sizes and thresholds.</b> One threshold moves. The chart stacks when its own event box (.sr-lin-event) is narrow; today that is at most 21em or 420px, and here it is at most 29em or 520px, because "Not traceable in your backup" and the wider "Rename by ..." badge need more room side by side. Measured in this mockup's frames in both engines: three columns fit from an event box 490px wide at 100% text, 550px at 125%, 610px at 150% and 730px at 200%. The effect a user could notice: at 200% text the chart stays stacked until the event box is about 930px wide, where today it goes side by side at about 670px. The phone rules still start at a 640px window. All of it is to be measured again in the built app.</p>
+    <p><b>Hover.</b> The control and list hover looks sit inside a hover media query here, so a touch screen does not keep them after a tap. The shipped rules for these two are not gated yet.</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict'
+  var root = document.documentElement
+  var page = document.getElementById('page')
+  var params = new URLSearchParams(location.search)
+
+  // ── Page controls ────────────────────────────────────────────────────────
+  function press(attr, value) {
+    document.querySelectorAll('[' + attr + ']').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute(attr) === value))
+    })
+  }
+  function setTheme(t) { root.setAttribute('data-theme', t); press('data-theme-set', t) }
+  function setWidth(w) { page.classList.toggle('sk-phone', w === 'phone'); press('data-width-set', w) }
+  function setScale(s) { root.style.setProperty('--sr-text-scale', s); press('data-scale-set', s) }
+
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  setTheme(params.get('theme') || (prefersDark ? 'dark' : 'light'))
+  setWidth(params.get('w') === 'phone' ? 'phone' : 'wide')
+  setScale(params.get('scale') === '2' ? '2' : '1')
+  document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+    b.addEventListener('click', function () { setTheme(b.getAttribute('data-theme-set')) })
+  })
+  document.querySelectorAll('[data-width-set]').forEach(function (b) {
+    b.addEventListener('click', function () { setWidth(b.getAttribute('data-width-set')) })
+  })
+  document.querySelectorAll('[data-scale-set]').forEach(function (b) {
+    b.addEventListener('click', function () { setScale(b.getAttribute('data-scale-set')) })
+  })
+
+  // ── Copy. In the app every one of these lives in lib/taxonomyHistoryCopy.ts,
+  //    so the corpus sweep covers it. Strings marked SHIPPED are unchanged. ──
+  var COVERAGE = { earliest: 2019, latest: 2026 }
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  function dateParts(p) { var a = p.split('-'); return { y: a[0], m: MONTHS[Number(a[1]) - 1], d: Number(a[2]) } }
+  function updateLabel(p) { var x = dateParts(p); return x.m + ' ' + x.y }
+  function dayLabel(p) { var x = dateParts(p); return x.d + ' ' + x.m + ' ' + x.y }
+  function reports(n) { return n === 1 ? '1 report' : n + ' reports' }
+  function speciesCount(n) { return n + ' species' }
+  function range() { return COVERAGE.earliest + ' to ' + COVERAGE.latest + ' taxonomy updates' }
+
+  var CONTROL_LABEL = 'Splits/Lumps/Renames'
+  var SECTION_TITLE = 'Splits/Lumps/Renames'
+  var KIND_WORD = { split: 'Split', lump: 'Lump', rename: 'Rename' }
+  var MARK_YOUR_SPECIES = 'Your species'                    // SHIPPED
+  var MARK_NO_REPORTS = 'No reports under this name'        // SHIPPED (current-side names, and an older backup)
+  var MARK_SLASH = 'Reports eBird could not assign'         // SHIPPED
+  var MARK_RESIDUAL = 'Earlier name not recorded'           // fixed
+  var MARK_UNTRACEABLE = 'Not traceable in your backup'     // fixed
+  var MARK_ZERO = 'No reports until the update'
+  var MARK_LATER = 'Not counted on this line'
+  var LATER_LINE = 'A later update changed one of the names it became.'
+  var PART_REASSIGNED = 'reassigned by eBird'               // SHIPPED
+  var PART_RENAMED = 'renamed by eBird'
+  var PART_RECORDED_SINCE = 'recorded since'                // SHIPPED
+  var PART_PREDATES = 'all dated before the update'         // SHIPPED
+  var NOT_AFFECTED = 'No split, lump, or rename is recorded for this species in the covered updates.'
+
+  function coverageLine() { return "Covers eBird's " + range() + '. A change made before ' + COVERAGE.earliest + ' is not recorded here.' }  // SHIPPED
+  function panelHead() { return "Every species in your loaded data with a split, lump, or rename recorded in eBird's " + range() + '. Pick one to see what changed and when, with your reports under each name.' }
+  function zeroAffected() { return "No split, lump, or rename is recorded for any species in your loaded data in eBird's " + range() + '. A change made before ' + COVERAGE.earliest + ' is not recorded here.' }
+
+  // The fixed basis, with its singular, and the rename form.
+  function basis(n, kind) {
+    var s = n === 1 ? "eBird's name for it until the update" : "eBird's name for them until the update"
+    return kind === 'rename' ? s + ', at the latest' : s
+  }
+  function formLine(form) { return ['now the form ', { bn: form }] }
+  function residualLine(n) {
+    return 'Dated on or before the update, with no form to show the name ' + (n === 1 ? 'it' : 'they') + ' had.'
+  }
+  function zeroLine(ev, entry) {
+    if (ev.kind === 'lump') return ['None dated on or before it carries the form ', { bn: entry.form }, '.']
+    if (ev.kind === 'rename') return ['None under ', { bn: ev.after[0].com }, ' is dated on or before it.']
+    return ['None under the names it became is dated on or before it.']
+  }
+  function untraceableLine(ev, entry) {
+    if (entry.earlier.reason === 'survivor') {
+      return ['This name carried on as the lumped species, so its earlier reports read the same as any report with no form.']
+    }
+    return ['eBird kept no form for this name, so its reports now read as plain ', { bn: ev.after[0].com }, '.']
+  }
+  function badgeDate(ev) { return (ev.kind === 'rename' ? 'by ' : '') + updateLabel(ev.published) }
+  function altKindLine(ev) {
+    return ev.kind === 'rename'
+      ? 'Rename, in place by ' + updateLabel(ev.published) + '.'
+      : KIND_WORD[ev.kind] + ', ' + updateLabel(ev.published) + '.'
+  }
+  function predatesNote(ev) {   // SHIPPED
+    return { lead: 'Your backup predates the ' + updateLabel(ev.published) + ' update', rest: ', so your reports still carry the earlier name. A fresh backup from eBird shows where they went.' }
+  }
+  function anyTraced(ev) { return ev.before.some(function (b) { return !!b.form }) }
+  function eventSentence(ev) {
+    var day = { b: dayLabel(ev.published) }
+    if (ev.kind === 'rename') {
+      return ['eBird renamed ', { bn: ev.before[0].com }, ' to ', { bn: ev.after[0].com }, '. The new name was in place by the update of ', day, ', the first whose record carries it.']
+    }
+    var lead = 'eBird reassigned every report dated on or before '
+    if (ev.state === 'pre-update') {   // SHIPPED
+      return [lead, day, ' when it made this ' + ev.kind + '. Your backup was exported before that, so the reassignment is not in it yet.']
+    }
+    if (ev.kind === 'lump') {
+      var tail = anyTraced(ev)
+        ? ' when it made this lump. Where eBird kept an earlier name as a form, reports that carry the form are counted under that name.'
+        : ' when it made this lump. Your backup cannot show which earlier name a report had.'
+      return [lead, day, ' to ', { bn: ev.after[0].com }, tail]
+    }
+    return [lead, day, ' to one of the new names when it made this split. Reports dated after it were recorded under the current names.']   // SHIPPED
+  }
+  function hasParagraph(ev) {
+    if (ev.state !== 'counted') return false
+    if (ev.residual > 0) return true
+    return ev.before.some(function (b) { return b.earlier.state === 'count' && b.earlier.n > 0 })
+  }
+  function paragraph(ev) {
+    var keeps = "Your backup keeps only each report's current name, so "
+    if (ev.kind === 'lump') {
+      var p = [{ b: 'How the counts are worked out.' }, ' From the form each report carries and its date, not from what you typed. ' + keeps +
+        'a report dated on or before the update counts under an earlier name when it carries the form eBird kept for that name, including one entered later for an earlier date.']
+      if (ev.residual > 0) p.push(' Reports with no form have no earlier name in your backup.')
+      return p
+    }
+    var p2 = [{ b: 'How the count is worked out.' }, " From each report's date, not from what you typed. " + keeps +
+      'every report dated on or before the update is counted under ', { bn: ev.before[0].com }, ', including one entered later for an earlier date.']
+    if (ev.kind === 'rename') p2.push(' eBird may have changed the name before that update; if so, reports dated between the change and the update are counted under the earlier name too.')
+    return p2
+  }
+
+  // ── Rendering helpers ────────────────────────────────────────────────────
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+  function brk(s) { return esc(s).replace(/\//g, '/<wbr>') }
+  function bn(name) { return '<span class="sr-birdname-text">' + brk(name) + '</span>' }
+  function icon(id, size, sw, cls) {
+    return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' width="' + size + '" height="' + size + '" fill="none" stroke="currentColor" stroke-width="' + sw +
+      '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#' + id + '"/></svg>'
+  }
+  function html(parts) {
+    if (typeof parts === 'string') return esc(parts)
+    return parts.map(function (p) {
+      if (typeof p === 'string') return esc(p)
+      if (p.bn) return bn(p.bn)
+      return '<b>' + esc(p.b) + '</b>'
+    }).join('')
+  }
+  function text(parts) {
+    if (typeof parts === 'string') return parts
+    return parts.map(function (p) { return typeof p === 'string' ? p : (p.bn || p.b) }).join('')
+  }
+  function lower(s) { return s.charAt(0).toLowerCase() + s.slice(1) }
+
+  // ── The events on this page. Whimbrel's figures are the account owner's;
+  //    every other count is illustrative. Names, codes' forms and dates are
+  //    from the committed record and taxonomy. ──────────────────────────────
+  var E = {
+    whimbrel: { kind: 'split', published: '2025-10-31', state: 'counted', residual: 0,
+      before: [{ com: 'Whimbrel', sci: 'Numenius phaeopus', earlier: { state: 'count', n: 14 } }],
+      after: [{ com: 'Hudsonian Whimbrel', sci: 'Numenius hudsonicus', count: 25, on: 14, since: 11 },
+              { com: 'Eurasian Whimbrel', sci: 'Numenius phaeopus', count: 0, on: 0, since: 0 }],
+      slashes: [] },
+    whimbrelOlder: { kind: 'split', published: '2025-10-31', state: 'pre-update', residual: 0,
+      before: [{ com: 'Whimbrel', sci: 'Numenius phaeopus', count: 14, on: 14, since: 0, earlier: { state: 'none' } }],
+      after: [{ com: 'Hudsonian Whimbrel', sci: 'Numenius hudsonicus', count: 0, on: 0, since: 0 },
+              { com: 'Eurasian Whimbrel', sci: 'Numenius phaeopus', count: 0, on: 0, since: 0 }],
+      slashes: [] },
+    goshawk: { kind: 'split', published: '2023-10-24', state: 'counted', residual: 0,
+      before: [{ com: 'Northern Goshawk', sci: 'Accipiter gentilis', earlier: { state: 'count', n: 0 } }],
+      after: [{ com: 'Eurasian Goshawk', sci: 'Astur gentilis', count: 0, on: 0, since: 0 },
+              { com: 'American Goshawk', sci: 'Astur atricapillus', count: 3, on: 0, since: 3 }],
+      slashes: [] },
+    wesfly: { kind: 'lump', published: '2023-10-24', state: 'counted', residual: 5,
+      before: [{ com: 'Pacific-slope Flycatcher', sci: 'Empidonax difficilis', form: 'Western Flycatcher (Pacific-slope)', earlier: { state: 'count', n: 44 } },
+               { com: 'Cordilleran Flycatcher', sci: 'Empidonax occidentalis', form: 'Western Flycatcher (Cordilleran)', earlier: { state: 'count', n: 9 } }],
+      after: [{ com: 'Western Flycatcher', sci: 'Empidonax difficilis', count: 71, on: 58, since: 13 }],
+      slashes: [] },
+    wesflyZero: { kind: 'lump', published: '2023-10-24', state: 'counted', residual: 0,
+      before: [{ com: 'Pacific-slope Flycatcher', sci: 'Empidonax difficilis', form: 'Western Flycatcher (Pacific-slope)', earlier: { state: 'count', n: 0 } },
+               { com: 'Cordilleran Flycatcher', sci: 'Empidonax occidentalis', form: 'Western Flycatcher (Cordilleran)', earlier: { state: 'count', n: 0 } }],
+      after: [{ com: 'Western Flycatcher', sci: 'Empidonax difficilis', count: 7, on: 0, since: 7 }],
+      slashes: [] },
+    trogon: { kind: 'lump', published: '2019-08-21', state: 'counted', residual: 6,
+      before: [{ com: 'Orange-bellied Trogon', sci: 'Trogon aurantiiventris', form: 'Collared Trogon (Orange-bellied)', earlier: { state: 'count', n: 3 } },
+               { com: 'Collared Trogon', sci: 'Trogon collaris', earlier: { state: 'untraceable', reason: 'survivor' } }],
+      after: [{ com: 'Collared Trogon', sci: 'Trogon collaris', count: 11, on: 9, since: 2 }],
+      slashes: [] },
+    crow: { kind: 'lump', published: '2021-09-08', state: 'counted', residual: 0,
+      before: [{ com: 'American Crow', sci: 'Corvus brachyrhynchos', earlier: { state: 'untraceable', reason: 'survivor' } },
+               { com: 'Northwestern Crow', sci: 'Corvus caurinus', earlier: { state: 'untraceable', reason: 'no-form' } }],
+      after: [{ com: 'American Crow', sci: 'Corvus brachyrhynchos', count: 341, on: 268, since: 73 }],
+      slashes: [] },
+    longspur: { kind: 'rename', published: '2021-09-08', state: 'counted', residual: 0,
+      before: [{ com: "McCown's Longspur", sci: 'Rhynchophanes mccownii', earlier: { state: 'count', n: 9 } }],
+      after: [{ com: 'Thick-billed Longspur', sci: 'Rhynchophanes mccownii', count: 12, on: 9, since: 3 }],
+      slashes: [] },
+    nankeen: { kind: 'rename', published: '2021-09-08', state: 'counted', residual: 0,
+      before: [{ com: 'Rufous Night-Heron', sci: 'Nycticorax caledonicus', earlier: { state: 'count', n: 1 } }],
+      after: [{ com: 'Nankeen Night Heron', sci: 'Nycticorax caledonicus', count: 4, on: 1, since: 3 }],
+      slashes: [] },
+    gho2022: { kind: 'split', published: '2022-11-01', state: 'later-changed', residual: 0,
+      before: [{ com: 'Great Horned Owl', sci: 'Bubo virginianus', earlier: { state: 'none' } }],
+      after: [{ com: 'Great Horned Owl', sci: 'Bubo virginianus', count: 63, on: 31, since: 32 },
+              { com: 'Magellanic Horned Owl', sci: 'Bubo magellanicus', count: 0, on: 0, since: 0 }],
+      slashes: [] },
+    gho2026: { kind: 'split', published: '2026-10-29', state: 'counted', residual: 0,
+      before: [{ com: 'Great Horned Owl', sci: 'Bubo virginianus', earlier: { state: 'count', n: 60 } }],
+      after: [{ com: 'Great Horned Owl', sci: 'Bubo virginianus', count: 63, on: 58, since: 5 },
+              { com: 'Paramo Horned Owl', sci: 'Bubo nigrescens', count: 0, on: 0, since: 0 },
+              { com: 'Tropical Horned Owl', sci: 'Bubo nacurutu', count: 2, on: 2, since: 0 }],
+      slashes: [] },
+    kingfisher: { kind: 'lump', published: '2022-11-01', state: 'counted', residual: 2,
+      before: [{ com: 'Bougainville Dwarf-Kingfisher', sci: 'Ceyx pallidus', form: 'North Solomons Dwarf-Kingfisher (Bougainville)', earlier: { state: 'count', n: 1 } },
+               { com: 'North Solomons Dwarf-Kingfisher', sci: 'Ceyx meeki', form: 'North Solomons Dwarf-Kingfisher (North Solomons)', earlier: { state: 'count', n: 4 } }],
+      after: [{ com: 'North Solomons Dwarf-Kingfisher', sci: 'Ceyx meeki', count: 9, on: 7, since: 2 }],
+      slashes: [] }
+  }
+  // The control's list, in the species selector's (taxonomic) order. Each
+  // species lists its events earliest first, as the section draws them; the
+  // list row shows them most recent first.
+  var LIST = [
+    { species: 'Hudsonian Whimbrel', evs: ['whimbrel'] },
+    { species: 'Nankeen Night Heron', evs: ['nankeen'] },
+    { species: 'Great Horned Owl', evs: ['gho2022', 'gho2026'] },
+    { species: 'Collared Trogon', evs: ['trogon'] },
+    { species: 'Western Flycatcher', evs: ['wesfly'] },
+    { species: 'American Crow', evs: ['crow'] },
+    { species: 'Thick-billed Longspur', evs: ['longspur'] }
+  ]
+
+  // ── One node ─────────────────────────────────────────────────────────────
+  function nameRow(inner) { return '<div class="sr-lin-name" aria-hidden="true">' + inner + '</div>' }
+  function sciRow(e) { return '<div class="sr-lin-sci" aria-hidden="true">' + esc(e.sci) + '</div>' }
+  function mark(textValue, mod, glyph) {
+    return '<div class="sr-lin-mark' + (mod ? ' ' + mod : '') + '" aria-hidden="true">' + (glyph || '') + '<span>' + esc(textValue) + '</span></div>'
+  }
+  function part(parts) { return '<div class="sr-lin-part" aria-hidden="true"><span>' + html(parts) + '</span></div>' }
+  function earlierBar(share) {
+    return '<div class="sr-lin-bar sr-lin-bar--earlier" aria-hidden="true"><i style="width:' + (share * 100).toFixed(2) + '%"></i></div>'
+  }
+  function onTotal(ev) {
+    var t = 0
+    ev.after.concat(ev.slashes).forEach(function (a) { t += a.on })
+    return t
+  }
+  var CANNOT = icon('i-cannot', 11, 2.4)
+
+  function earlierNode(e, ev) {
+    if (ev.state === 'later-changed') {
+      return '<div class="sr-lin-node is-absent">' + nameRow(bn(e.com)) + sciRow(e) +
+        mark(MARK_LATER, 'sr-lin-mark--cannot', CANNOT) + part(LATER_LINE) + '</div>'
+    }
+    if (e.earlier.state === 'untraceable') {
+      return '<div class="sr-lin-node is-absent">' + nameRow(bn(e.com)) + sciRow(e) +
+        mark(MARK_UNTRACEABLE, 'sr-lin-mark--cannot', CANNOT) + part(untraceableLine(ev, e)) + '</div>'
+    }
+    if (e.earlier.n === 0) {
+      return '<div class="sr-lin-node is-absent">' + nameRow(bn(e.com)) + sciRow(e) +
+        mark(MARK_ZERO) + part(zeroLine(ev, e)) + '</div>'
+    }
+    var n = e.earlier.n
+    return '<div class="sr-lin-node">' + nameRow(bn(e.com)) + sciRow(e) +
+      '<div class="sr-lin-count" aria-hidden="true">' + reports(n) + '</div>' +
+      part(basis(n, ev.kind)) + (e.form ? part(formLine(e.form)) : '') +
+      earlierBar(n / onTotal(ev)) + '</div>'
+  }
+  function residualNode(ev) {
+    return '<div class="sr-lin-node is-absent">' + mark(MARK_RESIDUAL, 'sr-lin-mark--lead') +
+      '<div class="sr-lin-count" aria-hidden="true">' + reports(ev.residual) + '</div>' +
+      part(residualLine(ev.residual)) + earlierBar(ev.residual / onTotal(ev)) + '</div>'
+  }
+  // A current-side name, a slash entry, or any name of an older backup: SHIPPED.
+  function shippedNode(e, ev, side, selected) {
+    var absent = e.count === 0
+    var slash = side === 'slash'
+    var yours = !absent && !slash && e.com === selected
+    var linkable = !absent && !yours && !slash
+    var predates = side === 'before' && ev.state === 'pre-update'
+    var h = '<div class="sr-lin-node' + (yours ? ' is-you' : '') + (absent ? ' is-absent' : '') + '">'
+    if (linkable) {
+      h += '<div class="sr-lin-name"><button type="button" class="sr-birdname-link">' + brk(e.com) + '</button>' +
+        '<span class="sr-marks"><a href="#live" data-nolink aria-label="View ' + esc(e.com) + ' on eBird (mockup, no link)">' + icon('i-globe', 14, 2.2) + '</a>' +
+        '<a href="#live" data-nolink aria-label="View ' + esc(e.com) + ' on Birds of the World (mockup, no link)">' + icon('i-lib', 14, 2.2) + '</a></span></div>'
+    } else {
+      h += nameRow(bn(e.com))
+    }
+    h += sciRow(e)
+    if (yours) h += mark(MARK_YOUR_SPECIES, 'sr-lin-mark--you', icon('i-check', 11, 3))
+    else if (absent) h += mark(MARK_NO_REPORTS)
+    else if (slash) h += mark(MARK_SLASH)
+    if (!absent) {
+      h += '<div class="sr-lin-count" aria-hidden="true">' + reports(e.count) + '</div>'
+      if (predates) {
+        h += part(PART_PREDATES)
+      } else {
+        h += '<div class="sr-lin-part" aria-hidden="true"><span><b>' + e.on + '</b> ' + (ev.kind === 'rename' ? PART_RENAMED : PART_REASSIGNED) + '</span>' +
+          '<span><b>' + e.since + '</b> ' + PART_RECORDED_SINCE + '</span></div>' +
+          '<div class="sr-lin-bar" aria-hidden="true"><i style="width:' + (e.since / e.count * 100).toFixed(2) + '%"></i></div>'
+      }
+    }
+    return h + '</div>'
+  }
+
+  // ── The text equivalent (FR-32): one string per paragraph ────────────────
+  function altBefore(e, ev, selected) {
+    var head = e.com + ' (' + e.sci + ')'
+    if (ev.state === 'pre-update') return head + shippedTail(e, ev, 'before', selected)
+    if (ev.state === 'later-changed') return head + ': ' + lower(MARK_LATER) + '. ' + LATER_LINE
+    if (e.earlier.state === 'untraceable') return head + ': ' + lower(MARK_UNTRACEABLE) + '. ' + text(untraceableLine(ev, e))
+    if (e.earlier.n === 0) return head + ': ' + lower(MARK_ZERO) + '. ' + text(zeroLine(ev, e))
+    return head + ': ' + reports(e.earlier.n) + ', ' + basis(e.earlier.n, ev.kind) + (e.form ? ', ' + text(formLine(e.form)) : '') + '.'
+  }
+  function shippedTail(e, ev, side, selected) {
+    var s = ''
+    if (e.count > 0 && side !== 'slash' && e.com === selected) s += ', your species'
+    if (side === 'slash') s += ', the slash entry for reports eBird could not assign'
+    if (e.count === 0) return s + ': no reports under this name.'
+    if (side === 'before') return s + ': ' + reports(e.count) + ', ' + PART_PREDATES + '.'
+    return s + ': ' + reports(e.count) + ', ' + e.on + ' ' + (ev.kind === 'rename' ? PART_RENAMED : PART_REASSIGNED) + ', ' + e.since + ' ' + PART_RECORDED_SINCE + '.'
+  }
+  function altParas(ev, selected) {
+    var out = [altKindLine(ev)]
+    var before = ev.before.map(function (e) { return altBefore(e, ev, selected) })
+    if (ev.state === 'counted' && ev.residual > 0) {
+      before.push(MARK_RESIDUAL + ': ' + reports(ev.residual) + ', ' + lower(residualLine(ev.residual)))
+    }
+    out.push('Before: ' + before.join(' '))
+    out.push('After: ' + ev.after.map(function (e) { return e.com + ' (' + e.sci + ')' + shippedTail(e, ev, 'after', selected) })
+      .concat(ev.slashes.map(function (e) { return e.com + ' (' + e.sci + ')' + shippedTail(e, ev, 'slash', selected) })).join(' '))
+    if (ev.state === 'pre-update') { var n = predatesNote(ev); out.unshift(n.lead + n.rest) }
+    out.push(text(eventSentence(ev)))
+    if (hasParagraph(ev)) out.push(text(paragraph(ev)))
+    return out
+  }
+
+  // ── One event, and the section ───────────────────────────────────────────
+  function eventHTML(ev, selected) {
+    var beforeNodes = ev.before.map(function (e) {
+      return ev.state === 'pre-update' ? shippedNode(e, ev, 'before', selected) : earlierNode(e, ev)
+    })
+    if (ev.state === 'counted' && ev.residual > 0) beforeNodes.push(residualNode(ev))
+    var afterNodes = ev.after.map(function (e) { return shippedNode(e, ev, 'after', selected) })
+      .concat(ev.slashes.map(function (e) { return shippedNode(e, ev, 'slash', selected) }))
+    var h = '<div class="sr-lin-event">'
+    if (ev.state === 'pre-update') {
+      var note = predatesNote(ev)
+      h += '<div class="sr-lin-note">' + icon('i-info', 14, 2.2) + '<span><b>' + esc(note.lead) + '</b>' + esc(note.rest) + '</span></div>'
+    }
+    h += '<div class="sr-lin-chart">' +
+      '<div class="sr-lin-side sr-lin-side--before ' + (beforeNodes.length > 1 ? 'sr-lin-side--multi' : 'sr-lin-side--single') + '">' + beforeNodes.join('') + '</div>' +
+      '<div class="sr-lin-rail" aria-hidden="true"><span class="sr-lin-badge">' + icon('g-' + ev.kind, 13, 2.2, 'sr-lin-glyph') +
+        '<b>' + KIND_WORD[ev.kind] + '</b><span>' + esc(badgeDate(ev)) + '</span></span></div>' +
+      '<div class="sr-lin-side sr-lin-side--after ' + (afterNodes.length > 1 ? 'sr-lin-side--multi' : 'sr-lin-side--single') + '">' + afterNodes.join('') + '</div>' +
+      '</div>'
+    h += '<p class="sr-lin-sentence" aria-hidden="true">' + html(eventSentence(ev)) + '</p>'
+    if (hasParagraph(ev)) h += '<p class="sr-lin-sentence" aria-hidden="true">' + html(paragraph(ev)) + '</p>'
+    h += '<div class="sr-only">' + altParas(ev, selected).map(function (p) { return '<p>' + esc(p) + '</p>' }).join('') + '</div>'
+    return h + '</div>'
+  }
+  function sectionHTML(selected, keys) {
+    var body = keys.length
+      ? keys.map(function (k) { return eventHTML(E[k], selected) }).join('')
+      : '<div class="sr-lin-empty">' + esc(NOT_AFFECTED) + '</div>'
+    return '<div class="sr-card">' +
+      '<div class="sr-sechead"><div class="sr-sechead-tile">' + icon('i-split', 14, 2.2) + '</div>' +
+      '<span class="sr-sechead-title">' + brk(SECTION_TITLE) + '</span></div>' +
+      '<div class="sr-lin-pad"><div class="sr-lin-body">' + body + '</div>' +
+      '<p class="sr-lin-coverage">' + esc(coverageLine()) + '</p></div></div>'
+  }
+
+  // ── Fill the gallery, the text equivalents and the quoted copy ───────────
+  document.querySelectorAll('.sk-frame[data-species]').forEach(function (f) {
+    var keys = f.getAttribute('data-evs') ? f.getAttribute('data-evs').split(',') : []
+    f.innerHTML = sectionHTML(f.getAttribute('data-species'), keys)
+  })
+  document.querySelectorAll('.sk-alt[data-alt]').forEach(function (a) {
+    a.innerHTML = altParas(E[a.getAttribute('data-alt')], a.getAttribute('data-species'))
+      .map(function (p) { return '<p>' + esc(p) + '</p>' }).join('')
+  })
+  var QUOTED = { zeroAffected: zeroAffected, panelHead: panelHead }
+  document.querySelectorAll('[data-copy]').forEach(function (el) { el.textContent = QUOTED[el.getAttribute('data-copy')]() })
+
+  // ── The live frame: the control, its list, the pick ──────────────────────
+  var toggle = document.getElementById('live-toggle')
+  var host = document.getElementById('live-host')
+  var section = document.getElementById('live-section')
+  var selectedLabel = document.getElementById('live-selected')
+  var selected = LIST[0].species
+  document.getElementById('live-count').textContent = speciesCount(LIST.length)
+
+  function renderSection() {
+    var item = LIST.filter(function (l) { return l.species === selected })[0]
+    section.innerHTML = sectionHTML(selected, item.evs)   // replaced whole, so the entrance and bar fill replay only on a change
+    selectedLabel.textContent = selected
+  }
+  function closePanel(returnFocus) {
+    host.innerHTML = ''
+    toggle.setAttribute('aria-expanded', 'false')
+    if (returnFocus) toggle.focus()
+  }
+  function openPanel() {
+    var rows = LIST.map(function (l, i) {
+      var evs = l.evs.slice().reverse().map(function (k) {
+        var ev = E[k]
+        return '<span class="sr-sl-row-ev">' + icon('g-' + ev.kind, 11, 2.2, 'sr-lin-glyph') + '<b>' + KIND_WORD[ev.kind] + '</b>' +
+          '<span class="sr-sl-dot" aria-hidden="true">·</span>' + ev.published.slice(0, 4) + '</span>'
+      }).join('')
+      return '<li><button type="button" class="sr-sl-row" data-i="' + i + '"' + (l.species === selected ? ' aria-current="true"' : '') + '>' +
+        '<span class="sr-sl-row-name">' + bn(l.species) + '</span><span class="sr-sl-row-events">' + evs + '</span></button></li>'
+    }).join('')
+    host.innerHTML = '<div class="sr-ssx-panel" id="live-panel"><div class="sr-ssx-panel-head">' + esc(panelHead()) + '</div>' +
+      '<ul class="sr-ssx-list">' + rows + '</ul></div>'
+    toggle.setAttribute('aria-expanded', 'true')
+  }
+  toggle.addEventListener('click', function () {
+    if (toggle.getAttribute('aria-expanded') === 'true') closePanel(false); else openPanel()
+  })
+  host.addEventListener('click', function (ev) {
+    var row = ev.target.closest('.sr-sl-row')
+    if (!row) return
+    selected = LIST[Number(row.getAttribute('data-i'))].species
+    closePanel(false)
+    renderSection()
+    section.scrollIntoView({ block: 'nearest' })
+    section.focus({ preventScroll: true })
+  })
+  document.getElementById('live-frame').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') { ev.stopPropagation(); closePanel(true) }
+  })
+  document.addEventListener('click', function (ev) {
+    if (ev.target.closest('[data-nolink]')) ev.preventDefault()
+  })
+  renderSection()
+})()
+</script>
+</body>
+</html>

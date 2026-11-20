@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recorded names sketch</title>
+<style>
+/* ── SnowRaven tokens, copied from frontend/src/globals.css (:root and
+      [data-theme="dark"]). No new token is introduced by this sketch. ── */
+:root {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-note: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+
+  --sr-accent: #277448;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+
+  --sr-accent: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--sr-bg); }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans); font-size: 1rem; line-height: 1.5;
+  color: var(--sr-text); background: var(--sr-bg);
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+button { font-family: inherit; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+}
+svg { display: inline-block; flex-shrink: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+
+/* ══ SKETCH CHROME: the designer's voice. Monospace, dashed, never inside a
+      frame. Nothing in this block would ship. ══════════════════════════════ */
+.sk-bar {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--sr-surface); border-bottom: 1px solid var(--sr-border);
+}
+.sk-bar-in {
+  max-width: 1060px; margin: 0 auto; padding: 10px 20px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px;
+}
+.sk-kicker {
+  font-family: var(--font-note); font-size: 0.6875rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sk-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.sk-seg { display: inline-flex; border: 1.5px solid var(--sr-border); border-radius: 6px; overflow: hidden; background: var(--sr-surface); }
+.sk-seg button {
+  border: none; background: none; cursor: pointer; padding: 5px 11px;
+  font-family: var(--font-note); font-size: 0.6875rem; color: var(--sr-text-muted);
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.sk-seg button + button { border-left: 1px solid var(--sr-border); }
+.sk-seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+.sk-seg button:focus-visible { outline-offset: -3px; }
+
+.sk-page { max-width: 1060px; margin: 0 auto; padding: 22px 20px 64px; }
+.sk-title { margin: 0 0 4px; font-family: var(--font-note); font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.sk-note {
+  font-family: var(--font-note); font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted);
+  border-left: 2px dashed var(--sr-border-medium); padding: 2px 0 2px 12px; margin: 10px 0;
+  max-width: 78ch; overflow-wrap: anywhere;
+}
+.sk-note b { color: var(--sr-text); font-weight: 600; }
+.sk-note p { margin: 0; }
+.sk-note p + p { margin-top: 6px; }
+.sk-jump { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 14px 0 0; padding: 0; list-style: none; font-family: var(--font-note); font-size: 0.75rem; }
+.sk-jump a { color: var(--sr-accent); text-decoration: underline; text-underline-offset: 2px; }
+.sk-h2 {
+  margin: 44px 0 0; padding-top: 16px; border-top: 1px dashed var(--sr-border-medium);
+  font-family: var(--font-note); font-size: 0.875rem; font-weight: 600; color: var(--sr-text);
+  scroll-margin-top: 64px;
+}
+.sk-h3 {
+  margin: 26px 0 0; font-family: var(--font-note); font-size: 0.75rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text);
+}
+.sk-h3 span { color: var(--sr-text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* A frame holds app content. Its tag is sketch chrome. */
+.sk-frame-tag {
+  display: inline-block; margin: 12px 0 0; padding: 3px 9px;
+  border: 1px dashed var(--sr-border-medium); border-bottom: none; border-radius: 6px 6px 0 0;
+  font-family: var(--font-note); font-size: 0.6875rem; color: var(--sr-text-muted);
+  max-width: 100%; overflow-wrap: anywhere;
+}
+.sk-frame {
+  background: var(--sr-bg); border: 1px dashed var(--sr-border-medium); border-radius: 0 10px 10px 10px;
+  padding: 18px; width: 100%; max-width: 1020px;
+  transition: max-width 200ms ease-out;
+}
+.sk-phone .sk-frame { max-width: 320px; padding: 12px; }
+
+/* ══ APP CONTENT. Everything below mirrors shipped rules: SectionCard and
+      SectionHead from speciesDetail/ui.tsx, the .sr-birdname-* and .sr-lin-*
+      rules from globals.css. Class names are the shipped ones. ══════════════ */
+.sr-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow); }
+.sr-sechead { display: flex; align-items: center; gap: 8px; padding: 14px 18px 12px; border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-sechead-tile { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-sechead-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+
+.sr-birdname-link {
+  font: inherit; font-weight: 500; color: var(--sr-text);
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none; text-align: left;
+}
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
+.sr-birdname-text { font-weight: 500; color: var(--sr-text); }
+/* The two site marks after a linked name, drawn as the bundled glyphs the app
+   shows when a favicon has not loaded (this page makes no request). */
+.sr-marks { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: -2px; white-space: nowrap; }
+.sr-marks a { display: inline-flex; width: 14px; height: 14px; color: var(--sr-text); opacity: 0.75; }
+.sr-marks a:hover { opacity: 1; }
+
+.sr-lin-glyph { flex-shrink: 0; color: var(--sr-text-muted); }
+.sr-lin-pad { padding: 16px 18px; }
+.sr-lin-body { animation: sr-lin-in 160ms ease-out; }
+@keyframes sr-lin-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.sr-lin-empty { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.sr-lin-coverage {
+  margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--sr-border-subtle);
+  font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5;
+}
+.sr-lin-event { position: relative; container-type: inline-size; container-name: sr-lin; }
+.sr-lin-event + .sr-lin-event { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-lin-note {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 9px 12px; margin-bottom: 14px;
+  border: 1px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface-faint);
+  font-size: 0.75rem; line-height: 1.5; color: var(--sr-text);
+}
+.sr-lin-note svg { flex-shrink: 0; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-lin-note b { font-weight: 600; }
+.sr-lin-chart {
+  --lin-stub: calc(10px + 0.55rem);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; column-gap: 0;
+}
+.sr-lin-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; position: relative; }
+.sr-lin-side--before { padding-right: 18px; }
+.sr-lin-side--after { padding-left: 18px; }
+.sr-lin-node {
+  position: relative; border: 1px solid var(--sr-border); border-radius: 8px;
+  background: var(--sr-surface); padding: 10px 12px; min-width: 0;
+}
+.sr-lin-node.is-you { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); }
+.sr-lin-node.is-absent { border-style: dashed; border-color: var(--sr-border-medium); background: transparent; }
+.sr-lin-node::before { content: ''; position: absolute; width: 18px; height: 1px; background: var(--sr-border-medium); }
+.sr-lin-side--before .sr-lin-node::before { right: -19px; }
+.sr-lin-side--after .sr-lin-node::before { left: -19px; }
+.sr-lin-side--single .sr-lin-node::before { top: 50%; }
+.sr-lin-side--multi .sr-lin-node::before { top: var(--lin-stub); }
+.sr-lin-side--multi .sr-lin-node::after { content: ''; position: absolute; width: 1px; background: var(--sr-border-medium); top: -10px; bottom: -10px; }
+.sr-lin-side--before.sr-lin-side--multi .sr-lin-node::after { right: -19px; }
+.sr-lin-side--after.sr-lin-side--multi .sr-lin-node::after { left: -19px; }
+.sr-lin-side--multi .sr-lin-node:first-child::after { top: var(--lin-stub); }
+.sr-lin-side--multi .sr-lin-node:last-child::after { bottom: calc(100% - var(--lin-stub)); }
+.sr-lin-side--multi .sr-lin-node:only-child::after { display: none; }
+.sr-lin-rail { display: flex; align-items: center; }
+.sr-lin-rail::before, .sr-lin-rail::after { content: ''; width: 22px; height: 1px; background: var(--sr-border-medium); }
+.sr-lin-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 11px; border-radius: 14px;
+  border: 1px solid var(--sr-border); background: var(--sr-surface-faint);
+  font-size: 0.75rem; white-space: nowrap; color: var(--sr-text-muted);
+}
+.sr-lin-badge b { font-weight: 700; color: var(--sr-text); }
+.sr-lin-name { line-height: 1.3; overflow-wrap: anywhere; }
+.sr-lin-name .sr-birdname-text,
+.sr-lin-name .sr-birdname-link {
+  font-size: 0.84375rem; font-weight: 600; line-height: 1.3; color: var(--sr-text);
+  text-align: left; overflow-wrap: anywhere;
+}
+.sr-lin-name .sr-birdname-link:hover,
+.sr-lin-name .sr-birdname-link:focus-visible { color: var(--sr-accent); }
+.is-absent .sr-lin-name .sr-birdname-text { color: var(--sr-text-muted); font-weight: 500; }
+.sr-lin-sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); line-height: 1.3; overflow-wrap: anywhere; }
+.sr-lin-mark {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sr-text-muted);
+}
+.sr-lin-mark--you { color: var(--sr-accent); }
+.sr-lin-count { margin-top: 6px; font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-lin-part {
+  margin-top: 1px; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5;
+  display: flex; flex-wrap: wrap; gap: 0 12px;
+}
+.sr-lin-part b { font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-lin-bar { display: flex; justify-content: flex-end; height: 3px; border-radius: 2px; margin-top: 7px; background: var(--sr-gray-400); overflow: hidden; }
+.sr-lin-bar i { display: block; height: 100%; flex: none; background: var(--sr-accent); animation: sr-lin-bar-in 240ms ease-out; }
+@keyframes sr-lin-bar-in { from { width: 0; } }
+.sr-lin-sentence { margin: 14px 0 0; font-size: 0.75rem; line-height: 1.55; color: var(--sr-text-muted); max-width: 66ch; }
+.sr-lin-sentence b { font-weight: 600; color: var(--sr-text); }
+.sr-lin-sentence .sr-birdname-text { font: inherit; color: inherit; }
+
+/* ── PROPOSED additions, in the section's own register. These are the only
+      new rules; everything above is shipped. ── */
+/* A second paragraph under the event sentence: where the earlier name comes
+   from, at the sentence's own size. */
+.sr-lin-sentence + .sr-lin-sentence { margin-top: 6px; }
+/* A bird name quoted inside a partition line reads as part of the line. */
+.sr-lin-part .sr-birdname-text { font: inherit; color: inherit; }
+/* Variant B: the 3px bar unfolded by year. Same two fills as the bar (gray for
+   reports dated on or before the update, accent for reports dated after), one
+   column per year on a shared axis, one y scale per event. */
+.sr-lin-years { margin-top: 8px; width: min(100%, calc(var(--n, 12) * 14px)); }
+.sr-lin-years-plot { display: flex; align-items: flex-end; gap: 2px; height: 30px; }
+.sr-lin-years-col {
+  position: relative; flex: 1 1 0; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  border-bottom: 1px solid var(--sr-border-medium);
+}
+.sr-lin-years-col i { display: block; width: 100%; transform-origin: bottom; animation: sr-lin-years-in 240ms ease-out; }
+.sr-lin-years-col i.g { background: var(--sr-gray-400); }
+.sr-lin-years-col i.a { background: var(--sr-accent); }
+.sr-lin-years-col i:first-child { border-radius: 1px 1px 0 0; }
+@keyframes sr-lin-years-in { from { transform: scaleY(0); } }
+/* The update's year: a caret under its column. */
+.sr-lin-years-col.is-update::after {
+  content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+  border: 3px solid transparent; border-top-width: 0; border-bottom: 4px solid var(--sr-text-muted);
+}
+.sr-lin-years-axis {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 0.6875rem; line-height: 1.2; color: var(--sr-text-muted); font-variant-numeric: tabular-nums;
+}
+.sr-lin-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; margin-top: 14px;
+  font-size: 0.6875rem; line-height: 1.5; color: var(--sr-text-muted);
+}
+.sr-lin-key span { display: inline-flex; align-items: center; gap: 5px; }
+.sr-lin-key i { display: inline-block; width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
+.sr-lin-key i.g { background: var(--sr-gray-400); }
+.sr-lin-key i.a { background: var(--sr-accent); }
+.sr-lin-key i.c { width: 0; height: 0; border-radius: 0; border: 3px solid transparent; border-top-width: 0; border-bottom: 4px solid var(--sr-text-muted); }
+.sr-lin-key + .sr-lin-sentence { margin-top: 8px; }
+
+/* Phone tier, then the same stacked chart when the EVENT is narrow. Both blocks
+   are the shipped ones. */
+@media (max-width: 640px) {
+  .sr-lin-pad { padding-left: 16px; padding-right: 16px; }
+  .sr-lin-chart { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .sr-lin-side--before, .sr-lin-side--after { padding: 0; }
+  .sr-lin-side--multi { padding-left: 42px; }
+  .sr-lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
+  .sr-lin-rail::before, .sr-lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
+  .sr-lin-badge { white-space: normal; }
+  .sr-lin-badge .sr-lin-glyph { transform: rotate(90deg); }
+  .sr-lin-node::before { display: none; }
+  .sr-lin-side--multi .sr-lin-node::before { display: block; left: -19px; right: auto; top: var(--lin-stub); }
+  .sr-lin-side--multi .sr-lin-node::after { left: -19px; right: auto; }
+  .sr-lin-side--before.sr-lin-side--multi .sr-lin-node:last-child::after { bottom: 0; }
+  .sr-lin-side--after.sr-lin-side--multi .sr-lin-node:first-child::after { top: 0; }
+}
+@container sr-lin (max-width: 21em) or (max-width: 420px) {
+  .sr-lin-chart { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .sr-lin-side--before, .sr-lin-side--after { padding: 0; }
+  .sr-lin-side--multi { padding-left: 42px; }
+  .sr-lin-rail { flex-direction: column; align-items: flex-start; margin: -8px 0; }
+  .sr-lin-rail::before, .sr-lin-rail::after { width: 1px; height: 22px; margin-left: 24px; }
+  .sr-lin-badge { white-space: normal; }
+  .sr-lin-badge .sr-lin-glyph { transform: rotate(90deg); }
+  .sr-lin-node::before { display: none; }
+  .sr-lin-side--multi .sr-lin-node::before { display: block; left: -19px; right: auto; top: var(--lin-stub); }
+  .sr-lin-side--multi .sr-lin-node::after { left: -19px; right: auto; }
+  .sr-lin-side--before.sr-lin-side--multi .sr-lin-node:last-child::after { bottom: 0; }
+  .sr-lin-side--after.sr-lin-side--multi .sr-lin-node:first-child::after { top: 0; }
+}
+
+/* Sketch chrome at phone width: the frame runs edge to edge so the card is the
+   width it has in the app at 320px. */
+@media (max-width: 640px) {
+  .sk-bar { position: static; }
+  .sk-bar-in { padding: 8px 16px; }
+  /* The frame is already the viewport's width here, so the toggle has no job. */
+  .sk-seg[aria-label="Frame width"] { display: none; }
+  .sk-page { padding: 16px 0 48px; }
+  .sk-title, .sk-note, .sk-jump, .sk-h2, .sk-h3 { margin-left: 16px; margin-right: 16px; }
+  .sk-frame-tag { margin-left: 12px; max-width: calc(100% - 24px); }
+  .sk-frame, .sk-phone .sk-frame { max-width: none; border-left: none; border-right: none; border-radius: 0; padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Icons, inline. Lucide paths (split, check, info, globe, square-library) and
+     the section's three hand-drawn direction glyphs; the rename arrow is new. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+    <symbol id="i-lib" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="m15 7 2 10"/></symbol>
+    <symbol id="g-split" viewBox="0 0 24 24"><path d="M2 12h6"/><path d="m8 12 7-6h7"/><path d="m8 12 7 6h7"/></symbol>
+    <symbol id="g-lump" viewBox="0 0 24 24"><path d="M2 6h7l7 6h6"/><path d="M2 18h7l7-6"/></symbol>
+    <symbol id="g-rename" viewBox="0 0 24 24"><path d="M2 12h19"/><path d="m15 6 6 6-6 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="sk-bar">
+  <div class="sk-bar-in">
+    <span class="sk-kicker">Feasibility sketch, not a final design</span>
+    <div class="sk-controls">
+      <div class="sk-seg" role="group" aria-label="Theme">
+        <button type="button" data-theme-set="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+      </div>
+      <div class="sk-seg" role="group" aria-label="Frame width">
+        <button type="button" data-width-set="wide" aria-pressed="true">Wide</button>
+        <button type="button" data-width-set="phone" aria-pressed="false">Phone, 320px</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="sk-page" id="page">
+  <h1 class="sk-title">Recorded names in splits and lumps</h1>
+  <div class="sk-note">
+    <p><b>How to read this page.</b> Anything inside a dashed frame is what the app would draw, in its own type, color and spacing. Anything outside a frame, in this typewriter face, is a note from the designer.</p>
+    <p><b>Report counts are illustrative.</b> No backup was read to make this page. The species, the updates and their dates are real, from the taxonomy files the app already ships from.</p>
+    <p><b>What a box can say.</b> The name eBird had for a report until an update, worked out from the report's date (and, for a lump, from the form the report still carries). Never the name that was typed: the backup holds one name per report, today's, and no entry date.</p>
+  </div>
+  <ul class="sk-jump">
+    <li><a href="#today">Today</a></li>
+    <li><a href="#split">Split, A and B</a></li>
+    <li><a href="#lump">Lump, A and B</a></li>
+    <li><a href="#rename">Rename, A and B</a></li>
+    <li><a href="#untraced">A lump with no trace</a></li>
+  </ul>
+
+  <!-- ═══════════════════════ TODAY ═══════════════════════ -->
+  <h2 class="sk-h2" id="today">Today: the section as shipped</h2>
+  <div class="sk-note"><p>Hudsonian Whimbrel is selected. The earlier name's box is the dashed one on the left: the backup holds no report under Whimbrel any more, so the section says so and stops there. The 41 reports that were Whimbrel appear only as "reassigned by eBird" under the new name.</p></div>
+
+  <div class="sk-frame-tag">In the app, shipped: Species Detail, Hudsonian Whimbrel</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--single">
+              <div class="sr-lin-node is-absent">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Whimbrel</span></div>
+                <div class="sr-lin-sci">Numenius phaeopus</div>
+                <div class="sr-lin-mark">No reports under this name</div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-split"/></svg><b>Split</b><span>October 2025</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--multi">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Hudsonian Whimbrel</span></div>
+                <div class="sr-lin-sci">Numenius hudsonicus</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">46 reports</div>
+                <div class="sr-lin-part"><span><b>41</b> reassigned by eBird</span><span><b>5</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:10.87%"></i></div>
+              </div>
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><button type="button" class="sr-birdname-link">Eurasian Whimbrel</button><span class="sr-marks"><a href="#today" aria-label="View Eurasian Whimbrel on eBird (sketch, no link)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-globe"/></svg></a><a href="#today" aria-label="View Eurasian Whimbrel on Birds of the World (sketch, no link)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lib"/></svg></a></span></div>
+                <div class="sr-lin-sci">Numenius phaeopus</div>
+                <div class="sr-lin-count">2 reports</div>
+                <div class="sr-lin-part"><span><b>2</b> reassigned by eBird</span><span><b>0</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:0%"></i></div>
+              </div>
+            </div>
+          </div>
+          <p class="sr-lin-sentence">eBird reassigned every report dated on or before <b>31 October 2025</b> to one of the new names when it made this split. Reports dated after it were recorded under the current names.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ SPLIT ═══════════════════════ -->
+  <h2 class="sk-h2" id="split">Split: Whimbrel, October 2025</h2>
+  <div class="sk-note"><p>Every report now under Hudsonian Whimbrel or Eurasian Whimbrel and dated on or before 31 October 2025 was under Whimbrel until that day. That much the data supports. Whether a given report was entered as plain Whimbrel or as the form Whimbrel (Hudsonian) is not in the backup.</p></div>
+
+  <h3 class="sk-h3">Variant A <span>the earlier name's box carries its reports</span></h3>
+  <div class="sk-note"><p>Changed from today: the Whimbrel box is solid and counted, with one line saying whose name it is; a second paragraph under the chart says how the count was worked out and what it is not. The two boxes on the right are untouched.</p></div>
+  <div class="sk-frame-tag">In the app, variant A: Species Detail, Hudsonian Whimbrel</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--single">
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Whimbrel</span></div>
+                <div class="sr-lin-sci">Numenius phaeopus</div>
+                <div class="sr-lin-count">43 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span></div>
+                <div class="sr-lin-bar"><i style="width:0%"></i></div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-split"/></svg><b>Split</b><span>October 2025</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--multi">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Hudsonian Whimbrel</span></div>
+                <div class="sr-lin-sci">Numenius hudsonicus</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">46 reports</div>
+                <div class="sr-lin-part"><span><b>41</b> reassigned by eBird</span><span><b>5</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:10.87%"></i></div>
+              </div>
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><button type="button" class="sr-birdname-link">Eurasian Whimbrel</button><span class="sr-marks"><a href="#split" aria-label="View Eurasian Whimbrel on eBird (sketch, no link)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-globe"/></svg></a><a href="#split" aria-label="View Eurasian Whimbrel on Birds of the World (sketch, no link)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lib"/></svg></a></span></div>
+                <div class="sr-lin-sci">Numenius phaeopus</div>
+                <div class="sr-lin-count">2 reports</div>
+                <div class="sr-lin-part"><span><b>2</b> reassigned by eBird</span><span><b>0</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:0%"></i></div>
+              </div>
+            </div>
+          </div>
+          <p class="sr-lin-sentence">eBird reassigned every report dated on or before <b>31 October 2025</b> to one of the new names when it made this split. Reports dated after it were recorded under the current names.</p>
+          <p class="sr-lin-sentence">Until then eBird had those reports under <span class="sr-birdname-text">Whimbrel</span>. That is worked out from each report's date, not from what you typed: your backup keeps only a report's current name, so a report entered after the update for an earlier date counts here too.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <h3 class="sk-h3">Variant B <span>the same, with the reports laid out by year</span></h3>
+  <div class="sk-note"><p>Changed from A: the thin bar in every counted box unfolds into one column per year. The fills keep the bar's meaning (gray is dated on or before the update, green is dated after it), every box shares one year axis and one height scale, and a caret marks the update's year. Read left to right it shows when the Whimbrel reports were made and, on the right, which years went to which new name. Hover a column for its figure; in the app each year's figure would also be in the text a screen reader receives.</p></div>
+  <div class="sk-frame-tag">In the app, variant B: Species Detail, Hudsonian Whimbrel</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--single">
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Whimbrel</span></div>
+                <div class="sr-lin-sci">Numenius phaeopus</div>
+                <div class="sr-lin-count">43 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span></div>
+                <div class="sr-lin-years" data-first="2009" data-update="2025" data-g="1,0,2,1,3,2,4,2,3,4,5,1,4,3,3,3,2,0" data-tg="43" data-ta="0"></div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-split"/></svg><b>Split</b><span>October 2025</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--multi">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Hudsonian Whimbrel</span></div>
+                <div class="sr-lin-sci">Numenius hudsonicus</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">46 reports</div>
+                <div class="sr-lin-part"><span><b>41</b> reassigned by eBird</span><span><b>5</b> recorded since</span></div>
+                <div class="sr-lin-years" data-first="2009" data-update="2025" data-g="1,0,2,1,3,2,4,2,3,2,5,1,4,3,3,3,2,0" data-a="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4" data-tg="41" data-ta="5"></div>
+              </div>
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><button type="button" class="sr-birdname-link">Eurasian Whimbrel</button><span class="sr-marks"><a href="#split" aria-label="View Eurasian Whimbrel on eBird (sketch, no link)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-globe"/></svg></a><a href="#split" aria-label="View Eurasian Whimbrel on Birds of the World (sketch, no link)"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lib"/></svg></a></span></div>
+                <div class="sr-lin-sci">Numenius phaeopus</div>
+                <div class="sr-lin-count">2 reports</div>
+                <div class="sr-lin-part"><span><b>2</b> reassigned by eBird</span><span><b>0</b> recorded since</span></div>
+                <div class="sr-lin-years" data-first="2009" data-update="2025" data-g="0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0" data-tg="2" data-ta="0"></div>
+              </div>
+            </div>
+          </div>
+          <div class="sr-lin-key"><span><i class="g"></i>dated on or before the update</span><span><i class="a"></i>dated after it</span><span><i class="c"></i>2025, the update's year</span></div>
+          <p class="sr-lin-sentence">eBird reassigned every report dated on or before <b>31 October 2025</b> to one of the new names when it made this split. Reports dated after it were recorded under the current names.</p>
+          <p class="sr-lin-sentence">Until then eBird had those reports under <span class="sr-birdname-text">Whimbrel</span>. That is worked out from each report's date, not from what you typed: your backup keeps only a report's current name, so a report entered after the update for an earlier date counts here too.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ LUMP ═══════════════════════ -->
+  <h2 class="sk-h2" id="lump">Lump: Western Flycatcher, October 2023</h2>
+  <div class="sk-note"><p>eBird kept each lumped species as a named form, so an older report now reads Western Flycatcher (Pacific-slope) or Western Flycatcher (Cordilleran), and that maps back to the species name it had. A report with no form (before the lump it was the slash Pacific-slope/Cordilleran Flycatcher, or the form has since been removed) cannot be mapped back, and the chart gives those their own dashed box instead of guessing. Today both earlier boxes read "No reports under this name".</p></div>
+
+  <h3 class="sk-h3">Variant A <span>the earlier names' boxes carry their reports</span></h3>
+  <div class="sk-frame-tag">In the app, variant A: Species Detail, Western Flycatcher</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--multi">
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Pacific-slope Flycatcher</span></div>
+                <div class="sr-lin-sci">Empidonax difficilis</div>
+                <div class="sr-lin-count">44 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span><span>now <span class="sr-birdname-text">Western Flycatcher (Pacific-slope)</span></span></div>
+                <div class="sr-lin-bar"><i style="width:0%"></i></div>
+              </div>
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Cordilleran Flycatcher</span></div>
+                <div class="sr-lin-sci">Empidonax occidentalis</div>
+                <div class="sr-lin-count">9 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span><span>now <span class="sr-birdname-text">Western Flycatcher (Cordilleran)</span></span></div>
+                <div class="sr-lin-bar"><i style="width:0%"></i></div>
+              </div>
+              <div class="sr-lin-node is-absent">
+                <div class="sr-lin-mark" style="margin-top:0">Earlier name not recorded</div>
+                <div class="sr-lin-count">5 reports</div>
+                <div class="sr-lin-part"><span>no form on these to show the name they had</span></div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-lump"/></svg><b>Lump</b><span>October 2023</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--single">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Western Flycatcher</span></div>
+                <div class="sr-lin-sci">Empidonax difficilis</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">71 reports</div>
+                <div class="sr-lin-part"><span><b>58</b> reassigned by eBird</span><span><b>13</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:18.31%"></i></div>
+              </div>
+            </div>
+          </div>
+          <p class="sr-lin-sentence">eBird reassigned every report dated on or before <b>24 October 2023</b> to <span class="sr-birdname-text">Western Flycatcher</span> when it made this lump.</p>
+          <p class="sr-lin-sentence">It kept each earlier name as a form of <span class="sr-birdname-text">Western Flycatcher</span>, so a report from before the update that still carries one is counted under the name it had. The 5 reports with no form have no earlier name in your backup. This is worked out from the form and the date on each report, not from what you typed.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <h3 class="sk-h3">Variant B <span>the same, with the reports laid out by year</span></h3>
+  <div class="sk-note"><p>The three boxes on the left add up, year by year, to the gray columns on the right. The reports with no earlier name still have dates, so they are drawn too: what is missing is their name, not their place in time.</p></div>
+  <div class="sk-frame-tag">In the app, variant B: Species Detail, Western Flycatcher</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--multi">
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Pacific-slope Flycatcher</span></div>
+                <div class="sr-lin-sci">Empidonax difficilis</div>
+                <div class="sr-lin-count">44 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span><span>now <span class="sr-birdname-text">Western Flycatcher (Pacific-slope)</span></span></div>
+                <div class="sr-lin-years" data-first="2011" data-update="2023" data-g="1,2,3,2,4,3,5,4,3,2,6,5,4,0,0,0" data-tg="44" data-ta="0"></div>
+              </div>
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Cordilleran Flycatcher</span></div>
+                <div class="sr-lin-sci">Empidonax occidentalis</div>
+                <div class="sr-lin-count">9 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span><span>now <span class="sr-birdname-text">Western Flycatcher (Cordilleran)</span></span></div>
+                <div class="sr-lin-years" data-first="2011" data-update="2023" data-g="0,0,0,2,0,0,3,0,1,0,0,3,0,0,0,0" data-tg="9" data-ta="0"></div>
+              </div>
+              <div class="sr-lin-node is-absent">
+                <div class="sr-lin-mark" style="margin-top:0">Earlier name not recorded</div>
+                <div class="sr-lin-count">5 reports</div>
+                <div class="sr-lin-part"><span>no form on these to show the name they had</span></div>
+                <div class="sr-lin-years" data-first="2011" data-update="2023" data-g="0,1,0,0,1,2,0,0,0,1,0,0,0,0,0,0" data-tg="5" data-ta="0"></div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-lump"/></svg><b>Lump</b><span>October 2023</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--single">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Western Flycatcher</span></div>
+                <div class="sr-lin-sci">Empidonax difficilis</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">71 reports</div>
+                <div class="sr-lin-part"><span><b>58</b> reassigned by eBird</span><span><b>13</b> recorded since</span></div>
+                <div class="sr-lin-years" data-first="2011" data-update="2023" data-g="1,3,3,4,5,5,8,4,4,3,6,8,4,0,0,0" data-a="0,0,0,0,0,0,0,0,0,0,0,0,1,4,4,4" data-tg="58" data-ta="13"></div>
+              </div>
+            </div>
+          </div>
+          <div class="sr-lin-key"><span><i class="g"></i>dated on or before the update</span><span><i class="a"></i>dated after it</span><span><i class="c"></i>2023, the update's year</span></div>
+          <p class="sr-lin-sentence">eBird reassigned every report dated on or before <b>24 October 2023</b> to <span class="sr-birdname-text">Western Flycatcher</span> when it made this lump.</p>
+          <p class="sr-lin-sentence">It kept each earlier name as a form of <span class="sr-birdname-text">Western Flycatcher</span>, so a report from before the update that still carries one is counted under the name it had. The 5 reports with no form have no earlier name in your backup. This is worked out from the form and the date on each report, not from what you typed.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ RENAME ═══════════════════════ -->
+  <h2 class="sk-h2" id="rename">Rename: Thick-billed Longspur, September 2021</h2>
+  <div class="sk-note">
+    <p>Same bird, one name before and one after: McCown's Longspur became Thick-billed Longspur between the 2019 and 2021 taxonomy files. Renames are not in the section today; for this species it reads only "No split or lump is recorded for this species in the covered updates."</p>
+    <p>New here: a third kind word, Rename, with a one-in, one-out glyph, and "renamed by eBird" in place of "reassigned by eBird". The section's title and its empty line would both need new words if renames join; that is copy for a later stage and is left as shipped here.</p>
+  </div>
+
+  <h3 class="sk-h3">Variant A <span>the earlier name's box carries its reports</span></h3>
+  <div class="sk-frame-tag">In the app, variant A: Species Detail, Thick-billed Longspur</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--single">
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">McCown's Longspur</span></div>
+                <div class="sr-lin-sci">Rhynchophanes mccownii</div>
+                <div class="sr-lin-count">9 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span></div>
+                <div class="sr-lin-bar"><i style="width:0%"></i></div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-rename"/></svg><b>Rename</b><span>September 2021</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--single">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Thick-billed Longspur</span></div>
+                <div class="sr-lin-sci">Rhynchophanes mccownii</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">12 reports</div>
+                <div class="sr-lin-part"><span><b>9</b> renamed by eBird</span><span><b>3</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:25%"></i></div>
+              </div>
+            </div>
+          </div>
+          <p class="sr-lin-sentence">eBird renamed this species from <span class="sr-birdname-text">McCown's Longspur</span> to <span class="sr-birdname-text">Thick-billed Longspur</span> in its September 2021 update. Reports dated on or before <b>8 September 2021</b> had the earlier name until then; reports dated after it were recorded under the current name.</p>
+          <p class="sr-lin-sentence">That is worked out from each report's date, not from what you typed: your backup keeps only a report's current name.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <h3 class="sk-h3">Variant B <span>the same, with the reports laid out by year</span></h3>
+  <div class="sk-note"><p>For a rename the gray columns on the two sides are the same reports twice, since nothing was divided or joined. The right-hand box adds only the green years.</p></div>
+  <div class="sk-frame-tag">In the app, variant B: Species Detail, Thick-billed Longspur</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--single">
+              <div class="sr-lin-node">
+                <div class="sr-lin-name"><span class="sr-birdname-text">McCown's Longspur</span></div>
+                <div class="sr-lin-sci">Rhynchophanes mccownii</div>
+                <div class="sr-lin-count">9 reports</div>
+                <div class="sr-lin-part"><span>eBird's name for them until the update</span></div>
+                <div class="sr-lin-years" data-first="2014" data-update="2021" data-g="1,0,2,1,0,3,1,1,0,0,0,0,0" data-tg="9" data-ta="0"></div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-rename"/></svg><b>Rename</b><span>September 2021</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--single">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Thick-billed Longspur</span></div>
+                <div class="sr-lin-sci">Rhynchophanes mccownii</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">12 reports</div>
+                <div class="sr-lin-part"><span><b>9</b> renamed by eBird</span><span><b>3</b> recorded since</span></div>
+                <div class="sr-lin-years" data-first="2014" data-update="2021" data-g="1,0,2,1,0,3,1,1,0,0,0,0,0" data-a="0,0,0,0,0,0,0,0,1,0,2,0,0" data-tg="9" data-ta="3"></div>
+              </div>
+            </div>
+          </div>
+          <div class="sr-lin-key"><span><i class="g"></i>dated on or before the update</span><span><i class="a"></i>dated after it</span><span><i class="c"></i>2021, the update's year</span></div>
+          <p class="sr-lin-sentence">eBird renamed this species from <span class="sr-birdname-text">McCown's Longspur</span> to <span class="sr-birdname-text">Thick-billed Longspur</span> in its September 2021 update. Reports dated on or before <b>8 September 2021</b> had the earlier name until then; reports dated after it were recorded under the current name.</p>
+          <p class="sr-lin-sentence">That is worked out from each report's date, not from what you typed: your backup keeps only a report's current name.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ UNTRACED ═══════════════════════ -->
+  <h2 class="sk-h2" id="untraced">A lump the backup cannot trace: American Crow, September 2021</h2>
+  <div class="sk-note">
+    <p>When eBird lumped Northwestern Crow into American Crow it kept no Northwestern form, so a report that was Northwestern Crow now reads plain American Crow and is indistinguishable from one that always was. There is nothing to count on the left, in either variant, and the section says so in its existing note register instead of leaving two silent boxes.</p>
+    <p>Drawn once, in variant A's form. In variant B the right-hand box's bar would unfold by year as above and the left side would stay exactly as it is here.</p>
+  </div>
+  <div class="sk-frame-tag">In the app, either variant: Species Detail, American Crow</div>
+  <div class="sk-frame">
+    <div class="sr-card">
+      <div class="sr-sechead"><div class="sr-sechead-tile"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-split"/></svg></div><span class="sr-sechead-title">Splits and Lumps</span></div>
+      <div class="sr-lin-pad"><div class="sr-lin-body">
+        <div class="sr-lin-event">
+          <div class="sr-lin-note">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-info"/></svg>
+            <span><b>Your backup cannot show which name these reports had.</b> eBird kept no form for <span class="sr-birdname-text" style="font:inherit;color:inherit">Northwestern Crow</span> when it made this lump, so every report dated on or before the update now reads <span class="sr-birdname-text" style="font:inherit;color:inherit">American Crow</span>, whichever of the two names it had.</span>
+          </div>
+          <div class="sr-lin-chart">
+            <div class="sr-lin-side sr-lin-side--before sr-lin-side--multi">
+              <div class="sr-lin-node is-absent">
+                <div class="sr-lin-name"><span class="sr-birdname-text">American Crow</span></div>
+                <div class="sr-lin-sci">Corvus brachyrhynchos</div>
+                <div class="sr-lin-mark">Not traceable in your backup</div>
+              </div>
+              <div class="sr-lin-node is-absent">
+                <div class="sr-lin-name"><span class="sr-birdname-text">Northwestern Crow</span></div>
+                <div class="sr-lin-sci">Corvus caurinus</div>
+                <div class="sr-lin-mark">Not traceable in your backup</div>
+              </div>
+            </div>
+            <div class="sr-lin-rail"><span class="sr-lin-badge"><svg class="sr-lin-glyph" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#g-lump"/></svg><b>Lump</b><span>September 2021</span></span></div>
+            <div class="sr-lin-side sr-lin-side--after sr-lin-side--single">
+              <div class="sr-lin-node is-you">
+                <div class="sr-lin-name"><span class="sr-birdname-text">American Crow</span></div>
+                <div class="sr-lin-sci">Corvus brachyrhynchos</div>
+                <div class="sr-lin-mark sr-lin-mark--you"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Your species</div>
+                <div class="sr-lin-count">341 reports</div>
+                <div class="sr-lin-part"><span><b>268</b> reassigned by eBird</span><span><b>73</b> recorded since</span></div>
+                <div class="sr-lin-bar"><i style="width:21.41%"></i></div>
+              </div>
+            </div>
+          </div>
+          <p class="sr-lin-sentence">eBird reassigned every report dated on or before <b>8 September 2021</b> to <span class="sr-birdname-text">American Crow</span> when it made this lump. Your backup no longer carries the earlier names.</p>
+        </div>
+      </div>
+      <p class="sr-lin-coverage">Covers eBird's 2019 to 2026 taxonomy updates. A change made before 2019 is not recorded here.</p></div>
+    </div>
+  </div>
+
+  <h2 class="sk-h2">What neither variant can show</h2>
+  <div class="sk-note">
+    <p><b>What was typed.</b> Plain Whimbrel or the form Whimbrel (Hudsonian): the backup does not say, and no box claims it.</p>
+    <p><b>When it was typed.</b> A report entered in 2026 for a 2019 sighting counts with the earlier name, as it already does in today's "reassigned by eBird" figure. The second paragraph under each chart now says so.</p>
+    <p><b>A lump that left no form.</b> Shown above. It is the minority: a quick check of the taxonomy files finds about a quarter of the 101 covered lumps leave at least one earlier name with no form to trace.</p>
+    <p><b>The day a rename took effect.</b> The yearly files show which update a new name first appears in, not the day eBird began using it. A name changed between two updates would be dated to the later one.</p>
+    <p><b>Anything before the 2019 update.</b> A name that changed in 2017 is outside what the app holds, so every box is worded as eBird's name "until the update", never as the name on the day of the sighting.</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement
+  var page = document.getElementById('page')
+  var params = new URLSearchParams(location.search)
+
+  function press(attr, value) {
+    document.querySelectorAll('[' + attr + ']').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute(attr) === value))
+    })
+  }
+  function setTheme(t) { root.setAttribute('data-theme', t); press('data-theme-set', t) }
+  function setWidth(w) { page.classList.toggle('sk-phone', w === 'phone'); press('data-width-set', w) }
+
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  setTheme(params.get('theme') || (prefersDark ? 'dark' : 'light'))
+  setWidth(params.get('w') === 'phone' ? 'phone' : 'wide')
+  document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+    b.addEventListener('click', function () { setTheme(b.getAttribute('data-theme-set')) })
+  })
+  document.querySelectorAll('[data-width-set]').forEach(function (b) {
+    b.addEventListener('click', function () { setWidth(b.getAttribute('data-width-set')) })
+  })
+
+  // Variant B: build each by-year plot from its data attributes. One y scale
+  // per event, so column heights compare across the boxes of one chart.
+  var PLOT_PX = 30
+  function nums(s, n) {
+    var out = s ? s.split(',').map(Number) : []
+    while (out.length < n) out.push(0)
+    return out
+  }
+  function sum(a) { return a.reduce(function (x, y) { return x + y }, 0) }
+  function reports(n) { return n === 1 ? '1 report' : n + ' reports' }
+
+  document.querySelectorAll('.sr-lin-event').forEach(function (ev) {
+    var plots = Array.prototype.slice.call(ev.querySelectorAll('.sr-lin-years'))
+    if (plots.length === 0) return
+    var data = plots.map(function (el) {
+      var g = nums(el.dataset.g, 0)
+      return { el: el, g: g, a: nums(el.dataset.a, g.length) }
+    })
+    var max = 1
+    data.forEach(function (d) { d.g.forEach(function (v, i) { max = Math.max(max, v + d.a[i]) }) })
+
+    data.forEach(function (d) {
+      var el = d.el
+      var first = Number(el.dataset.first), update = Number(el.dataset.update)
+      var last = first + d.g.length - 1
+      if (sum(d.g) !== Number(el.dataset.tg) || sum(d.a) !== Number(el.dataset.ta)) {
+        console.error('by-year figures do not add up to the box total', el.dataset)
+      }
+      el.style.setProperty('--n', String(d.g.length))
+      var plot = document.createElement('div')
+      plot.className = 'sr-lin-years-plot'
+      var spoken = []
+      d.g.forEach(function (g, i) {
+        var a = d.a[i], year = first + i
+        var col = document.createElement('span')
+        col.className = 'sr-lin-years-col' + (year === update ? ' is-update' : '')
+        var px = function (v) { return Math.max(2, Math.round(v / max * PLOT_PX)) + 'px' }
+        if (a > 0) { var ia = document.createElement('i'); ia.className = 'a'; ia.style.height = px(a); col.appendChild(ia) }
+        if (g > 0) { var ig = document.createElement('i'); ig.className = 'g'; ig.style.height = px(g); col.appendChild(ig) }
+        var said = year + ': '
+        if (g > 0 && a > 0) said += g + ' dated on or before the update, ' + a + ' after'
+        else if (a > 0) said += reports(a) + ' after the update'
+        else said += g === 0 ? 'none' : reports(g)
+        col.title = said
+        if (g + a > 0) spoken.push(said)
+        plot.appendChild(col)
+      })
+      var axis = document.createElement('div')
+      axis.className = 'sr-lin-years-axis'
+      axis.setAttribute('aria-hidden', 'true')
+      axis.innerHTML = '<span>' + first + '</span><span>' + last + '</span>'
+      el.setAttribute('role', 'img')
+      el.setAttribute('aria-label', 'Reports by year, ' + first + ' to ' + last + '. ' + spoken.join('. ') + '.')
+      el.appendChild(plot)
+      el.appendChild(axis)
+    })
+  })
+})()
+</script>
+</body>
+</html>
