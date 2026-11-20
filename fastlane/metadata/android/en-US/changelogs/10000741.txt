@@ -1,0 +1,1 @@
+Species Detail's splits/lumps/renames section now counts your reports under earlier names where your backup can tell, and adds renamed species.
