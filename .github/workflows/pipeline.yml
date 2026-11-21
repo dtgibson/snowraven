@@ -182,11 +182,19 @@ jobs:
         working-directory: src-tauri
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      # The same two pins as windows-build.yml. The pin freezes the action's
-      # code, not the toolchain: like the Windows build, this installs whatever
-      # stable Rust is current when the job runs.
+      # The Rust the release Mac builds with and the Android build pins (1.96.1),
+      # read from the one file that pins it, so a red here means our code and
+      # not a new compiler. The action keeps windows-build.yml's SHA pin; its
+      # `toolchain` input picks the version (that workflow still takes stable).
+      - name: Read the pinned Rust version
+        working-directory: .
+        run: |
+          . scripts/android/toolchain.env
+          echo "RUST_TOOLCHAIN=$RUST_TOOLCHAIN" >> "$GITHUB_ENV"
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable (2026-11-15), the branch head; its action.yml defaults toolchain to stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable (2026-11-15), the branch head; the toolchain comes from the input below, never from the ref
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
       - name: Cache Rust build
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
