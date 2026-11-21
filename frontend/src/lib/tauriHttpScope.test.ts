@@ -413,6 +413,34 @@ describe('the http fetch permit (capabilities/default.json, http:allow-fetch)', 
 // the real tree, to read only live code, and to refuse what it must. Without
 // these, a reader that matched nothing would make the rows above vacuous: an
 // empty set of URLs is admitted by any permit.
+describe('the opener and process grants are exactly the ones the page uses (security-bloat-deps-and-tests-cleanup)', () => {
+  // `opener:default` also granted reveal_item_in_dir, which nothing calls and
+  // which takes any path with no scope, so page script could test whether a
+  // file exists (Finder or Explorer opens on it); `process:allow-exit` granted
+  // an exit nothing calls (relaunch() is process|restart; the Windows updater
+  // exits natively). Both were narrowed after a probe of the running debug app
+  // read each leg as predicted (engineering-log.md, Phase 3, I). A grant added
+  // back here, or any other opener or process permission, turns this red.
+  it('no capability file grants opener:default, reveal_item_in_dir or process exit; the used grants stay', () => {
+    const granted: string[] = []
+    for (const f of capabilityFiles()) {
+      const cap = JSON.parse(read(f)) as { permissions?: unknown }
+      for (const p of Array.isArray(cap.permissions) ? cap.permissions : []) {
+        const id = permissionId(p)
+        if (typeof id === 'string' && /^(opener|process):/.test(id)) granted.push(`${f} ${id}`)
+      }
+    }
+    for (const gone of ['opener:default', 'opener:allow-reveal-item-in-dir', 'process:allow-exit']) {
+      expect(granted.filter(g => g.endsWith(` ${gone}`)), `${gone} is granted again`).toEqual([])
+    }
+    expect(granted.sort()).toEqual([
+      `${CAPABILITIES}/default.json opener:allow-default-urls`,
+      `${CAPABILITIES}/default.json opener:allow-open-url`,
+      `${CAPABILITIES}/desktop.json process:allow-restart`,
+    ])
+  })
+})
+
 describe('the permit readers', () => {
   it('read the real tree: the shipped files, the importers, and a URL from each', () => {
     const { shipped, importers, shapes } = derive()
