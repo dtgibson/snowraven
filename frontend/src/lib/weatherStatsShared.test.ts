@@ -19,6 +19,7 @@ import { computeChecklists, filterObservations } from './birdingStats'
 import { formatWeather } from './weatherFormatter'
 import type { HourlyResponse } from './weatherFormatter'
 import type { ObservationEntry } from '../types'
+import { bestPerCallCpuMs } from '../test/cpuTiming'
 
 const TZ = 'America/Los_Angeles'
 function hourly(over: Partial<HourlyResponse['data'][number]> = {}): HourlyResponse {
@@ -345,27 +346,27 @@ describe('the one new scan over export text is linear by construction', () => {
     // because `.claude/rules/testing.md` records a 3x floor being pushed to 2.79
     // by a parallel build on the same machine.
     const body = `Temperature: 60°F  Wind: Light breeze  ${'x'.repeat(400)}`
-    const timeFor = (rows: number) => {
-      const obs = build(repeat(rows, unattributed(body), ['Anna\'s Hummingbird']))
-      hasAnyWeatherBlock(obs) // warm
-      const t0 = performance.now()
-      for (let i = 0; i < 5; i++) expect(hasAnyWeatherBlock(obs)).toBe(false)
-      return performance.now() - t0
-    }
-    const t10 = timeFor(10_000)
-    const t20 = timeFor(20_000)
-    const t40 = timeFor(40_000)
+    const legs = [10_000, 20_000, 40_000].map(rows => build(repeat(rows, unattributed(body), ['Anna\'s Hummingbird'])))
+    for (const obs of legs) expect(hasAnyWeatherBlock(obs)).toBe(false)
+    // Each leg reads this process's CPU time through test/cpuTiming.ts, the
+    // three legs interleaved, best of seven samples per call (testing.md
+    // v1.0.40; idea e62c8d06). It timed one wall-clock sample per leg until
+    // security-bloat-deps-and-tests-cleanup, which counted the time other
+    // processes held the core and failed under heavy load with the scan
+    // unchanged. Legs and limits are unchanged.
+    const { perCall: [t10, t20, t40] } = bestPerCallCpuMs(legs.map(obs => () => hasAnyWeatherBlock(obs)))
     // Quadratic would be ~4x per doubling; the bound catches that with room for
     // a noisy machine, and the two ratios are asserted separately so one lucky
     // reading cannot carry the other.
-    expect(t20 / Math.max(t10, 0.05)).toBeLessThan(3)
-    expect(t40 / Math.max(t20, 0.05)).toBeLessThan(3)
+    expect(t20 / Math.max(t10, 0.05), `${t10.toFixed(2)} -> ${t20.toFixed(2)} ms CPU per call`).toBeLessThan(3)
+    expect(t40 / Math.max(t20, 0.05), `${t20.toFixed(2)} -> ${t40.toFixed(2)} ms CPU per call`).toBeLessThan(3)
     // The explicit budget below is a WALL-CLOCK allowance for this test, not a
     // loosening of the ratio bounds above -- those are what the test is for and
     // they are untouched. Building and scanning 70,000 rows five times over
-    // takes ~4.7 s on an idle dev machine, which is ~6% under vitest's 5 s
-    // default, and the Pipeline job shares a runner with a concurrent backend
-    // job, so 1.0.32 turned `main` red here on a run whose ratios were fine.
+    // took ~4.7 s on an idle dev machine when this budget was set, which is ~6%
+    // under vitest's 5 s default, and the Pipeline job shares a runner with a
+    // concurrent backend job, so 1.0.32 turned `main` red here on a run whose
+    // ratios were fine. The sampled form above costs about the same.
     // Same family as `.claude/rules/testing.md`'s note that a 3x floor measured
     // 2.79 with a parallel build on the machine: a timing test's WALL CLOCK is
     // a fact about the machine, its RATIO is the fact about the code.

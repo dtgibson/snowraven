@@ -118,7 +118,11 @@ describe('HotspotLink full-name link', () => {
       expect(p.box.querySelectorAll('svg')).toHaveLength(1)
       cleanup()
     }
-  })
+    // Its own budget: about 2,800 renders take about 1 s on an idle dev Mac and
+    // took 6.4 s under heavy load, past vitest's 5 s default, with every
+    // assertion passing (idea e62c8d06). The row asserts no time, so the
+    // budget is a wall-clock allowance and nothing else (testing.md v1.0.32).
+  }, 30_000)
 
   it('a one-word name is one box: the word and the glyph, with no lead span', () => {
     const p = parts('Pier')
