@@ -27,6 +27,15 @@ describe('HotspotLink', () => {
     render(<HotspotLink locId="not-an-id" name="Mystery Spot" isHotspot />)
     expect(screen.queryByRole('link')).toBeNull()
     expect(screen.getByText('Mystery Spot')).toBeTruthy()
+    cleanup()
+    // Ids that START like a real one: only the pattern's end anchor refuses
+    // these, and with it removed the whole suite stayed green
+    // (security-bloat-deps-and-tests-cleanup, phase 2).
+    for (const locId of ['L123x', 'L1 ', 'L1/2', 'L1\n']) {
+      render(<HotspotLink locId={locId} name="Mystery Spot" isHotspot />)
+      expect(screen.queryByRole('link'), JSON.stringify(locId)).toBeNull()
+      cleanup()
+    }
   })
 
   it('compact mode links with an icon only but keeps the full accessible name', () => {

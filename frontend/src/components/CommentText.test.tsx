@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+/// <reference types="node" />
 // CommentText's links in the Tauri apps (sortable-list-links-own-dispatch).
 //
 // These URLs are written by whoever wrote the comment, so they arrive in shapes
@@ -8,6 +9,7 @@
 // would open differently than it did. The gate rows (modifier keys, other
 // buttons, a cancelled click, web and Pi) are OutboundLink.test.tsx's.
 import { describe, it, expect, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { CommentText } from './CommentText'
 import { installTauriOpener } from '../test/tauriOpener'
@@ -42,5 +44,18 @@ describe('CommentText links own their dispatch', () => {
     } finally {
       opener.uninstall()
     }
+  })
+})
+
+describe('the renderer keeps its own scheme gate', () => {
+  it('emits an anchor only behind the exact http(s)-with-slashes test, comments stripped', () => {
+    // linkify only ever yields http(s):// hrefs, so no input reaches this gate
+    // and a behavioural row cannot pin it: loosened to /^https?:/i it stayed
+    // green across every suite that renders CommentText
+    // (security-bloat-deps-and-tests-cleanup, phase 2). A deliberately
+    // redundant guard gets a source pin of its own (security.md).
+    const src = readFileSync('src/components/CommentText.tsx', 'utf8') // vitest runs from frontend/; under jsdom import.meta.url is not a file URL
+      .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n')
+    expect(src).toContain('return href && /^https?:\\/\\//i.test(href) ? (')
   })
 })
