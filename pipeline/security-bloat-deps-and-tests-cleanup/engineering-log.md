@@ -239,3 +239,199 @@ The +1 file and +7 tests against the branch point: `workflowActionPins.test.ts` 
 - `pipeline/baseline-failures.json` was not re-recorded: the brief re-records it from every runner, which needs the gate's own runs (phase 2).
 - ROADMAP's "Pin the actions in windows-build.yml, pipeline.yml and pages.yml" and "Move CI from Node 20 to Node 24" are now done on this branch, and the v1.0.70 D-12 allowance retires once CI is green; recording those is the Chronicler's at closeout.
 - The CI timeout's 944 s figure should be re-measured from the draft pull request's runs (build now before the suite; the suite now runs the 20 bundle rows and skips the local-only rows).
+
+---
+
+# Phase 2
+
+Phase 2 (brief "Scope and order" items 3 and 4, plus the gate's first GitHub reds, which the coordinator added mid-phase), The Engineer, 2026-11-20, on the dev Mac only. Same branch, continued from `350dd6f4`. Node 24.18.0, vitest 4.1.12, Playwright 1.62.1. Load averages are beside each reading; nothing of this session compiled during a timing reading, and every timing row was run alone. Harnesses live in this session's scratchpad (`.../scratchpad/p2/`), never in the repo; each snapshots its targets once, restores from the snapshot and checks the restore by SHA-256 against the intended content, and every scratch file placed in the tree was deleted before the next commit.
+
+## A. Flaky and ineffective tests (the saved ideas)
+
+| Idea | State | Commit |
+|---|---|---|
+| `5951387a` specificity helper never ends on an unclosed `[` | Done | `bbeea0ff` |
+| `095bc19b` Clear-race rows cannot go red | Done | `74214db4` |
+| `c82edfe2` memo headroom types figures by hand | Done | `e3249ec9` |
+| `87bc0c34` AlertsInboxSheet Escape race | Done | `131dd875` |
+| `87bc0c34` parseBarChart ratio row | Decided against a test change, with the residual measured (below) | none |
+| `e62c8d06` three rows that fail only under load | Done (two rows); the third moved before this run | `9b757795` |
+| `2396195c` taxonomy-history speed checks on the wall clock | Done before this run (`01581be0`, 2026-11-19); margin and control measured here | none |
+| `337b21d6` palette check can skip its Escape test | Done | `0acda972` |
+| Life Lists pass 3, 200 species repeated (phase 1's finding) | Relabelled as the control it is | `ed56f5d3` |
+| `f64dbf25` website/tools weather capture test | Not reproducible (15 of 15 pass); CI step decided against (below) | none |
+| `5f274893` cargo test on GitHub | Decided (below) | see item E |
+
+### `5951387a`: the specificity helper (`frontend/src/test/cssSpecificity.ts`)
+`simpleParts` set its cursor back to 0 on an attribute selector with no `]` (`indexOf` gives -1, so `end + 1` is 0) and looped forever. It now throws (fails closed; no committed stylesheet holds such a selector, the build would refuse it). The new row in `controlRegisters.test.ts` runs the function's own text in a `node:vm` context with a 2 s bound before calling it directly, because a `testTimeout` cannot interrupt a synchronous loop (testing.md v1.0.33). Seen red with the guard line removed: `Script execution timed out after 2000ms` in 2.0 s, no hung worker; restored by hash, control green. The first seen-red attempt filtered on a title word the row does not contain and ran nothing (31 skipped); it was re-run with the right filter, and that is recorded because a run that measures nothing reads like a pass.
+
+### `095bc19b`: the Clear-race mock (`frontend/src/lib/clearDerived.test.ts`)
+The shared storage mock parked a held read first and read after, so a parked load always got the post-purge disk. It now reads first and parks after, the order a Tauri chain link queued ahead of the purge's delete has (testing.md v1.0.62), counts the held read, and each row waits for that read and clears the hold before it purges (testing.md v1.0.14 rule 4: prove the interleaving claimed).
+
+| Guard deleted (the indented `if (_store) return _store` after the await) | HEAD's park-first mock | Reads-first mock |
+|---|---|---|
+| none (control) | 37 of 37 green | 37 of 37 green |
+| `exoticProvenanceCache.ts` | 37 of 37 green | red: its LOAD_RACES row and the escapee-name publish row |
+| `checklistProjectsCache.ts` | 37 of 37 green | red: its LOAD_RACES row only |
+| `countyCompletenessCache.ts` | 37 of 37 green | red: its LOAD_RACES row only |
+| `countyDayObsCache.ts` | 37 of 37 green | red: its LOAD_RACES row only |
+| `hotspotRegionCache.ts` | 37 of 37 green | red: its LOAD_RACES row only |
+
+Each mutation matched exactly once and changed the file; all six files restored equal to their snapshot by hash; 37 of 37 after. (The idea said 51 rows; the file runs 37.)
+
+### `c82edfe2`: memo headroom (`frontend/src/lib/speciesUtilsMemoBound.test.ts`)
+The longest published name and the published-name count are now read from `ebird-taxonomy.json`'s `byCode` values when the test runs (18,631 distinct, longest 66 at the 2026 taxonomy), with a floor on each so a reader that matched nothing fails. Seen red against the asset: a 70-character name added (row red, "longest published name 70"), 400 names added ("19031 published names", red); HEAD's file stayed green with both added. Asset restored by hash.
+
+### `87bc0c34`, first half: the AlertsInboxSheet Escape race
+The Clear confirmation reaches its `enter` phase on an animation frame, outside `act`, so `findByRole` can resolve on that commit before the passive effect arms `ModalDialog`'s Escape listener. The row now waits for focus inside the dialog, which the same effect flush moves in (CLAUDE.md v1.0.25). Reproduced on demand with `ModalDialog`'s focus and listener effects each deferred:
+
+| Row version | ModalDialog unchanged | both effects deferred one task (0 ms) | deferred 150 ms |
+|---|---|---|---|
+| HEAD | green | red | red |
+| new | green | green | green |
+
+### `87bc0c34`, second half: parseBarChart's ratio row, decided against a test change
+The flaky row is the 512/513 names shape, whose large leg carries the residual the file already names: `tidy()` builds each name by `+=`, the collector's share grows faster than the input, and no clock removes it (testing.md v1.0.40 rule 3). Measured here (Node 24, load 1.7 to 2.4, three runs of the file): its second leg read 2.93, 1.58 and 2.35 against 3.2, every other shape 1.82 to 2.22. Raising the limit is forbidden, more rounds and forced collections were already measured worse, and the one change that retires it is application code (building the name in one piece in `tidy()`, saved idea `b1e71586`), outside this phase. Left unchanged, with the reading recorded; it is a candidate ride-along for the 1.0.75 release (flagged).
+
+### `e62c8d06`: rows that failed only under load
+- **`HotspotLink.test.tsx`, generated corpus.** About 2,800 renders, 1.0 s idle, 6.4 s under heavy load against vitest's 5 s default; it asserts no time, so it takes its own 30 s budget (testing.md v1.0.32). Seen red with a 500 ms default: HEAD's row fails at 988 ms, the new one passes.
+- **`weatherStatsShared.test.ts`, doubling row.** One wall-clock sample per leg became `bestPerCallCpuMs` with legs (10k/20k/40k rows) and limit (under 3 per doubling) unchanged, and each leg's answer asserted. Node 24, load 1.7 to 2.4: 2.00 to 2.02 per doubling over three runs; a leg-against-itself control at the row's own settings 1.00, 1.00, 1.00. Seen red: the scan's `Set` replaced by a hand-written array search reads 235 to 814 ms per call (3.46) and turns only this row red (the file's source scan looks for `.includes(` and friends, so it stays green, as designed).
+- **`taxonomyHistory.test.ts`.** Already on CPU time (`01581be0`). Its quotients, three runs: 3.99 to 4.09, 3.79 to 4.14, 3.49 to 3.66 and 3.70 to 4.07 against 9 (a quadratic reads about 16), the kept-form row 1.25 to 2.49; a 10k reference leg against itself 0.92, 0.97, 1.00.
+- These rows keep gating on GitHub: none failed there in the 25 runs phase 1 read, and D-05's test is "reads steady there". A doubling quotient sits within 2x of both linear and quadratic by construction, so it never has the 2x margin testing.md v0.5.84 asks of an absolute; if one goes red on GitHub, the switch is the documented next step.
+
+### `2396195c`: taxonomy-history speed checks
+Moved to the CPU-time helper by `01581be0` (recorded-names-in-splits-and-lumps, 2026-11-19), legs and limits unchanged. A search of every frontend test file that calls `performance.now()` found no taxonomy-history timing left on the wall clock. Readings and control are above.
+
+### `337b21d6`: the palette check's skipped Escape row (`website/tools/verify/verify-palette.mjs`)
+Every run of the check is a cold start, so the Welcome screen must appear; the harness counted it once and skipped FR-50 on 0. It now waits for it (bounded, 10 s) and records a failure naming the reason when it never comes. Seen in Chromium and WebKit with scratch copies (deleted after) whose init script delays the cold-start reads by 2.5 s or refuses them:
+
+| Harness | Welcome on time | 2.5 s late | never |
+|---|---|---|---|
+| HEAD | 24/24, FR-50 measured | FR-50 skipped, then unrelated rows failed | 22/22 PASS, FR-50 never measured |
+| new | 24/24 | 24/24 | red: exactly the two FR-50 rows, "the Welcome screen never appeared on a cold start" |
+
+### Life Lists pass 3, 200 species repeated
+Both legs select the same 200 species, so the row cannot see a pass-3 defect: with `selectRows`' sort made quadratic (a selection sort, quadratic for any order) it read 1.38 and stayed green, while the distinct leg read 68.8 and the region press 30.6, both red. The smaller true change was the label: its title now says it is a fixed-size control (raw 1.17 to 1.18 on Node 24, floored to about 0.68) and its comment says what it cannot see; assertion, legs and limit unchanged.
+
+## B. Rows that cannot fail: a mutation sample
+
+Chosen where a silent pass would cost most: the Tauri CSP, capabilities and HTTP permit, the link and id gates, Clear and purge paths, TTL, upload refusals, the eBird gate, the passive-reader import graph, the entry chunk, and the publishing guards. Harness `scratchpad/p2/mut/probes/` (`spec*.mjs`, `run*.mjs`): every target file snapshotted once; each mutation must match exactly once and change the file; the named guard files run; the file is restored from the snapshot and checked by hash; a control over every guard file named runs green before and after each round (800, 646 and 383 rows). Load 1.7 to 3.4; the real-engine gate was running beside round 1, which loads the machine as a runner would.
+
+**Denominator: 33 distinct mutations (38 runs).** 28 went red with the suite as it stands; 3 stayed green for a stated reason and were left; 2 stayed green because no row could fail, and those rows were repaired and seen red.
+
+| # | Mutation | Guards run | Result |
+|---|---|---|---|
+| 1 | CSP `script-src` gains `'unsafe-eval'` | tauriCsp | red |
+| 2 | CSP `form-action` `'none'` to `'self'` | tauriCsp | red |
+| 3 | capability scoped to a second window | tauriCsp, androidProjectPins, singleWebviewInvariant | red (2 rows) |
+| 4 | HTTP permit `https://api.ebird.org/*` (no fixed path segment) | tauriHttpScope | red (5) |
+| 5 | HTTP permit `https://api.ebird.org/v*` | tauriHttpScope | red (5). I had labelled it the documented "broader prefix stays green" case; `v*` has no fixed segment, so the guard's floor refuses it. The guard was right |
+| 6 | a service's base URL moved to an unpermitted host | tauriHttpScope | red (2) |
+| 7 | the SINGLE-WEBVIEW INVARIANT marker removed from one of `replayStore.ts`'s two notes | singleWebviewInvariant | **green, left**: the file's second note still carries it, and the guard's claim is the marker per file |
+| 8 | the marker removed from both notes | singleWebviewInvariant | red (2) |
+| 9 | a monitor lookup added in a module iOS compiles | iosMonitorLookups | red |
+| 10 | Help's link gate loosened to `/^https?:/i` | helpLinks | red (2) |
+| 11 | CommentText's link gate loosened to `/^https?:/i` | CommentText, commentTextRegexBound, newTabLinkDispatch | **green: no row could fail** (`linkify` only yields `http(s)://`, so no input reaches the gate). Repaired: a source pin, comments stripped (security.md, deliberately redundant guards); red after |
+| 12 | `SUBMISSION_ID_RE` without its `$` | ChecklistLink alone: green; with all nine suites that name it: red (5, through `checklistId.parity.test.ts`) | red (class (b) for ChecklistLink's own rows) |
+| 13 | `LOCATION_ID_RE` without its `$` | all nine suites that name HotspotLink or the pattern | **green: no row could fail** (the wrong-shape row used `not-an-id`). Repaired: prefix-shaped ids added to that row; red after |
+| 14 | `isValidChecklistId` ceiling 15 to 20 digits | checklistIdRegexBound, checklistId.parity | red (3) |
+| 15 | OutboundLink dispatches a fixed URL, not its href | newTabLinkDispatch, OutboundLink | red (6) |
+| 16 | `Button` loses its `tabIndex = 0` default | tabOrderCoverage, ButtonLink | red (2) |
+| 17 | `allowInlineMediaFrame` true on Android | platformGates | red |
+| 18 | the hotspot-region store's purge made a no-op in the Clear registry | clearDerived, cacheInventory | red (4) |
+| 19 | `clearDerived.ts` gains a static import of a store | entryChunk | red (2) |
+| 20 | the replay store's purge-generation check dropped from `put` | clearDerived, replayStore | red |
+| 21 | the day cache's first purge-generation check (before `ensureLoaded`) dropped from the snapshot merge | countyDayObsCache, clearDerived | **green, left**: the re-check after the await is the protective one; dropping the first costs one store load after a purge, which the store's `loads` counter could pin if that is ever wanted |
+| 22 | `isWithinTtl`'s 24 h future bound dropped | ttlWindow | red (3) |
+| 23 | `refuseBySize` refuses nothing | uploadGuard | red (5) |
+| 24 | a web/Pi DELETE loses `APP_REQUEST_HEADERS` | storage.settings | red (3) |
+| 25 | `/map/county-day-obs` dropped from `EBIRD_GATED_PATHS` | transport, ebirdGate | red |
+| 26 | eBird start spacing 150 to 100 ms | rateLimit, ebirdGate | red |
+| 27 | the passive provenance reader gains a transport import | exoticProvenanceGraph | red (2) |
+| 28 | `App.tsx` statically imports maplibre-gl | entryChunk | red |
+| 29 | the F-Droid recipe's `CurrentVersionCode` one behind | fdroidRecipe | red (3) |
+| 30 | one of the three Fastlane changelogs drifts | fastlaneMetadata | red (2) |
+| 31 | `bundle.android.versionCode` one behind | androidVersionSource | red |
+| 32 | `UIApplicationSupportsMultipleScenes` false in `Info.ios.plist` | iosSceneManifest | red (2) |
+| 33 | the website version pill (text and label) one version behind, footer current | icloudKeysPublishedClaims | **green, left**: the weakness CLAUDE.md and docs-and-website.md already record (a `toContain` over the whole file; ROADMAP) |
+
+Two of the 33 found a row that could not fail; both were repaired (`9b4cf3c9`). Taken with item A, phase 2 found and repaired eight rows that could not fail (the five Clear-race rows, the memo headroom row, and these two) and relabelled one that claimed more than it checked.
+
+## C. Efficiency
+
+Profiled per file with vitest's JSON reporter as GitHub runs the suite (`CI=1 SR_SKIP_LOCAL_ONLY_TIMING=1 --maxWorkers=1`, Node 24.18.0, a fresh `frontend/dist`). Before: 414 s wall, tests 283 s, environment 54 s, import 36 s, load 1.7 at start and 2.7 at the end (GitHub's latest red run: 789 s wall, tests 524 s, environment 114 s, import 80 s). Per-file test time (the JSON's per-file duration is its rows' time; import and environment are separate):
+
+| File | Rows | Before (ms) | Where the time goes | Decision |
+|---|---|---|---|---|
+| components/Calendar.test.tsx | 86 | 24,875 | 86 full renders of 12 month grids, median 263 ms each, over a 7-row fixture; no real sleep, no asset parse | Left: the cost is the component's render. Sharing renders would couple 86 rows' state |
+| lib/useChecklistProjects.test.tsx | 44 | 20,457 | Seven rows of 2.0 to 3.5 s that run the throttled emission and the 429 cooldown through the real gate on purpose, as their comments say (a rate claim is measured against a real-duration pass, ui.md v0.5.87) | Left, named as deliberately expensive: fake timers would remove the property |
+| lib/taxonomyHistory.test.ts | 61 | 12,708 | One row 10.2 s: `snapshotCodes` re-read and re-parsed the 1.7 MB snapshot on each of 508 calls | **Reworked** (`1a3de084`): parsed once. The row 4.1 s, the file 6.7 s (single-file runs, load about 2); red on its tier-0 mutant |
+| components/MapExplorerSearchThisArea.test.tsx | 65 | 11,229 | 65 Map Explorer renders, median 147 ms; no sleeps | Left: render cost, spread thin |
+| lib/dateRangeFieldsCss.test.ts | 39 | 7,767 | Five rows of about 1 s: the cascade resolver asked jsdom to match every rule in `globals.css` on every query | **Reworked** (`6f11c8ac`): rules indexed by the property they declare; both resolvers agreed on all 2,812 queries; red on a phone-tier mutation |
+| lib/hotspotReportsLinearity.test.ts, lib/paletteLocationsLinearity.test.ts | 18, 9 | 6,595, 6,436 | Deliberately expensive linearity legs | Left: the cost is the property |
+| components/Settings.icloud.test.tsx, Settings.icloudKeys.test.tsx, calendarOverlaysOff.test.tsx, MapExplorerWidgetLink.test.tsx | 43, 30, 17, 56 | 6,237, 5,556, 5,845, 4,666 | Renders of Settings and the Calendar (the overlays file compares captured markup over eight scenarios and a round trip each, testing.md v1.0.38) at 110 to 360 ms each; no real sleeps over 300 ms | Left: under the few-seconds bar per change, or the cost is the property |
+| components/AlertsInboxSheet.test.tsx | 22 | 5,662 | Renders; two 300 ms absence waits | Left: 0.6 s of waits, under the bar |
+
+**Environment time.** The default environment is already `node`; 182 files opt into jsdom. A scan for jsdom files that touch no DOM API found two, and both are jsdom on purpose (`alphaCodeSearch.jsdom.test.ts` exists to run its roster under jsdom; `lifeListsRegionConvergence.test.ts` drives the real `storage.ts`). At about 0.3 s of environment per jsdom file here, converting any one would save less than the few-seconds bar, so none was converted.
+
+After (same command, at `68f86672`, every phase-2 change in but the one-file readiness fix in section H): 524 files passed, 5 skipped; 11,509 passed, 28 skipped; 404 s wall, tests 271.5 s, environment 54.2 s, import 36.5 s; load 2.8 at start, 2.5 at the end. Summed per-file test time 279.8 s to 268.3 s (11.5 s): taxonomyHistory 12.7 to 6.7 s, dateRangeFieldsCss 7.8 to 1.0 s, and weatherStatsShared 2.7 to 4.0 s (its CPU-time form samples each leg seven times; its comment now says so). GitHub's own figures for the same steps come from the pull request's runs.
+
+## G. The gate's first GitHub reds (run 44848092329, added by the coordinator mid-phase)
+
+The first `Pipeline` run on the pull request passed lint, typecheck, build and vitest (8 min 40 s), and the real-engine gate, running there for the first time since 2026-11-09, failed 2 of its 9 harnesses.
+
+### `verify-hotspot-reports.mjs`: "every tile label is one line wherever the tiles are two or more across"
+Red in both engines at all four scales on GitHub (24, 28, 34 and 43 configurations), everything else green. Cause, established by measurement: the face. The app bundles no font; its stack is `'Inter', system-ui, 'Segoe UI', Roboto, sans-serif` (`--font-sans`, `globals.css`), so a harness that measures text measures the machine's resolution of it. Reproduced on this Mac with a scratch copy of the harness (sections 2 and 4, the glance tiles; deleted after) that defines the stack's first family as a chosen open face, waits until it has loaded, and prints the face Chromium used for a tile label (CDP `CSS.getPlatformFontsForNode`, the control that the override applied):
+
+| Face (stands for) | Chromium face read | Wrapped configurations, 100 / 125 / 150 / 200% (Chromium and WebKit alike) |
+|---|---|---|
+| this Mac's own resolution (Mac, iPhone, iPad) | `.SF NS` | 0 / 0 / 0 / 0 |
+| DejaVu Sans 2.37 (Ubuntu's default sans, the runner's fallback) | DejaVu Sans | **24 / 28 / 34 / 43**, and the phone pattern `414:336/2t/1f/2l` at 125%: GitHub's exact readings |
+| Roboto, Google Fonts variable (Android) | Roboto | 0 / 0 / 0 / 0 |
+| Selawik 1.01 (Microsoft's open, metric-compatible fallback for Segoe UI: Windows) | Selawik | 0 / 0 / 0 / 0 |
+| Inter 4.0 (the stack's first family) | Inter Variable | 0 / 0 / 0 / 0 |
+
+So the red was the runner's fallback face, wider than the face of every shipped platform, and not a defect a Mac, Windows, iPhone, iPad or Android user sees. The one kind of real viewer it describes is a Linux browser whose UI face has DejaVu Sans metrics opening the web/Pi build: there "Species per hour" takes two lines in a band of about 24px past each tile-track change. That is a cosmetic wrap (no overlap, no clipping; the harness's ink row stayed at 0px there), recorded as a known limitation and flagged; it would need the tile minimum (`.sr-hsr-tiles`, `minmax(min(8rem, 100%), 1fr)`, `globals.css` line 6653) or the label's tracking changed, a design decision for the user, not a phase-2 change.
+
+The fix, in the harness's environment and not its assertion: `pipeline.yml` installs `fonts-inter` after the browsers, so the runner resolves the face the stack names first, and the harness prints `MEASURE <engine> face ...` (Chromium's own answer through CDP), so every GitHub reading now says which face it measured. Nothing was loosened. Checked with Inter in place: the whole gate run the way GitHub runs it (`run.mjs`), every context given Inter by a temporary swap of `playwright.mjs` (restored by hash), was 9 of 9 green in 725 s (load 2.2 to 2.6), Chromium reporting `Inter Variable`; and with Inter plus the label tracking widened to 0.16em (a plausible regression), the row went red at 33, 40, 40 and 43 configurations in both engines. The same gate with this Mac's own faces was 9 of 9 green in 705 s (load 1.8 to 3.4). The first forced attempt measured nothing: the wrapper spread Playwright's browser-type objects, dropping their prototype methods, so the gate's own Playwright check refused to start; it was rebuilt on the prototype before any reading was taken.
+
+### `verify-plan-readout.mjs`: WebKit, no tide, 2x, 320px, `dWeek 1.00 dList 1.00`
+Seen on GitHub twice (2026-10-08, saved idea `da77d628`, and this run), never on this Mac. Not reproduced here in four full runs (this Mac's faces, DejaVu Sans, Inter, and once more after the change), each 0.00px worst movement, nor in 48 targeted trials of the failing transition (1.5x at 1440px to 2x at 320px) in both engines, where the week row's computed size and position read the same immediately after the scale change, two frames later and 300 ms later. So the runner's face is ruled out and the cause is not established. What is established is that the harness broke testing.md v1.0.56 at exactly the failing reading: `MEASURE` set the text scale itself and read in the same task, confirming the scale on the root only, so the first width of each scale's sweep was the one reading taken across a scale change, and 320px @2x is the first width of the 2x sweep. The change: `applyScale` sets each scale once before its sweep and waits until `.sr-plan-week` (0.6875rem) reads 11px per unit of scale, then settles; and a failure now reports how many widths failed and each state's readout top and chart-box height, so a recurrence names the element that moved. Seen red: a scratch copy that moves the readout down 1px only while a pick is shown failed 55 of 55 widths in every sweep in both engines with GitHub's exact signature (`dH 0.00 dWeek 1.00 dList 1.00`); the neutered leg still reads "MOVES". If it recurs on GitHub, it is either a WebKit-on-Linux rounding at that one configuration or an app movement a Linux WebKit user could see; the new detail will say which box moved.
+
+## E. Two CI-step decisions
+
+### `5f274893`: a `cargo test` job, decided against in this phase
+Measured: `cargo test --locked` on this Mac runs all 140 Rust tests green in 29 s on a warm `target/` (load 3.7 to 4.5); `Cargo.lock` and `Cargo.toml` equal by hash before and after. Against the cost bar (runs on ubuntu without the Apple-only code, caches well, adds little wall time):
+- **Coverage on ubuntu is 76 of 140.** `icloud.rs` (64 tests, the regular-file, size-bound and symlink guards among them) is `cfg(any(target_os = "macos", target_os = "ios"))`; the rest (`window_geometry` 47, `widgets` 15, `worker_csp` 7, `lib` 4, `alerts` 3) compile on Linux.
+- **It needs two things the workflow does not have.** The crate links Tauri, so the job installs the WebKitGTK development stack through apt, a second apt surface beside the one whose Chrome source already needed isolating; and `tauri::generate_context!` refuses to compile when `frontendDist` does not exist (tauri-codegen 2.6.2, `context.rs` line 189), so the job also needs `npm ci` and `npm run build`, or an artifact from the frontend job, which serializes the two.
+- **Wall time** would be roughly nothing as a parallel job beside the 35 to 45 min frontend job, and it would cache through the already-pinned `Swatinem/rust-cache`; but its first runs would be unverified on Linux (it cannot run on this Mac), against a done-bar of three consecutive green runs.
+- **Decision:** not added in this phase. The option that covers all 140 with no system packages is a `macos-latest` job (GitHub's macOS runners are free for a public repository), which is outside the stated bar and is a question for the user (flagged).
+
+### `f64dbf25`: `website/tools` `npm test`, not reproducible, and no CI step
+15 of 15 pass in 1.6 s on this Mac (phase 1 read the same). Cost on GitHub would be seconds, since the gate already installs the tooling and both browsers. But `compose-appstore.test.mjs` asserts each frame's caption against a fixed box in a real Chromium, and the composer's stack is `-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif`, which on the runner falls to a DejaVu-metric face (Inter is not in that stack). That is the same face-dependent surface the Hotspot Reports row just showed, so the step is out under its own condition (no new flake surface). Reversal: the composer naming a face the runner has, or the frames being composed on Linux.
+
+## D. Housekeeping
+- `pipeline/baseline-failures.json` re-recorded at the end (testing.md v1.0.43), after every runner the brief names had run on the final tree with no failure: the frontend suite three times locally and once as GitHub runs it, backend pytest, `website/tools` `npm test`, the real-engine gate, and `cargo test`. It names no failure, so its `updatedAt` is the only field that moves.
+- An accidental `weft-scope baseline record --help` rewrote the file's `updatedAt` mid-phase (the subcommand takes stdin and treats `--help` as input); it was restored to HEAD at once, and the real record is the one above, made only after every runner the brief names had run.
+- Rule and record text changed with the rows: testing.md (the specificity helper, the Clear-race mock, the memo-headroom instance) and CLAUDE.md (the headroom rule's open instance). `DECISIONS.md`, `ROADMAP.md` and `PRODUCT_CONTEXT.md` untouched.
+
+## H. The pull request's second run (`44857230539`, at `9b68033c`)
+Backend green; the frontend vitest step red on one row, so the build, the tooling install and the gate did not run there. The row: `useExoticProvenance.test.tsx` > "a store holding only a stamp (no record at all) reads settled", which expected `['complete']` and read `[]`. Pre-existing, in a file this branch had not touched, and green locally in Pacific time and under `TZ=UTC` (three runs each). Cause: the harness pushes each emission from a passive effect, which can run after the commit a DOM wait resolves on (testing.md's frozen-shell rule). Fixed in `7f37ba5e`: every row of that shape in the file waits for the emission list itself (the two exact lists after the settled-names render, the one after the TTL re-ask, and the sequence row's last emission); rows that filter earlier emissions or assert an absence were read and left, since a late push cannot turn them red. Reproduced on demand by deferring the harness's push by one task or 30 ms, dropping any push whose list was since reset (without that drop, a push from an earlier session polluted the next list and the model failed rows for its own reason): HEAD fails this row and the TTL row, the fixed rows pass; unmutated 48 of 48.
+
+## Verification on the final tree (`7f37ba5e`, before the docs commit)
+
+| Gate | Result |
+|---|---|
+| frontend full suite, local (Node 24, default workers, switch unset), three runs | 524 files passed, 5 skipped; 11,529 passed, 8 skipped (11,537) each time; 84, 83 and 86 s; load 2.2 at the first start (the suite itself drives it to 11 to 13) |
+| the same as GitHub runs it (`CI=1 SR_SKIP_LOCAL_ONLY_TIMING=1 --maxWorkers=1`, fresh build), at `68f86672` | 524 passed, 5 skipped; 11,509 passed, 28 skipped (the 8 by design and the 20 local-only timing rows); 404 s, tests 271.5 s; load 2.5 to 2.8 |
+| `npm run typecheck`, `npm run lint` | clean, 0 problems |
+| `npm run build` | rc 0; byte-identical to a fresh build of `main` (`18977177`) over all 190 files in `frontend/dist`, checked on the final tree after the last test-comment edit; `main` built twice for the determinism control |
+| backend `pytest` (`backend/.venv`) | 2,080 passed |
+| `website/tools` `npm test` | 15 of 15 |
+| real-engine gate, `run.mjs` as GitHub runs it | 9 of 9 with this Mac's faces (705 s); 9 of 9 with Inter forced (725 s) |
+| `cargo test --locked` (`src-tauri`) | 140 passed; `Cargo.lock` and `Cargo.toml` equal by hash before and after |
+| `git status` | clean apart from this phase's commits |
+
+Against phase 1's final tree (11,527 passed locally): +2 rows, the specificity helper's and CommentText's source pin.
+
+Runs started on GitHub in phase 2: `44857230539` (at `9b68033c`, red as above), and the one the docs commit starts.

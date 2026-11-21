@@ -27,3 +27,21 @@ Phase 1 of the `security-bloat-deps-and-tests-cleanup` run, one concern per comm
 - **Node 24:** the next tag's Windows build is that job's first on Node 24, so the release leg should watch it. The Android build keeps its own Node pin (`scripts/android/toolchain.env`), outside this change.
 - **Pages:** this branch touches `website/tools/package*.json` and `pages.yml`, so the first push to `main` that carries it redeploys the website with no visible change.
 - **Still to come in this run:** watching the gate's first runs, the flaky and ineffective test rework, the per-file efficiency pass, and the shipped-code half (its own release). Cargo and Python audit dispositions are in engineering-log.md, item E.
+
+## Phase 2: flaky and ineffective tests, the gate's first reds, and the slowest files
+
+Still test, harness and CI only: no app code, no dependency, no version bump. The production build is byte-identical to `main`'s (measured, not claimed; see engineering-log.md, Phase 2).
+
+### What changed
+- **Rows that could not fail, repaired.** The five Clear-race rows in `clearDerived.test.ts` (the storage mock now reads first and parks after; each store's guard deleted now turns its own row red, where before all 37 rows stayed green), the memo-headroom row (its figures come from the bundled taxonomy when it runs), and two link gates a mutation sample found blind (a prefix-shaped location id; CommentText's own scheme gate, now source-pinned).
+- **Flakes fixed at their cause.** AlertsInboxSheet's Escape now waits for focus inside the dialog; HotspotLink's corpus row has its own budget; weatherStatsShared's doubling row reads CPU time; the specificity helper fails closed on an unclosed `[` instead of hanging; the palette check fails when the Welcome screen never appears instead of skipping FR-50.
+- **The gate's two GitHub reds.** Hotspot Reports' tile-label row was measuring the runner's fallback face (DejaVu-metric), wider than every shipped platform's: forcing DejaVu Sans reproduced GitHub's counts exactly, while SF, Roboto, Selawik (Segoe UI's metric twin) and Inter all read clean. The workflow now installs `fonts-inter`, the stack's first family, and the harness prints the face it measured. The Planner's 1px row did not reproduce here; the harness now applies each text scale before its sweep and confirms it on a `rem` descendant (testing.md v1.0.56), and a failure names the box that moved.
+- **Slow files.** taxonomyHistory parses the 1.7 MB snapshot once (one row 10.2 s to 4.1 s); the date-range cascade resolver matches only rules that declare the property (equivalence shown over all 2,812 queries).
+- **A pre-existing flake GitHub showed on this branch.** useExoticProvenance's rows read their emission list right after a render wait, before the passive effect that records it; they now wait for the list itself (reproduced on demand, fixed).
+- **A relabel.** Life Lists' pass-3 repeated-species row is a fixed-size control, and now says so.
+
+### Notes for reviewer
+- Every reworked row was seen red against its own defect; the tables are in engineering-log.md. Nothing was loosened: no limit, leg or input changed on any timing row.
+- A mutation sample of 33 distinct mutations over the security, Clear, CSP and HTTP-permit, entry-chunk and publishing guards: 28 red as they should, 3 green for a stated reason, 2 found rows that could not fail (repaired).
+- Left alone on purpose, with reasons in the log: the parseBarChart 512/513 residual (retired only by the shipped `tidy()` change, idea `b1e71586`), the deliberately real-duration rows in useChecklistProjects, and the Calendar's render cost.
+- **Pages:** this branch touches `website/tools/verify/`, which the Pages deploy publishes; the first push to `main` that carries it redeploys the website with no visible change.
