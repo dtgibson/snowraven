@@ -168,6 +168,13 @@ describe('Clear (design-spec 8; QA-39)', () => {
     fireEvent.click(clear)
     const dialog = await screen.findByRole('dialog', { name: C.CLEAR_TITLE })
     expect(within(dialog).getByText(C.CLEAR_BODY)).toBeTruthy()
+    // The confirmation reaches its 'enter' phase on an animation frame, outside
+    // act, so the commit that puts it on screen can land before the passive
+    // effect that arms its Escape listener. That effect moves focus in during
+    // the same synchronous flush, so focus inside the dialog is the exact
+    // readiness signal (CLAUDE.md v1.0.25; idea 87bc0c34). Pressed before it,
+    // the key reached no listener and the dialog stayed up.
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: C.CLEAR_TITLE })).toBeNull())
     await new Promise(r => setTimeout(r, 300))
