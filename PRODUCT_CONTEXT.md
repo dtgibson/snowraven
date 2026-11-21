@@ -15,7 +15,7 @@ A **Life Lists** tab, directly after Checklists, lists every countable species i
 
 ### Android app (phones and tablets, Android 8.0 and later)
 
-SnowRaven runs on Android phones and tablets as the same app as on every other platform, installed from a universal APK signed with the developer's key on each GitHub release or, once F-Droid includes it, from F-Droid, with nothing from Google in the build, no in-app updater, none of the Apple-only features (iCloud Sync, widgets, Alerts), no location controls (typed coordinates and place search instead), and Macaulay Library media shown as a card that opens in the browser.
+SnowRaven runs on Android phones and tablets as the same app as on every other platform, installed from F-Droid or from a universal APK signed with the developer's key on each GitHub release, with nothing from Google in the build, no in-app updater, none of the Apple-only features (iCloud Sync, widgets, Alerts), no location controls (typed coordinates and place search instead), and Macaulay Library media shown as a card that opens in the browser.
 
 ### Alerts (iPhone and iPad)
 
@@ -1633,7 +1633,7 @@ The architectural foundation for a signed, distributable Mac and Windows desktop
 
 **Migration phases (future pipeline sessions):**
 - Phase 1: Weather formatter golden tests — TypeScript formatter that matches Python output
-- Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin) — **abandoned**: keychain requires `com.apple.security.keychain-access-groups` macOS entitlement (not configured) and fails silently; API keys moved to `tauri-plugin-fs` + `AppLocalData` in Phase 4
+- Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin) — **abandoned**: keychain requires `com.apple.security.keychain-access-groups` macOS entitlement (not configured) and fails silently; API keys moved to `tauri-plugin-fs` + `AppLocalData` in Phase 4, and no keychain code remains in the app
 - Phase 3: `TauriTransport` → direct external API calls (eBird, OpenWeather, Nominatim); API keys travel as HTTP headers, not URL params; the webview runs under an explicit content security policy
 - Phase 4: `TauriStorage` → app data directory via `tauri-plugin-fs` + `AppLocalData`; all persistent data (API keys, settings, file metadata, CSV files) stored in `AppLocalData/data/`; `mkdir` must be called before every write (directory may not pre-exist on fresh install). On Apple builds a file's metadata entry also carries an origin (which device uploaded it, and when a synced copy replaced the local one), `api-keys.json` carries a validated per-key `meta` entry (change time and origin, or a cleared marker) beside the values so every earlier reader of the document stays compatible, and the iCloud Sync preference, device id, the key-sync switch, a pending key removal and the last-known shared state per file and per key slot live under one `icloud-sync` key in the settings document.
 - Phase 5: Tauri updater plugin; in-app auto-update replaces the current GitHub releases check
