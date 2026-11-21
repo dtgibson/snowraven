@@ -43,6 +43,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { simpleParts, specificity, splitList } from '../test/cssSpecificity'
+import { builtDistReady } from '../test/builtDist'
 
 const SRC = fileURLToPath(new URL('../', import.meta.url))            // frontend/src/
 const DIST_ASSETS = resolve(SRC, '../dist/assets')
@@ -424,8 +425,10 @@ describe('cascade-competitor scan: source stylesheets', () => {
 // The BUILT bundle is where Tailwind preflight lives, and preflight is the one
 // competitor that matters: `*{padding:0}` and its `button` reset set `padding`
 // and `border` on exactly these elements. It loses on LAYER, not specificity,
-// which is precisely why the convention says to record the layer.
-describe.skipIf(builtSheets().length === 0)('cascade-competitor scan: the emitted bundle', () => {
+// which is precisely why the convention says to record the layer. CI builds
+// before it tests, and there an empty listing fails this file rather than
+// skipping it (src/test/builtDist.ts); locally it skips and says so.
+describe.skipIf(!builtDistReady(builtSheets().length > 0, DIST_ASSETS, 'mapFabCascade.test.ts, the emitted-bundle rows'))('cascade-competitor scan: the emitted bundle', () => {
   const sheets = builtSheets()
   const results = scan(sheets)
   const rules = sheets.flatMap(([name, css]) => walkRules(css, name))

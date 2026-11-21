@@ -40,6 +40,7 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
+import { builtDistReady } from '../test/builtDist'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { HotspotLink } from '../components/HotspotLink'
 import { BirdName } from '../components/BirdName'
@@ -706,7 +707,9 @@ describe('F5: the Species cell\'s name wraps inside the cell on a phone (upload-
 const DIST = fileURLToPath(new URL('../../dist/assets/', import.meta.url))
 const built = existsSync(DIST) ? readdirSync(DIST).filter(f => /^index-.*\.css$/.test(f)).map(f => readFileSync(DIST + f, 'utf8')) : []
 
-describe.skipIf(built.length === 0)('the emitted bundle: our rules are unlayered and beat preflight', () => {
+// CI builds before it tests, and there an empty listing fails this file rather
+// than skipping it (src/test/builtDist.ts); locally it skips and says so.
+describe.skipIf(!builtDistReady(built.length > 0, DIST, 'targetsSortSelectCss.test.ts, the emitted-bundle rows'))('the emitted bundle: our rules are unlayered and beat preflight', () => {
   const emitted = built.flatMap(b => collect(strip(b)))
   const find = (sel: string) => emitted.filter(r => r.selectors.includes(sel))
 

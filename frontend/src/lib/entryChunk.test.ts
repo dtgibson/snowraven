@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { builtDistReady } from '../test/builtDist'
 
 const SRC = fileURLToPath(new URL('../', import.meta.url))        // frontend/src/
 const APP = resolve(SRC, 'App.tsx')
@@ -1304,11 +1305,13 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
   })
 })
 
-// Secondary: when a production build is present, assert the county chunk is not
+// Secondary: against the production build, assert the county chunk is not
 // preloaded by the entry HTML — the literal CLAUDE.md vendor-maplibre check.
+// CI builds before it tests, and there a missing build fails this file rather
+// than skipping it (src/test/builtDist.ts); locally it skips and says so.
 const DIST_INDEX = resolve(SRC, '../dist/index.html')
 const DIST_ASSETS = resolve(SRC, '../dist/assets')
-describe.skipIf(!existsSync(DIST_INDEX))('dist/index.html modulepreload (post-build)', () => {
+describe.skipIf(!builtDistReady(existsSync(DIST_INDEX), DIST_INDEX, 'entryChunk.test.ts, the post-build rows'))('dist/index.html modulepreload (post-build)', () => {
   const html = existsSync(DIST_INDEX) ? readFileSync(DIST_INDEX, 'utf8') : ''
   it('does not modulepreload the county geometry chunk, completeness code, MapLibre, its worker, or the chart library', () => {
     const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(m => m[1])

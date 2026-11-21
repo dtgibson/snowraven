@@ -58,7 +58,11 @@ jobs:
     # harness measured 570 to 590 s on the dev Mac under heavy load), which is
     # why the previous 40 could no longer hold even a green job. Recompute this
     # when a harness is added or a budget changes, rather than trusting the
-    # number.
+    # number. Recounted when the build moved ahead of the suite
+    # (security-bloat-deps-and-tests-cleanup): the same steps in a new order,
+    # so the 944 s and the 84 min sum stand; the suite now also runs the 20
+    # bundle rows and skips the local-only timing rows, and the first runs on
+    # the branch give the new step times.
     timeout-minutes: 90
     defaults:
       run:
@@ -75,6 +79,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # The production build comes BEFORE the suite, because rows in
+      # entryChunk.test.ts, targetsSortSelectCss.test.ts and mapFabCascade.test.ts
+      # read frontend/dist. Run after the build they test what ships; run before
+      # it they skipped on every run while the step read as green. On CI a
+      # missing build now fails those files (frontend/src/test/builtDist.ts).
+      - run: npm run build
       # The suite contains deliberate same-run performance comparisons and
       # jsdom scheduling probes. On GitHub's shared runners, parallel Vitest
       # workers repeatedly starved unrelated files into timeouts and late-effect
@@ -88,7 +98,6 @@ jobs:
       - run: npm run test -- --maxWorkers=1
         env:
           SR_SKIP_LOCAL_ONLY_TIMING: '1'
-      - run: npm run build
 
       # The real-engine verification gate. Playwright is declared in
       # website/tools, never in frontend: duplicating it there would drift the
