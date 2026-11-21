@@ -221,7 +221,15 @@ describe('the Life Lists derivation is linear in rows (NFR-01, QA-44)', { timeou
         expect(quotient(() => deriveFirstAssets(small), () => deriveFirstAssets(large))).toBeLessThanOrEqual(LIMIT)
       })
 
-      it(`pass 3 (the shown list, a media selection), ${leg}`, () => {
+      // On the repeated shape both legs select the SAME 200 species, so that row
+      // is a fixed-size control, never a linearity check: with pass 3's sort
+      // made quadratic it read 1.38 while the distinct leg read 68.8 and the
+      // region press 30.6 (security-bloat-deps-and-tests-cleanup, phase 2).
+      // Pass 3 sorts species, never rows, so no input of this shape can grow
+      // its work. It stays as the procedure's reading when nothing grows: 1.17
+      // to 1.18 raw on Node 24, which the 0.05 ms floor reports as about 0.68.
+      const pass3 = distinct ? leg : `${leg}: a fixed-size control, both legs select the same 200 species`
+      it(`pass 3 (the shown list, a media selection), ${pass3}`, () => {
         const fs = deriveFirstSightings(backup(PASS3_N, distinct)), fl = deriveFirstSightings(backup(10 * PASS3_N, distinct))
         const as = deriveFirstAssets(mlExport(PASS3_N, distinct)), al = deriveFirstAssets(mlExport(10 * PASS3_N, distinct))
         const c = { includeEscapees: false, includeExotics: false, formats: new Set<MediaFormat>(['Photo']) }
@@ -229,7 +237,7 @@ describe('the Life Lists derivation is linear in rows (NFR-01, QA-44)', { timeou
         // limit is the house 2x over THAT, derived from the rows each leg actually
         // sorts (about 29 on the distinct leg; the repeated leg, where S does not
         // grow, keeps the flat 20). A nested loop or a quadratic sort reads about
-        // 100 and fails it.
+        // 100 on the distinct leg and fails it; the repeated leg cannot see one.
         const ns = selectRows(fs, as, NONE, c).length, nl = selectRows(fl, al, NONE, c).length
         const limit = distinct ? 2 * (nl / ns) * (Math.log2(nl) / Math.log2(ns)) : LIMIT
         expect(limit).toBeLessThanOrEqual(30)
