@@ -32,7 +32,6 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-os = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-keyring = "3"
 # Cross-platform: used by the get_timezone command (weather feature) on every OS,
 # iOS included. Must stay in [dependencies], not a target-scoped block (CLAUDE.md).
 tzf-rs = "0.4"
