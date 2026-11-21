@@ -26,7 +26,17 @@ export function splitList(sel: string): string[] {
   return parts.map(p => p.trim()).filter(Boolean)
 }
 
-/** Simple selectors inside one compound, in order. */
+/**
+ * Simple selectors inside one compound, in order.
+ *
+ * An attribute selector with no closing `]` throws. It used to set `i` back to
+ * 0 (`indexOf` gives -1, so `end + 1` is 0) and loop forever, which no
+ * `testTimeout` can interrupt (idea 5951387a). No committed stylesheet holds
+ * one, since the build would refuse it, so failing closed costs nothing and a
+ * guard handed a malformed selector goes red rather than hanging its worker.
+ * lib/controlRegisters.test.ts runs this function's own text under a time
+ * bound to prove it.
+ */
 export function simpleParts(compound: string): string[] {
   const parts: string[] = []
   let i = 0
@@ -34,6 +44,7 @@ export function simpleParts(compound: string): string[] {
     const ch = compound[i]
     if (ch === '[') {
       const end = compound.indexOf(']', i)
+      if (end < 0) throw new Error(`simpleParts: unclosed [ in ${JSON.stringify(compound)}`)
       parts.push(compound.slice(i, end + 1)); i = end + 1; continue
     }
     if (ch === '#' || ch === '.' || ch === ':') {

@@ -15,6 +15,7 @@
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { compoundsOf, simpleParts, specificity } from '../test/cssSpecificity'
 
 const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
@@ -428,6 +429,21 @@ describe('hover is a pointer look, and a selected state beats it', () => {
     expect(specificity('.sr-pill:where(:not(:disabled):not([aria-disabled="true"])):hover')).toEqual([0, 2, 0])
     expect(specificity('.sr-pill[aria-pressed="true"]')).toEqual([0, 2, 0])
     expect(specificity('.sr-pill[data-tier="1"][aria-pressed="true"]')).toEqual([0, 3, 0])
+  })
+
+  it('ends on an attribute selector with no closing bracket (idea 5951387a)', () => {
+    // simpleParts once looped forever here, and a testTimeout cannot interrupt
+    // a synchronous loop (testing.md v1.0.33). So the shipped function's own
+    // text runs first in a vm context with a time bound, where a loop that never
+    // ends is a thrown timeout and a red row rather than a hung worker.
+    const run = (input: string) => runInNewContext(`(${simpleParts.toString()})(input)`, { input }, { timeout: 2000 })
+    for (const bad of ['[x', '.a[x', '.a[x=y', 'a.b[c][d']) {
+      expect(() => run(bad), bad).toThrow(/unclosed \[/)
+    }
+    expect(run('.a[x=y]')).toEqual(['.a', '[x=y]'])
+    // Now that it is known to end, the real call, through specificity as well.
+    expect(() => simpleParts('.a[x')).toThrow(/unclosed \[/)
+    expect(() => specificity('.a .b[x')).toThrow(/unclosed \[/)
   })
 
   it('finds exactly one hover rule per register, and the selected states it must lose to', () => {
