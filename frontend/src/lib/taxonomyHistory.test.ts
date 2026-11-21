@@ -969,8 +969,12 @@ function recordCorpus(h: TaxonomyHistory, skip: ReadonlySet<string> = new Set())
 
 /** The page's `/taxonomy/codes` answer for a backup: each raw and normalized
  *  name that is a species name in the bundled snapshot. */
+// The bundled snapshot's common-name map, read and parsed once for the file. It
+// was re-read and re-parsed on every call, and the rename row below calls this
+// once per retired name (about 500 times), which was most of its 10 s.
+let snapshotByCom: { byCom: Record<string, string> } | null = null
 function snapshotCodes(obsList: readonly ObservationEntry[]): Record<string, string> {
-  const snap = JSON.parse(readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8')) as { byCom: Record<string, string> }
+  const snap = snapshotByCom ??= JSON.parse(readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8')) as { byCom: Record<string, string> }
   const c: Record<string, string> = {}
   for (const o of obsList) for (const n of [o.commonName, normalizeSpeciesName(o.commonName)]) {
     if (Object.hasOwn(snap.byCom, n.toLowerCase())) c[n] = snap.byCom[n.toLowerCase()]
