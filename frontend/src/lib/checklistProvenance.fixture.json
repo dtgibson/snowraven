@@ -1339,6 +1339,108 @@
         "followUps": 0,
         "locName": "Point Lobos"
       }
+    },
+    {
+      "why": "a breeding value that is a NON-EMPTY object reads as no code (truthy in Python too; c7cf73d6)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": {
+                  "code": "C4"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "a breeding value that is a nonzero number falls back to auxCode (c7cf73d6)",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": 5,
+                "auxCode": "S"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "S",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
+    },
+    {
+      "why": "an auxCode that is a non-empty list, with no text value, reads as no code",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "obsDt": "2026-04-11 07:20",
+        "obs": [
+          {
+            "speciesCode": "amerob",
+            "howManyStr": "3",
+            "obsAux": [
+              {
+                "fieldName": "breeding_code",
+                "value": "",
+                "auxCode": [
+                  "S"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "species": 1,
+        "first": {
+          "breedingCode": "",
+          "media": {
+            "photo": 0,
+            "audio": 0,
+            "video": 0
+          }
+        }
+      }
     }
   ]
 }
