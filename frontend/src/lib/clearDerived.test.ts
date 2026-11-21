@@ -30,10 +30,18 @@ const disk = vi.hoisted(() => ({
   dayObs: null as unknown,
   // Paths whose next write rejects, for the best-effort teardown assertion.
   failNextDelete: new Set<string>(),
-  // When set, every getSetting (and the day cache's own read) parks on it — the
-  // seam-level hold that lets a test put a one-per-session disk read in flight
-  // ACROSS a purge.
+  // When set, every getSetting (and the day cache's own read) READS FIRST and
+  // then parks on it — the seam-level hold that lets a test put a
+  // one-per-session disk read in flight ACROSS a purge. Read first, park after,
+  // is the order a Tauri chain link queued ahead of the purge's delete has: it
+  // hands back the PRE-purge document, which is what each store's parked-load
+  // guard exists to drop (testing.md v1.0.62). Parking first and reading after
+  // handed back the post-purge disk, so deleting a guard left its row green
+  // (idea 095bc19b). A row clears the hold once its read is counted here, so
+  // the purge's own reads are never parked.
   holdSettingRead: null as Promise<void> | null,
+  // Reads that captured their value and then parked on the hold.
+  heldReads: 0,
   // ONE-SHOT: the next setReplayStore parks on it and clears it, so a test can
   // hold ONE write in flight while later writes proceed. It has to be one-shot,
   // or a test could not tell an ordered writer from two parked writes that
@@ -46,8 +54,12 @@ const disk = vi.hoisted(() => ({
 vi.mock('./storage', () => ({
   storage: {
     async getSetting<T>(key: string): Promise<T | null> {
-      if (disk.holdSettingRead) await disk.holdSettingRead
-      return (disk.settings[key] as T) ?? null
+      const hold = disk.holdSettingRead
+      if (!hold) return (disk.settings[key] as T) ?? null
+      const read = disk.settings[key] === undefined ? null : JSON.parse(JSON.stringify(disk.settings[key])) as T
+      disk.heldReads += 1
+      await hold
+      return read
     },
     async setSetting<T>(key: string, value: T): Promise<void> {
       disk.settings[key] = JSON.parse(JSON.stringify(value)) as unknown
@@ -66,8 +78,12 @@ vi.mock('./storage', () => ({
       disk.replayWrites.push(Object.keys(disk.replay.entries).sort())
     },
     async getCountyDayObsStore(): Promise<unknown | null> {
-      if (disk.holdSettingRead) await disk.holdSettingRead
-      return disk.dayObs === null ? null : JSON.parse(JSON.stringify(disk.dayObs)) as unknown
+      const hold = disk.holdSettingRead
+      const read = disk.dayObs === null ? null : JSON.parse(JSON.stringify(disk.dayObs)) as unknown
+      if (!hold) return read
+      disk.heldReads += 1
+      await hold
+      return read
     },
     async setCountyDayObsStore(doc: object): Promise<void> {
       disk.dayObs = JSON.parse(JSON.stringify(doc)) as unknown
@@ -186,6 +202,7 @@ beforeEach(() => {
   hotspots._resetHotspotRegionCacheForTests()
   disk.failNextDelete.clear()
   disk.holdSettingRead = null
+  disk.heldReads = 0
   disk.holdReplayWrite = null
   disk.replayWrites = []
   seedDisk()
@@ -593,11 +610,13 @@ describe('a purge supersedes work already in flight', () => {
     disk.holdSettingRead = gate.promise
     provenance._resetProvenanceCacheForTests()
     const pending = provenance.publishClassifiedNames({ excludedNames: ['Mute Swan', 'Egyptian Goose'], exoticNames: ['Rock Pigeon'] })
-    await Promise.resolve()
+    // The publish's load has READ the pre-purge document and is parked, the
+    // interleaving this row claims (testing.md v1.0.14, rule 4).
+    await vi.waitFor(() => expect(disk.heldReads).toBe(1))
+    disk.holdSettingRead = null
 
     await purgeDerivedOnClear('ebird')
     gate.resolve()
-    disk.holdSettingRead = null
     await pending
     await vi.advanceTimersByTimeAsync(1_000)
 
@@ -620,16 +639,19 @@ describe('a purge supersedes work already in flight', () => {
   it.each(LOAD_RACES)('a %s disk read in flight cannot restore the pre-purge document', async (_label, load, onDisk) => {
     // The one-disk-read-per-session load is parked when Clear happens. Without
     // the load-path guard it resolves afterwards, adopts the PRE-purge document
-    // it read, and the next write puts every purged id straight back.
+    // it read, and the next write puts every purged id straight back. Each row
+    // was seen red with its own store's guard deleted (engineering-log.md,
+    // phase 2), which the park-first mock this replaced could not show.
     const gate = deferred<void>()
     disk.holdSettingRead = gate.promise
     const loading = load()
-    await Promise.resolve()
+    // The load has read the PRE-purge document and is parked on the hold.
+    await vi.waitFor(() => expect(disk.heldReads).toBe(1))
+    disk.holdSettingRead = null
 
     await purgeDerivedOnClear('ebird')
 
     gate.resolve()
-    disk.holdSettingRead = null
     await loading
 
     expect(onDisk()).toBeUndefined()
