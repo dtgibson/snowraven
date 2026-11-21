@@ -19,6 +19,14 @@ permissions:
   pages: write
   id-token: write
 
+# Every action is pinned to a full commit SHA with its release in a trailing
+# comment (security L3; the convention, and how to move a pin, are in
+# pipeline.yml's header). Each pin is the commit its previous tag resolved to,
+# so pinning changed no step. frontend/src/lib/workflowActionPins.test.ts
+# refuses a mutable ref. Stated limit: actions/upload-pages-artifact is a
+# composite action whose own steps name their actions by tag, which a pin here
+# does not reach.
+
 # Allow one concurrent deployment; don't cancel an in-progress publish.
 concurrency:
   group: pages
@@ -32,19 +40,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
         with:
           # Enable Pages (Actions source) on first run if it isn't already.
           enablement: true
 
       - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: website
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

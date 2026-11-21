@@ -19,6 +19,17 @@ on:
 permissions:
   contents: read
 
+# Every action is pinned to a full commit SHA with its release in a trailing
+# comment (security L3), because this job builds the Windows installer that
+# release.sh re-signs and publishes, so a moved tag or a compromised action could
+# change it in a way no check would see. The convention, and how to move a pin,
+# are in pipeline.yml's header; each pin is the commit its previous ref resolved
+# to, so pinning changed no step. dtolnay/rust-toolchain was on its `stable`
+# branch, whose action.yml defaults the `toolchain` input to stable, so the pin
+# still installs whatever stable Rust is current when the job runs (the pin
+# freezes the action's code, not the toolchain). frontend/src/lib/
+# workflowActionPins.test.ts refuses a mutable ref.
+
 jobs:
   windows:
     name: Build Windows installer + updater
@@ -34,9 +45,9 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -45,10 +56,10 @@ jobs:
             frontend/package-lock.json
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable (2026-11-15), the branch head; its action.yml defaults toolchain to stable
 
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
 
@@ -74,7 +85,7 @@ jobs:
           cp src-tauri/target/release/bundle/nsis/*-setup.exe dist-windows/
           ls -la dist-windows
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-build
           path: dist-windows/*

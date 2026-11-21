@@ -19,7 +19,8 @@ name: Android Build
 # way no device check would see. To move a pin, resolve the new release's tag
 # with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` (peel an annotated tag
 # through git/tags/<sha> to the commit) and update the SHA and the comment
-# together; androidProjectPins.test.ts refuses a `uses:` with a mutable ref.
+# together; frontend/src/lib/workflowActionPins.test.ts refuses a `uses:` with a
+# mutable ref here and in every other workflow.
 
 on:
   push:

@@ -512,18 +512,8 @@ describe('the CI build (FR-34, QA-34, NFR-07)', () => {
     expect(wf).toMatch(/name: android-build\s*\n\s+path: dist-android\/\*\s*\n\s+if-no-files-found: error/)
   })
 
-  // Security L3: the APK this job builds is signed with the user's key and
-  // published, so every action is pinned to a full commit SHA, with the release
-  // it stands for in a trailing comment (the one place a comment is required
-  // rather than stripped: the SHA alone says nothing to a reader).
-  it('pins every action to a full commit SHA with its release in a trailing comment (no mutable ref)', () => {
-    const uses = [...readRepo('.github/workflows/android-build.yml').matchAll(/^\s*(?:- )?uses:\s*(\S+)(.*)$/gm)]
-    expect(uses.length).toBeGreaterThanOrEqual(8)
-    for (const [line, ref, rest] of uses) {
-      expect(ref, line).toMatch(/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)*@[0-9a-f]{40}$/)
-      expect(rest.trim(), line).toMatch(/^# v\d+(?:\.\d+)*\b/)
-    }
-  })
+  // Security L3, every action pinned to a full commit SHA: held for this file
+  // and every other workflow by workflowActionPins.test.ts.
 
   it('pins the NDK the local toolchain uses', () => {
     expect(readRepo('scripts/android/toolchain.env')).toContain('NDK_VERSION=27.2.12479018')

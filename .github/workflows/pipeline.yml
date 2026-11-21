@@ -25,6 +25,16 @@ concurrency:
 permissions:
   contents: read
 
+# Every action is pinned to a full commit SHA with its release in a trailing
+# comment, as android-build.yml's are (security L3): a moved tag or a
+# compromised action would otherwise run someone else's code here. Each pin is
+# the commit its previous tag resolved to when it was pinned, so pinning changed
+# no step. To move one, resolve the new release's tag with
+# `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` (peel an annotated tag
+# through git/tags/<sha> to the commit) and update the SHA and the comment
+# together; frontend/src/lib/workflowActionPins.test.ts refuses a `uses:` with a
+# mutable ref in any workflow.
+
 jobs:
   frontend:
     name: Frontend — lint, test, build
@@ -54,8 +64,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -107,8 +117,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.11'
           cache: 'pip'
