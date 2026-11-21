@@ -44,3 +44,48 @@ No row was dropped. Every row below was repaired or reworked and seen red agains
 | `website/tools/verify/verify-plan-readout.mjs` | the readout, the divider and the list hold their place (every sweep) | The scale set inside each reading, confirmed on the root only | Each scale applied once and confirmed on a `rem`-sized descendant before its sweep; failures name the box that moved | Reworked (testing.md v1.0.56): red at 55 of 55 widths on a 1px pick-only shift |
 | `website/tools/verify/verify-hotspot-reports.mjs` | every tile label is one line wherever the tiles are two or more across | Measured the runner's fallback face | Unchanged assertion; the runner installs the stack's first family, and the harness prints the face it measured | Environment fix: the runner's DejaVu-metric face reproduced GitHub's 24/28/34/43 exactly; SF, Roboto, Selawik and Inter read 0 |
 | `frontend/src/lib/useExoticProvenance.test.tsx` | a store holding only a stamp reads settled; a stamp past its TTL re-opens the species once; every emission advances the sequence | Read the emission list right after a DOM wait (red once on GitHub, run 44857230539) | Wait for the emission list itself | Repaired: with the harness's push deferred one task or 30 ms, HEAD's rows fail and the new rows pass |
+
+## Phase 3: shipped code and exposed surface
+
+The bar is the brief's for code: no caller by import or by string (dynamic `import()`, workers, `?raw`, `TauriTransport` tables, string-invoked commands, templated routes), no guard that reads the text, no published claim that rests on it, and green builds and suites after. Tool output was a lead only; each verdict below was checked by hand. Tools: knip 6.44.1 and vulture 2.16, run from scratch (engineering-log.md, Phase 3, E).
+
+### Removed
+
+| What | Where | Evidence | Commit |
+|---|---|---|---|
+| `get_api_key`, `set_api_key`, `delete_api_key`, `use keyring::Entry`, their three `generate_handler!` entries, `keyring = "3"` | `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml`, `Cargo.lock` | No caller in any tracked or generated file since v0.3.16; no guard reads them (15 Rust-reading suites, 325 of 325 after); no published claim; keyring built only its in-memory mock store on every target. The lockfile loses exactly `keyring` | `ac7441f1` |
+| `BACKEND_DOWN_MESSAGE_SHORT` | `frontend/src/lib/offlineMessage.ts` | Never referenced since 0.5.45; no test names the file | `8e2966a4` |
+| `DATE_FORMAT_PREFS` | `frontend/src/lib/formatDate.ts` | Unused; Settings keeps its own list; `entryChunk.test.ts` reads the file's graph membership only | `8e2966a4` |
+| `WeatherSectionIcon` and its `CloudSun` import | `frontend/src/components/WeatherStatsSection.tsx` | Its last caller was removed earlier; the guards reading the file check other things; `lib/weatherDisplay.ts`'s comment citing it was reworded | `8e2966a4` |
+| `BreedingFilterSet` | `frontend/src/types.ts` | An unused type alias since v0.0.23 | `8e2966a4` |
+| `COMBINED_ATTRIBUTION` | `backend/formatters/tide.py` | Unused since 0.5.17; only the TypeScript twin composes the combined block; no test reads the file | `8e2966a4` |
+
+After `8e2966a4` the production build was byte-identical to `main`'s over all 190 files; pytest 2,080, ruff, eslint and typecheck clean.
+
+### Kept, with the reason
+
+| Lead | Tool | Reason |
+|---|---|---|
+| 169 of knip's 177 unused exports and exported types | knip | Each is used inside its own module, so only the `export` keyword is idle; narrowing it removes no shipped byte (Rollup already drops unused exports), and 97 are named by string in tests and guards |
+| `getMapDefaultsEpoch` (`lib/mapDefaultsChanged.ts`) | knip | Meets the bar, but it is the snapshot getter of the epoch-module shape CLAUDE.md names, beside `getFilesEpoch`, `getKeysEpoch` and `getBarChartFilesEpoch`; no shipped byte |
+| The type re-exports in `lib/mapExplorerTypes.ts` and `lib/barChart/barChartFilename.ts` | knip | Deliberate import surfaces, as their comments say; erased at build |
+| Seven duplicate exports (`*_DEFAULT` beside a `_set*ForTests` seam's live value) | knip | Test seams by design |
+| `@testing-library/jest-dom` (dev) | knip | Unused, but a dev-tree change (package.json and lockfile, audit control owed), outside this strand; two test comments would need rewording. Lead for the next dev-tree pass |
+| unlisted `geojson` (8 type-only imports) | knip | Resolves to `@types/geojson` through maplibre-gl and is erased at build; the honest fix is to declare it, not remove anything |
+| All 40 backend routes | vulture and a path map | 31 have a literal caller; the file routes are reached through `storage.ts`, `/settings/map-defaults` through `/settings/${key}`, `/health` by its tests and the Vite proxy |
+| Every crate in `src-tauri/Cargo.toml` | grep | All used |
+| `allow(dead_code)` in `alerts.rs` and `widgets.rs`, and on `BG_TASK_ID` | grep | iOS-only modules compiled for host `cargo test`; the constant is read by `alertsPaths.parity.test.ts` |
+| `opener:default` (its `reveal_item_in_dir` member) and `process:allow-exit` | capability read | Neither has a caller, and `reveal_item_in_dir` is a file-existence oracle for page script on Mac and Windows, but the brief allows narrowing only on a real probe of the running app, not run in this phase. The narrowing and the four-leg probe are written in engineering-log.md, Phase 3, E. Flagged |
+| `core:webview:allow-set-webview-zoom`, `core:default` | | Kept by the brief (ACCESSIBILITY.md's zoom promise; `core:default` out of scope) |
+
+### Test rows added or repaired in phase 3
+
+| File | Row | Evidence |
+|---|---|---|
+| `frontend/src/lib/androidReachableCalls.test.ts` | every `#[tauri::command]` is registered; one row per entry that it has a caller; five strip proofs | Red on the pre-phase `lib.rs` (its three caller rows), on a removed caller, a commented-out caller, a dropped registration and an unregistered command |
+| `frontend/src/lib/checklistProvenance.fixture.json` with both parity suites | nine location-id and location-name answers (`followUps`, `locName` in the verdict) | Each of the six gate sites removed turns its own side's verdict row red |
+| `frontend/src/lib/checklistProvenance.fixture.json` | three breeding-code answers with truthy non-text values | Repaired, class (a) before: the Python truthiness revert left every row green; now red |
+| `frontend/src/lib/atRouteServices.test.ts`, `backend/tests/test_checklist_provenance_parity.py` | weather lookup: four refused ids and a control, each side | Red with each side's weather gate removed |
+| `frontend/src/lib/regionNames.test.ts`, `frontend/src/components/BirdingStatsPrototypeNames.test.tsx` | prototype-named State/Province cells; the subnational shape; the Statistics render | Red with the bare-key read, and with either pair of link gates reverted |
+| `frontend/src/lib/barChart/parseBarChart.test.ts` | the `tidy` oracle over fixtures and a corpus; the source pin | Pin red on the previous `tidy`; corpus red on two wrong rewrites |
+| `frontend/src/lib/barChart/parseBarChart.test.ts` | names at 512 and 513 characters (comment only) | Its residual is retired by the code change; limit and inputs untouched |

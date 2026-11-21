@@ -45,3 +45,33 @@ Still test, harness and CI only: no app code, no dependency, no version bump. Th
 - A mutation sample of 33 distinct mutations over the security, Clear, CSP and HTTP-permit, entry-chunk and publishing guards: 28 red as they should, 3 green for a stated reason, 2 found rows that could not fail (repaired).
 - Left alone on purpose, with reasons in the log: the parseBarChart 512/513 residual (retired only by the shipped `tidy()` change, idea `b1e71586`), the deliberately real-duration rows in useChecklistProjects, and the Calendar's render cost.
 - **Pages:** this branch touches `website/tools/verify/`, which the Pages deploy publishes; the first push to `main` that carries it redeploys the website with no visible change.
+
+## Phase 3: the shipped-code half (1.0.75, D-02), with five saved fixes (D-06) and a macOS test job (D-07)
+
+Unlike phases 1 and 2, this changes the shipped app and its native dependencies. It ships as 1.0.75 after the user approves the held copy (`release-copy-held.md`); the version bump is the Deployer's single release commit (D-10) and is not on this branch yet.
+
+### What changed
+- **Three keychain commands and the `keyring` crate removed.** They had no caller since v0.3.16, yet any script in the page could call them. With no backend feature, keyring built only an in-memory mock store on every target, so they never reached a keychain.
+- **Per-crate Cargo updates:** rustls 0.23.46, rustls-webpki 0.103.17, webpki-roots 1.0.12, h2 0.4.20, plist 1.10.4 (quick-xml 0.42.0), anyhow, rustix, tokio, clipboard-win, and webpki-root-certs (in no shipped graph). One `cargo update -p` per crate or group; the vendored `tao` patch stays in every target's graph after each. cargo-audit: 24 vulnerabilities in 9 crates down to 16 in 4, and in a shipped graph only `zip` (Windows, held by D-08, its disposition written for the Auditor).
+- **A lockfile lesson:** two of those updates silently re-pointed `windows-sys` edges for eight Windows-side crates while every version diff looked clean. They are restored, cargo accepts the file under `--locked`, and each target's graph now differs from the start by exactly the updated crates.
+- **A guard** in `androidReachableCalls.test.ts`: every `#[tauri::command]` is registered, and every registered command has a caller in shipped frontend code. It would have caught the keychain commands.
+- **Five ride-along fixes,** each with rows seen red against the unfixed code:
+  - an eBird location id is shape-checked before any follow-up request, on both transports, including two weather URLs the original review had not listed (`3eb8682b`);
+  - a non-text location name reads as absent (`c5fa8455`);
+  - the breeding-code check, already fixed in 1.0.69, gets rows that can fail on web/Pi (`c7cf73d6`);
+  - a prototype-named State/Province cell no longer takes down Statistics, and only a real subdivision code becomes a link (`25608818`);
+  - the bar-chart reader builds each name in one piece, 320 MB to 25 MB on a 14 MB file, which also retires the last flaky speed row's residual (`b1e71586`).
+- **Five unused declarations removed** (frontend and backend), byte-identical bundle.
+- **A macOS job** runs all 140 Rust tests on GitHub; it needs no frontend build (measured).
+
+### How to test
+1. `cd src-tauri && cargo test --locked` (140 pass) and `cargo tree -i tao --target aarch64-apple-ios` (the vendored path).
+2. `cd frontend && npx vitest run src/lib/androidReachableCalls.test.ts src/lib/checklistProvenance.parity.test.ts src/lib/atRouteServices.test.ts src/lib/regionNames.test.ts src/components/BirdingStatsPrototypeNames.test.tsx src/lib/barChart/parseBarChart.test.ts`
+3. `cd backend && .venv/bin/python -m pytest tests/test_checklist_provenance_parity.py`
+4. On this pull request: the new `Native — cargo test (macOS)` job. Before the tag, run the Windows workflow on the branch (`workflow_dispatch`): this Mac cannot compile the Windows target, and `clipboard-win` and the restored `windows-sys` edges get their first compile there.
+
+### Notes for reviewer
+- **The bundle changes, and every moved byte is accounted for** (engineering-log.md, Phase 3, H): the intended code in six chunks, minifier re-lettering, and one shared chunk renamed by Rollup; no CSS, `index.html` or entry-chunk byte moved.
+- **Deviation from a review's remediation:** `25608818`'s write-up named `isRegionCode` for the links, which is the US county shape and would have dropped every real state link. The gate is the ISO 3166-2 subdivision shape, checked against every value in the stored backup.
+- **Not done, and flagged:** narrowing `opener:default` (whose unused `reveal_item_in_dir` is a file-existence oracle for page script on Mac and Windows) and dropping the unused `process:allow-exit`. The brief allows either only on a probe of the running app, which this phase did not run. The probe is written down.
+- **Still open, same family as `c5fa8455`:** `howManyStr`, `comments`, `obsDt` and a region-info name are not type-normalized on either twin.
