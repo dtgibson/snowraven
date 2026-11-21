@@ -19,6 +19,7 @@ pattern.
 """
 
 import json
+import re
 from pathlib import Path
 
 from services.ebird import _DNC_RE, _EXOTIC_RE, _norm_token
@@ -188,13 +189,20 @@ def _answers():
 
 def test_every_answer_body_reaches_the_shared_verdict(isolated_taxonomy):
     for row in _answers():
-        resp = _answer(_bytes_of(row), row["fields"], [])
+        urls = []
+        resp = _answer(_bytes_of(row), row["fields"], urls)
         got = {"status": resp.status_code}
         if resp.status_code == 200:
             species = resp.json()["species"]
             got["species"] = len(species)
             if "first" in row["expected"]:
                 got["first"] = {"breedingCode": species[0]["breedingCode"], "media": species[0]["media"]}
+            # 3eb8682b and c5fa8455: the location-name lookups the body caused,
+            # and the name returned.
+            if "followUps" in row["expected"]:
+                got["followUps"] = sum("/ref/region/info/" in u for u in urls)
+            if "locName" in row["expected"]:
+                got["locName"] = resp.json()["locName"]
         assert got == row["expected"], row["why"]
 
 
@@ -255,6 +263,16 @@ def test_the_answer_rows_still_discriminate():
     assert any("NaN" in r.get("text", "") for r in failed)
     assert any("hex" in r for r in failed) and any("hex" in r for r in answered)
     assert any(r["expected"].get("first", {}).get("breedingCode") == "S" for r in answered)
+    # 3eb8682b and c5fa8455: refused ids that cost no lookup, beside a control
+    # that does look one up, and a non-text name read as absent.
+    def body_field(r, key):
+        return (_object_body(r) or {}).get(key)
+
+    assert any(r["expected"].get("followUps") == 0 and isinstance(body_field(r, "locId"), str)
+               and not re.fullmatch(r"L[0-9]+", body_field(r, "locId")) for r in answered)
+    assert any(r["expected"].get("followUps") == 1 and body_field(r, "locId") == "L99" for r in answered)
+    assert any(r["expected"].get("locName") == "Somewhere" and isinstance(body_field(r, "locName"), dict)
+               for r in answered)
     photos = [_first_photo(r) for r in answered if "first" in r["expected"]]
     assert any(p is True for p in photos)
 
@@ -267,3 +285,50 @@ def test_the_media_count_bound_is_the_fixtures_boundary_pair():
     photos = [_first_photo(r) for r in _answers() if "first" in r["expected"]]
     assert MEDIA_COUNT_MAX in photos
     assert MEDIA_COUNT_MAX + 1 in photos
+
+
+@pytest.mark.parametrize("loc_id", ["../../product/x?y=1", "%2e%2e/%2e%2e/product/x", "L99\n", 7])
+def test_the_weather_lookup_puts_no_location_id_in_a_url_without_the_house_shape(loc_id, monkeypatch):
+    """3eb8682b, the weather twin: fetch_checklist reads the id from eBird's
+    answer and puts it in up to three follow-up URLs (region info, product/lists,
+    data/obs), so a refused id fails the lookup before any of them. Twin row:
+    atRouteServices.test.ts."""
+    import asyncio
+    import services.ebird as ebird
+
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    urls = []
+
+    async def fake_get(url, *args, **kwargs):
+        urls.append(url)
+        if "/product/checklist/view/" in url:
+            return _resp(json.dumps({"locId": loc_id, "obsDt": "2026-04-11 07:20"}).encode())
+        return _resp(json.dumps({"result": "Somewhere", "bounds": {"minX": 1, "maxX": 1, "minY": 2, "maxY": 2}}).encode())
+
+    shared = AsyncMock()
+    shared.get = AsyncMock(side_effect=fake_get)
+    with patch("services.ebird.get_client", return_value=shared):
+        with pytest.raises(ValueError):
+            asyncio.run(ebird.fetch_checklist("S12345678"))
+    assert len(urls) == 1 and "/product/checklist/view/" in urls[0]
+
+
+def test_the_weather_lookup_control_a_house_shape_id_reaches_the_region_lookup(monkeypatch):
+    import asyncio
+    import services.ebird as ebird
+
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    urls = []
+
+    async def fake_get(url, *args, **kwargs):
+        urls.append(url)
+        if "/product/checklist/view/" in url:
+            return _resp(json.dumps({"locId": "L99", "obsDt": "2026-04-11 07:20"}).encode())
+        return _resp(json.dumps({"result": "Somewhere", "bounds": {"minX": 1, "maxX": 1, "minY": 2, "maxY": 2}}).encode())
+
+    shared = AsyncMock()
+    shared.get = AsyncMock(side_effect=fake_get)
+    with patch("services.ebird.get_client", return_value=shared):
+        got = asyncio.run(ebird.fetch_checklist("S12345678"))
+    assert got["lat"] == 2 and got["lng"] == 1
+    assert urls[1] == "https://api.ebird.org/v2/ref/region/info/L99"

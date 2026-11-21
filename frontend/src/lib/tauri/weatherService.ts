@@ -5,6 +5,7 @@ import { buildWeatherPayload, type OneCallResponse, type WeatherAtResponse } fro
 import { buildWeatherPlan } from '../weatherPlan';
 import type { WeatherPlan } from '../plan';
 import { getRegionInfo, type RegionInfo } from './regionInfo';
+import { ebirdLocationId } from './ebirdLocationId';
 import {
   BAD_DT_MESSAGE, isBlankWallClock, parseWallClock, wallClockUtcMs, type WallClock,
 } from '../wallClock';
@@ -37,7 +38,10 @@ export async function fetchChecklist(checklistId: string, ebirdKey: string): Pro
   if (!res.ok) throw Object.assign(new Error('Could not fetch checklist data. Please try again.'), { status: 502 });
   const data = await res.json() as Record<string, unknown>;
 
-  const locId = data['locId'] as string;
+  // Every follow-up below puts the id in its URL, so it must have the house
+  // shape first (3eb8682b); twin: fetch_checklist, backend/services/ebird.py.
+  const locId = ebirdLocationId(data['locId']);
+  if (!locId) throw Object.assign(new Error("Could not find coordinates for this checklist's location."), { status: 502 });
   let locName = (data['locName'] as string | undefined) ?? '';
   let lat: number | null = null;
   let lng: number | null = null;

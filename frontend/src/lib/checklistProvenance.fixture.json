@@ -224,7 +224,13 @@
     "null or text. An empty array is still an answer. A breeding code or media",
     "count of the wrong shape reads as absent, never as a failure. Loaded by the",
     "same two parity suites as `cases` above, which drive the SHIPPED desktop",
-    "service and the SHIPPED route."
+    "service and the SHIPPED route.",
+    "",
+    "Where a row's verdict carries `followUps` and `locName`, both suites also count",
+    "the location-name lookups the body caused and read the location name returned:",
+    "a location id enters the lookup URL only in the house shape (an L and 1 to 15",
+    "ASCII digits, 3eb8682b), and a location name that is not text reads as absent",
+    "(c5fa8455)."
   ],
   "answers": [
     {
@@ -1196,6 +1202,142 @@
             "video": 0
           }
         }
+      }
+    },
+    {
+      "why": "a location id with a traversal never enters the location-name lookup URL (3eb8682b)",
+      "fields": null,
+      "body": {
+        "locId": "../../product/x?y=1",
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 0,
+        "locName": ""
+      }
+    },
+    {
+      "why": "a percent-encoded traversal location id is refused the same way",
+      "fields": null,
+      "body": {
+        "locId": "%2e%2e/%2e%2e/product/x",
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 0,
+        "locName": ""
+      }
+    },
+    {
+      "why": "a location id with a trailing newline is refused on both transports (fullmatch and $ agree)",
+      "fields": null,
+      "body": {
+        "locId": "L99\n",
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 0,
+        "locName": ""
+      }
+    },
+    {
+      "why": "a location id that is not text is refused, and the name falls back to empty text",
+      "fields": null,
+      "body": {
+        "locId": {
+          "a": 1
+        },
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 0,
+        "locName": ""
+      }
+    },
+    {
+      "why": "control: a house-shape location id is looked up once and its name shown",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 1,
+        "locName": "Somewhere"
+      }
+    },
+    {
+      "why": "a location name that is an object reads as absent, so the name is looked up (c5fa8455)",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "locName": {
+          "a": 1
+        },
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 1,
+        "locName": "Somewhere"
+      }
+    },
+    {
+      "why": "a location name that is a number reads as absent too",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "locName": 7,
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 1,
+        "locName": "Somewhere"
+      }
+    },
+    {
+      "why": "with the lookup skipped, a non-text location name falls back to the location id",
+      "fields": "provenance",
+      "body": {
+        "locId": "L99",
+        "locName": {
+          "a": 1
+        },
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 0,
+        "locName": "L99"
+      }
+    },
+    {
+      "why": "control: a location name that is text is kept and costs no lookup",
+      "fields": null,
+      "body": {
+        "locId": "L99",
+        "locName": "Point Lobos",
+        "obs": []
+      },
+      "expected": {
+        "status": 200,
+        "species": 0,
+        "followUps": 0,
+        "locName": "Point Lobos"
       }
     }
   ]

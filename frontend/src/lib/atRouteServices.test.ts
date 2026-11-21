@@ -25,13 +25,16 @@ const seams = vi.hoisted(() => ({
   fetch: vi.fn(),
   key: vi.fn(async () => 'owm-key' as string | null),
   invoke: vi.fn(async () => 'America/Los_Angeles'),
+  region: vi.fn<(locId: string, key: string) => Promise<{ name: string; lat: number; lng: number }>>(
+    async () => ({ name: 'Loc', lat: 36.603, lng: -121.876 }),
+  ),
 }))
 vi.mock('./tauri/http', () => ({ tauriFetch: (...a: unknown[]) => seams.fetch(...a) }))
 vi.mock('./storage', () => ({ storage: { getApiKey: () => seams.key() } }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: () => seams.invoke() }))
-vi.mock('./tauri/regionInfo', () => ({ getRegionInfo: async () => ({ name: 'Loc', lat: 36.603, lng: -121.876 }) }))
+vi.mock('./tauri/regionInfo', () => ({ getRegionInfo: (locId: string, key: string) => seams.region(locId, key) }))
 
-import { getWeatherAt, getWeather } from './tauri/weatherService'
+import { getWeatherAt, getWeather, fetchChecklist } from './tauri/weatherService'
 import { getTideAt, getTide } from './tauri/tideService'
 import fixture from './weatherTidePlan.fixture.json'
 import { isOfflineError } from './offlineDetect'
@@ -51,6 +54,28 @@ beforeEach(() => {
   seams.fetch.mockReset()
   seams.key.mockReset().mockResolvedValue('owm-key')
   seams.invoke.mockReset().mockResolvedValue('America/Los_Angeles')
+  seams.region.mockReset().mockResolvedValue({ name: 'Loc', lat: 36.603, lng: -121.876 })
+})
+
+// ── fetchChecklist: the location id from eBird's answer (3eb8682b) ───────────
+
+describe('a location id from eBird enters no follow-up URL unless it has the house shape (3eb8682b)', () => {
+  const answer = (locId: unknown) => okJson({ locId, obsDt: '2026-04-11 07:20', durationHrs: 1 })
+
+  it.each([['../../product/x?y=1'], ['%2e%2e/%2e%2e/product/x'], ['L99\n'], [7]])('refused before any lookup: %j', async (locId) => {
+    seams.fetch.mockResolvedValue(answer(locId))
+    const r = await settle(fetchChecklist('S12345678', 'k'))
+    expect(r.ok).toBe(false)
+    expect(r.ok ? null : r.e).toMatchObject({ status: 502 })
+    expect(seams.fetch).toHaveBeenCalledTimes(1) // checklist/view only: no product/lists, no data/obs
+    expect(seams.region).not.toHaveBeenCalled()
+  })
+
+  it('control: a house-shape id reaches the region lookup', async () => {
+    seams.fetch.mockResolvedValue(answer('L99'))
+    await expect(fetchChecklist('S12345678', 'k')).resolves.toMatchObject({ lat: 36.603, lng: -121.876 })
+    expect(seams.region).toHaveBeenCalledWith('L99', 'k')
+  })
 })
 
 // ── getWeatherAt ─────────────────────────────────────────────────────────────

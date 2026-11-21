@@ -2,6 +2,7 @@ import { tauriFetch } from './http'
 import { storage } from '../storage'
 import { resolveSpecies } from './taxonomyService'
 import { getRegionInfo } from './regionInfo'
+import { ebirdLocationId } from './ebirdLocationId'
 import { ebirdRateLimitError } from './ebirdErrors'
 import { checklistFieldFlags } from '../checklistFields'
 
@@ -332,10 +333,15 @@ export async function getChecklist(checklistId: string, fields?: string | null):
 
   // checklist/view carries only locId, not a readable name. Resolve it so the two
   // checklists are easy to tell apart (mirrors the backend /checklists/{id} flow).
-  const locName = data.locName
-    || (data.locId && !opts.skipLocName ? await resolveLocName(key, data.locId) : '')
+  // The id enters the lookup's URL only in the house shape (3eb8682b), and a
+  // locName that is not text reads as absent, since an object reaching
+  // ChecklistComparer as a React child throws (c5fa8455). Twin: the same two
+  // reads in fetch_checklist_species, backend/services/ebird.py.
+  const locId = ebirdLocationId(data.locId)
+  const locName = (typeof data.locName === 'string' ? data.locName : '')
+    || (locId && !opts.skipLocName ? await resolveLocName(key, locId) : '')
   return {
-    locName: locName || data.locId || '',
+    locName: locName || locId,
     obsDt: data.obsDt ?? '',
     protocolId: data.protocolId ?? '',
     durationHrs: data.durationHrs ?? null,

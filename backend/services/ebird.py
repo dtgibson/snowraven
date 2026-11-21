@@ -72,6 +72,14 @@ from http_client import get_client
 # rows hold it on both transports.
 CHECKLIST_ID_RE = re.compile(r"^S[0-9]{1,15}$")
 
+# The house shape of an eBird location id. A location id read from eBird's own
+# answer is checked against it (with `fullmatch`, through `_norm_token`) before
+# it enters ANY follow-up URL: unchecked, `../../product/x?y=1` sent a request
+# to another api.ebird.org path with the user's key (security L2 of
+# ebird-store-hygiene, idea 3eb8682b). Explicit ASCII class, never `\d`. Twin of
+# `EBIRD_LOCATION_ID_RE` in frontend/src/lib/tauri/ebirdLocationId.ts.
+LOCATION_ID_RE = re.compile(r"^L[0-9]{1,15}$")
+
 
 async def fetch_checklist(checklist_id: str) -> dict:
     api_key = os.getenv("EBIRD_API_KEY")
@@ -91,7 +99,11 @@ async def fetch_checklist(checklist_id: str) -> dict:
     resp.raise_for_status()
     data = resp.json()
 
-    loc_id = data["locId"]
+    # Every follow-up below puts the id in its URL, so it must have the house
+    # shape first (3eb8682b); twin: fetchChecklist in lib/tauri/weatherService.ts.
+    loc_id = _norm_token(data.get("locId"), LOCATION_ID_RE)
+    if not loc_id:
+        raise ValueError("Could not find coordinates for this checklist's location.")
     loc_name = data.get("locName", "")
     lat = lng = None
 
@@ -431,8 +443,14 @@ async def fetch_checklist_species(
 
     # checklist/view has no locName — only locId. Resolve a human-readable
     # location name so the two checklists are easy to tell apart.
-    loc_id = data.get("locId", "")
-    loc_name = data.get("locName", "")
+    # The id enters the lookup's URL only in the house shape (3eb8682b), and a
+    # locName that is not text reads as absent, since an object reaching
+    # ChecklistComparer as a React child throws (c5fa8455). Twin: the same two
+    # reads in getChecklist, lib/tauri/checklistService.ts.
+    loc_id = _norm_token(data.get("locId"), LOCATION_ID_RE)
+    loc_name = data.get("locName")
+    if not isinstance(loc_name, str):
+        loc_name = ""
     if not loc_name and loc_id and not skip_loc_name:
         try:
             region_resp = await client.get(

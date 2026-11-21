@@ -114,6 +114,9 @@ interface Verdict {
   status: number
   species?: number
   first?: { breedingCode: string; media: { photo: number; audio: number; video: number } }
+  /** Location-name lookups the body caused, and the name returned (3eb8682b, c5fa8455). */
+  followUps?: number
+  locName?: string
 }
 
 interface AnswerRow {
@@ -137,12 +140,15 @@ function bytesOf(row: Pick<AnswerRow, 'body' | 'text' | 'hex'>): Uint8Array<Arra
 /** The verdict a caller of the desktop seam sees for one eBird body. */
 async function verdict(row: AnswerRow): Promise<Verdict> {
   http.bytes = bytesOf(row)
+  const lookupsBefore = http.regionLookups
   try {
     const res = await getChecklist('S12345678', row.fields ?? undefined)
     const out: Verdict = { status: 200, species: res.species.length }
     if (row.expected.first) {
       out.first = { breedingCode: res.species[0]?.breedingCode, media: res.species[0]?.media }
     }
+    if (row.expected.followUps !== undefined) out.followUps = http.regionLookups - lookupsBefore
+    if (row.expected.locName !== undefined) out.locName = res.locName
     return out
   } catch (err) {
     return { status: (err as { status?: number }).status ?? -1 }
@@ -205,6 +211,12 @@ describe('a successful body the app cannot read (desktop half, ebird-request-eco
     expect(failed.some(r => r.hex !== undefined)).toBe(true)
     expect(answered.some(r => r.hex !== undefined)).toBe(true)
     expect(answered.some(r => r.expected.first?.breedingCode === 'S')).toBe(true)
+    // 3eb8682b and c5fa8455: refused ids that cost no lookup, beside a control
+    // that does look one up, and a non-text name read as absent.
+    expect(answered.some(r => r.expected.followUps === 0 && typeof objectBody(r)?.locId === 'string'
+      && !/^L[0-9]+$/.test(objectBody(r)!.locId as string))).toBe(true)
+    expect(answered.some(r => r.expected.followUps === 1 && objectBody(r)?.locId === 'L99')).toBe(true)
+    expect(answered.some(r => r.expected.locName === 'Somewhere' && typeof objectBody(r)?.locName === 'object')).toBe(true)
   })
 
   it('the media count bound is the fixture\'s boundary pair, compared with this side\'s declaration', () => {
