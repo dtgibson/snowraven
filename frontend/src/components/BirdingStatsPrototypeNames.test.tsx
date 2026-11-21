@@ -62,6 +62,8 @@ import type { MLExportRow } from '../lib/parseMLExport'
 const TEST_DATA = vi.hoisted(() => ({
   taxonomyCodesJson: '{"American Crow":"amecro"}',
   mlRows: null as MLExportRow[] | null,
+  /** Rows appended to the fixture for one test (the State/Province rows). */
+  extraObs: [] as unknown[],
 }))
 
 /** The three shapes that behave differently on a plain object. `__proto__` is
@@ -121,7 +123,7 @@ vi.mock('react-map-gl/maplibre', () => ({
 }))
 
 vi.mock('../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: FIXTURE_OBS })),
+  loadEbirdObservations: vi.fn(async () => ({ headerLine: '', observations: [...FIXTURE_OBS, ...TEST_DATA.extraObs] })),
 }))
 vi.mock('../lib/mlExportCache', () => ({
   loadMLExport: vi.fn(async () => TEST_DATA.mlRows === null
@@ -156,6 +158,7 @@ let BirdingStats: typeof import('./BirdingStats').BirdingStats
 beforeEach(async () => {
   TEST_DATA.taxonomyCodesJson = '{"American Crow":"amecro"}'
   TEST_DATA.mlRows = null
+  TEST_DATA.extraObs = []
   ;({ BirdingStats } = await import('./BirdingStats'))
 })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
@@ -378,3 +381,24 @@ function stripComments(src: string): string {
   }
   return out.join('\n')
 }
+
+describe('a State/Province cell named after a prototype member (idea 25608818)', () => {
+  it('renders as plain text with no region link, and the real states keep theirs', async () => {
+    // On the unfixed code regionName('US-__proto__') returned Object.prototype,
+    // which the States lists render as a React child, and the old includes-a-
+    // hyphen gate made the cell an ebird.org/region link as well.
+    TEST_DATA.extraObs = [0, 1].map(k => ({ ...row(`S${40 + k}`, 'American Crow', 'Corvus brachyrhynchos'), stateProvince: 'US-__proto__', county: 'Hostile' }))
+    const onError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await renderStats()
+    await waitFor(() => expect(screen.getAllByText('States by checklists').length).toBeGreaterThan(0), { timeout: 10_000 })
+    const shouted = onError.mock.calls.map(c => String(c[0])).join(' | ')
+    expect(shouted).not.toMatch(/not valid as a React child/i)
+    onError.mockRestore()
+    const hostile = screen.getAllByText('US-__proto__')
+    expect(hostile.length).toBeGreaterThan(0)
+    for (const el of hostile) expect(el.closest('a'), 'a hostile cell is never a link').toBeNull()
+    const hrefs = [...document.querySelectorAll('a[href^="https://ebird.org/region/"]')].map(a => a.getAttribute('href'))
+    expect(hrefs).toContain('https://ebird.org/region/US-MN')
+    expect(hrefs.filter(h => h!.includes('__proto__'))).toEqual([])
+  })
+})

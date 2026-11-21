@@ -40,7 +40,7 @@ import { useKeysEpoch } from '../lib/useKeysEpoch'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
 import { COUNT_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
-import { regionName } from '../lib/regionNames'
+import { isSubnationalCode, regionName } from '../lib/regionNames'
 import { BirdName } from './BirdName'
 import {
   filterObservations, computeChecklists, computeMlStats, countableLifeList,
@@ -1443,7 +1443,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {(showAllCounties ? geo.topCounties : geo.topCounties.slice(0, 8)).map((c) => {
                     const sp = c.stateProvince
-                    const validSp = sp && sp.includes('-')
+                    const validSp = isSubnationalCode(sp)
                     const label = validSp ? (
                       // Persistent accent affordance (no hover-only underline) so
                       // the link reads as a link on touch, where hover never fires.
@@ -1473,7 +1473,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {geo.topCountiesBySpecies.slice(0, 8).map((c) => {
                     const sp = c.stateProvince
-                    const validSp = sp && sp.includes('-')
+                    const validSp = isSubnationalCode(sp)
                     const label = validSp ? (
                       <OutboundLink
                         href={`https://ebird.org/region/${sp}`}
@@ -1527,7 +1527,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 <SubLabel>States by checklists</SubLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {geo.topStates.map((s, i) => {
-                    const validSp = s.name && s.name.includes('-')
+                    const validSp = isSubnationalCode(s.name)
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
                         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
@@ -1553,7 +1553,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 <SubLabel>States by species</SubLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {geo.topStatesBySpecies.map((s, i) => {
-                    const validSp = s.name && s.name.includes('-')
+                    const validSp = isSubnationalCode(s.name)
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
                         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>

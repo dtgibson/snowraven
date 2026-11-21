@@ -26,11 +26,27 @@ const CA: Record<string, string> = {
 }
 
 /** Full name for an eBird region code (e.g. "US-MN" → "Minnesota"); falls back
- *  to the code itself for regions we don't have a name for. */
+ *  to the code itself for regions we don't have a name for. The tables are read
+ *  through `Object.hasOwn`: the code is a State/Province cell of the user's own
+ *  file, and a bare `US[sub]` gave `"US-__proto__"` Object.prototype, which
+ *  Statistics rendered as a React child and lost its geographic section
+ *  (security.md, the lookup-table rule; idea 25608818). */
 export function regionName(code: string | null | undefined): string {
   if (!code) return ''
   const [country, sub] = code.split('-')
-  if (country === 'US' && sub && US[sub]) return US[sub]
-  if (country === 'CA' && sub && CA[sub]) return CA[sub]
+  if (country === 'US' && sub && Object.hasOwn(US, sub)) return US[sub]
+  if (country === 'CA' && sub && Object.hasOwn(CA, sub)) return CA[sub]
   return code
+}
+
+/** The shape of an eBird State/Province code (ISO 3166-2: two letters, a hyphen,
+ *  one to three letters or digits: "US-CA", "CH-VS", "FR-ARA", "IT-23"). A cell
+ *  becomes an ebird.org/region link only in this shape; anything else renders
+ *  as plain text (security.md, an id from CSV data is shape-validated before it
+ *  becomes a link). Not `isRegionCode`, which is the US county shape and would
+ *  refuse every state. */
+export const SUBNATIONAL_CODE_RE = /^[A-Z]{2}-[A-Z0-9]{1,3}$/
+
+export function isSubnationalCode(code: unknown): code is string {
+  return typeof code === 'string' && SUBNATIONAL_CODE_RE.test(code)
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { regionName } from './regionNames'
+import { isSubnationalCode, regionName } from './regionNames'
 
 describe('regionName', () => {
   it('maps US state codes to names', () => {
@@ -29,5 +29,29 @@ describe('regionName', () => {
     expect(regionName(null)).toBe('')
     expect(regionName(undefined)).toBe('')
     expect(regionName('')).toBe('')
+  })
+})
+
+describe('a State/Province cell named after a prototype member (idea 25608818)', () => {
+  // Built with JSON.parse, so each is an own string the way a cell arrives.
+  const HOSTILE: string[] = JSON.parse('["US-__proto__","US-constructor","US-toString","US-hasOwnProperty","CA-__proto__","CA-valueOf"]')
+
+  it('falls back to the raw code, never an inherited member', () => {
+    for (const code of HOSTILE) expect(regionName(code), code).toBe(code)
+  })
+})
+
+describe('isSubnationalCode: the only shape that becomes an ebird.org/region link', () => {
+  it('admits every State/Province code in the stored backup, and other real shapes', () => {
+    for (const c of ['US-CA', 'US-MD', 'US-HI', 'US-NV', 'CH-VS', 'FR-ARA', 'CH-GE', 'IT-23', 'MX-ROO', 'GB-ENG', 'CA-ON']) {
+      expect(isSubnationalCode(c), c).toBe(true)
+    }
+  })
+
+  it('refuses everything else, including what the old includes-a-hyphen gate let through', () => {
+    for (const c of ['US-__proto__', 'us-ca', 'US-CA-085', 'US-CALI', 'US-CA\n', ' US-CA', 'US-', '-CA', 'U-CA', 'US_CA', 'US-C/A', '']) {
+      expect(isSubnationalCode(c), JSON.stringify(c)).toBe(false)
+    }
+    for (const v of [null, undefined, 7, {}, ['US-CA']]) expect(isSubnationalCode(v), String(v)).toBe(false)
   })
 })
