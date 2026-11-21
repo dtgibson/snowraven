@@ -49,7 +49,10 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: '20'
+          # The repository's one Node pin, the one the Mac release builds with
+          # (security-bloat-deps-and-tests-cleanup D-03; it was '20' here, so
+          # the first tag built after that change is this job's first on 24).
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json

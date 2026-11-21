@@ -372,7 +372,8 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
    *
    * TWO ENGINE EFFECTS the rows are sized and built around, and the reach the
    * decoder row gave up for the first (barchart-speed-check-ci), each measured
-   * on Node 20.20.2, which CI runs, and on Node 24, which the dev Mac runs:
+   * on Node 20.20.2, which CI ran then, and on Node 24, which the dev Mac
+   * runs and CI has run since it began following `.nvmrc`:
    *  - Node 20 builds a long string one character at a time superlinearly: a
    *    bare `out += ch` loop reads 10x at 512,000 -> 1,024,000 characters
    *    there and 2.0 on Node 24, and the decoder row's old leg at that size

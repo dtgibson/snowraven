@@ -220,7 +220,7 @@ describe('the Statistics aggregate and cross-surface agreement (FR-14, FR-15)', 
 //
 // AND WHAT THEY COST IN FALSE REDS, which is the failure this whole rewrite
 // exists to prevent. The green envelope was measured on node 24 and node 20
-// (the version CI runs), at the shipped fixture size and at 4x it, idle and
+// (the version CI ran then), at the shipped fixture size and at 4x it, idle and
 // under twelve-way CPU oversubscription on eight cores — a hostile condition
 // well past a GitHub runner, where the absolute readings degrade 2x:
 //
@@ -335,7 +335,7 @@ describe('aggregate performance', () => {
     // The BUDGET, and only the budget — the margin is the two ratio tests
     // below. MEASURED with the machine named, because a bare figure reads as
     // universal and this one is not: 9.8 ms on an Apple M1 Pro under node 24
-    // and 11.3 ms under node 20 (the version CI runs), against 45.7 ms on
+    // and 11.3 ms under node 20 (the version CI ran then), against 45.7 ms on
     // GitHub's ubuntu-latest runner. Same conclusion, a 4x different number,
     // which is precisely why none of the margins below is written in ms.
     expect(best).toBeLessThan(200)

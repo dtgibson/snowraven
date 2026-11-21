@@ -22,9 +22,10 @@
 // for a core. Vitest's forks pool runs each test file in its own worker
 // process (checked: three files, three pids) and the rows that use this are
 // synchronous, so what it counts is the code under test plus V8's own helper
-// threads. It reports microseconds, and it exists on CI's Node 20 (checked on
-// 20.20.2). The main thread's own CPU time was tried as well and was no
-// steadier on the same samples; it does not exist on Node 20 either.
+// threads. It reports microseconds, and it exists on Node 24, which CI runs
+// since it began following `.nvmrc`, and on Node 20, which CI ran when this was
+// written (checked on 20.20.2). The main thread's own CPU time was tried as
+// well and was no steadier on the same samples; it does not exist on Node 20.
 //
 // WHAT IT DOES NOT REMOVE, so a limit still needs margin on both sides. A
 // sample that runs on one of the dev Mac's efficiency cores costs more CPU time

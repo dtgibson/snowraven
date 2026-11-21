@@ -28,8 +28,9 @@
 // an empty or `/` path, query or fragment is widened to `*`. The scope is
 // checked once, on the URL the call asks for, and the redirects reqwest follows
 // after it are not checked, which is why each entry carries a path: an entry
-// that names no fixed path segment admits the whole host. CI runs Node 20,
-// which has no URLPattern, so this file checks STRUCTURE (one fixed host, at
+// that names no fixed path segment admits the whole host. This file was written
+// while CI ran Node 20, which has no URLPattern (CI follows `.nvmrc`, Node 24,
+// since security-bloat-deps-and-tests-cleanup), so it checks STRUCTURE (one fixed host, at
 // most one wildcard standing for whole segments, no dot segment or percent
 // escape, every call-site URL inside an entry) and never a runtime match that
 // could skip on CI and still read as coverage. The dot segment and the escape

@@ -116,7 +116,7 @@ need gh   "install the GitHub CLI: https://cli.github.com"
 # Node must match the version this project is pinned to (.nvmrc). A bleeding-edge /
 # non-LTS Node (e.g. 25) crashes `npm ci` with npm's 'Exit handler never called!'
 # bug (npm/cli#8766) — the reason a release can fail on the Mac while the build VM
-# (Node 24) and Windows CI (Node 20) succeed on the identical lockfile.
+# (Node 24) and Windows CI (which reads .nvmrc too) succeed on the identical lockfile.
 if [[ -f .nvmrc ]]; then
   WANT_NODE_MAJOR=$(tr -dc '0-9.' < .nvmrc | cut -d. -f1)
   HAVE_NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
