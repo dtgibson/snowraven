@@ -11,7 +11,9 @@
 // Everything here drives the REAL exported function. The Map is reached through a
 // test-only accessor rather than reimplemented, because a bound asserted against a copy
 // of the cache is not a bound on the shipped one.
+/// <reference types="node" />
 import { describe, it, expect, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   normalizeSpeciesName,
   __normCacheForTests,
@@ -20,6 +22,17 @@ import {
   __MEMO_LIMITS_FOR_TESTS as LIMITS,
   __recomputesForTests,
 } from './speciesUtils'
+
+// The two figures the limits are sized against, read from the bundled taxonomy
+// snapshot when the test runs (CLAUDE.md, the v1.0.61 headroom rule; idea
+// c82edfe2). They were typed in, so eBird's 2026 taxonomy moved both (63 to 66,
+// 17,891 to 18,631) and the file stayed green while stale. Every published name
+// is a `byCode` value, one per code, of any category.
+const SNAPSHOT_NAMES: string[] = Object.values(
+  (JSON.parse(readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8')) as { byCode: Record<string, string> }).byCode,
+)
+const PUBLISHED_NAMES = new Set(SNAPSHOT_NAMES).size
+const LONGEST_NAME = SNAPSHOT_NAMES.reduce((m, n) => Math.max(m, n.length), 0)
 
 // The pre-change implementation, as the oracle for every correctness claim below.
 const oracleNormalize = (name: string): string => name.replace(/\s*\([^)]*\)\s*$/, '').trim()
@@ -36,23 +49,27 @@ beforeEach(() => {
 
 describe('the memo limits are sized off measurement, not guessed', () => {
   it('admits every real name with room to spare', () => {
-    // The longest string of ANY category in the bundled taxonomy snapshot (eBird's 2026
-    // taxonomy) is 66 characters ("Dark-eyed Junco (Slate-colored/cismontanus/Slate-colored
-    // x Oregon)"), p99 47, p50 22. The key limit is a multiple of that measured maximum
-    // rather than the maximum itself, so a taxonomy revision that lengthens names cannot
-    // quietly push a real species onto the uncached path. The 2026 update moved the
-    // maximum from 63 to 66 and the multiple from 2.03 to 1.94; the floor below is that
-    // multiple rounded down, and if a later revision narrows it again, the limit
-    // (MEMO_MAX_KEY_LENGTH in speciesUtils.ts) is what moves, not this floor.
-    expect(LIMITS.maxKeyLength).toBe(128)
-    expect(LIMITS.maxKeyLength / 66).toBeGreaterThanOrEqual(1.9)
+    // Non-vacuity: a reader that matched nothing would make every floor below pass.
+    expect(PUBLISHED_NAMES).toBeGreaterThan(10_000)
+    expect(LONGEST_NAME).toBeGreaterThan(30)
 
-    // The snapshot holds 18,631 distinct names across all categories, so the entry
-    // limit clears the entire eBird taxonomy: a user who had recorded every taxon on
-    // earth would still evict nothing. The 2026 update moved the multiple from 1.83 to
-    // 1.76, and the floor below is that multiple rounded down, on the same terms.
+    // The key limit is a multiple of the longest string of ANY category in the bundled
+    // taxonomy snapshot (66 characters at eBird's 2026 taxonomy, "Dark-eyed Junco
+    // (Slate-colored/cismontanus/Slate-colored x Oregon)"; p99 47, p50 22) rather than
+    // the maximum itself, so a taxonomy revision that lengthens names cannot quietly push
+    // a real species onto the uncached path. The 2026 update moved the maximum from 63 to
+    // 66 and the multiple from 2.03 to 1.94; the floor below is that multiple rounded
+    // down, and if a later revision narrows it again, the limit (MEMO_MAX_KEY_LENGTH in
+    // speciesUtils.ts) is what moves, not this floor.
+    expect(LIMITS.maxKeyLength).toBe(128)
+    expect(LIMITS.maxKeyLength / LONGEST_NAME, `longest published name ${LONGEST_NAME}`).toBeGreaterThanOrEqual(1.9)
+
+    // The entry limit clears the whole snapshot (18,631 distinct names across all
+    // categories at the 2026 taxonomy): a user who had recorded every taxon on earth
+    // would still evict nothing. The 2026 update moved the multiple from 1.83 to 1.76,
+    // and the floor below is that multiple rounded down, on the same terms.
     expect(LIMITS.maxEntries).toBe(32768)
-    expect(LIMITS.maxEntries / 18631).toBeGreaterThanOrEqual(1.75)
+    expect(LIMITS.maxEntries / PUBLISHED_NAMES, `${PUBLISHED_NAMES} published names`).toBeGreaterThanOrEqual(1.75)
   })
 
   it('bounds retention structurally, all four facts at once', () => {
@@ -534,7 +551,7 @@ describe('the guards above are not vacuous', () => {
     // state in which the design fails. It is kept for the sizing claim it does make; the
     // state it cannot reach is covered by `every bounded structure survives CAPACITY PLUS
     // ONE` below.
-    const distinct = 18631
+    const distinct = PUBLISHED_NAMES
     for (let i = 0; i < distinct; i++) normalizeSpeciesName(`Gull ${i} (Domestic type)`)
     expect(__normCacheForTests().size).toBe(distinct)
     expect(distinct).toBeLessThan(LIMITS.maxEntries)
