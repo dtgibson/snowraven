@@ -127,3 +127,112 @@ Run by The Deployer from the main checkout, on branch `improve/security-bloat-de
   - In a fresh `git archive` copy with the date substituted, the five version guards passed 118 of 118.
 - **Local `main`:** fast-forwarded from `18977177` to `321dd806` after an ancestry check. The ref was moved and switched to, the same commit, so the uncommitted D-11 edit carried over.
 - **Release commit `71c5361a`**, applied with `git am --ignore-date`, dated 2026-11-20. No placeholder was left, and the applied patch file was deleted.
+- **Docs commit `6f5310f7`:** D-11 and this record.
+- **Local gates on `6f5310f7`:** lint, typecheck and a fresh build gave rc 0. The full vitest suite passed: 524 files, 5 skipped; 11,578 passed, 8 skipped. That is QA's local count exactly.
+- **Tag `v1.0.75`:** annotated, tag object `72d31aee`, on `6f5310f72d1040bea0349cb4e4a936c508a48fc7`, pushed alone at 07:14:30 UTC. At the tag, `tauri.conf.json` reads 1.0.75 / 1000075, and `10000751/2/4.txt` are present.
+- **Recipe commit `ecb258be`** `fix(fdroid): the recipe names v1.0.75's commit` (`fdroidRecipe` 36 of 36).
+- **PR #3 and `main`:** PR #3 marked ready, then `main` pushed as a fast-forward `18977177..ecb258be` at 07:14:46 UTC. PR #3 reads MERGED at 07:14:47 UTC, with `321dd806` as its merge commit.
+- **Website:** Pages `44879335847` succeeded on `ecb258be`. The live `index.html` on snowraven.dtgibson.com is byte-identical to the committed file, and its pill, `aria-label` and footer read 1.0.75.
+- **iOS:**
+  - **Before the build:** the stale archive (1.0.74 / 1.0.74.1) was kept under `build/` as `snowraven_iOS-1.0.74.1-stale-before-1.0.75.xcarchive`. The three shims were recreated, 36 of 36 icons are opaque, and the SDK is 27.2.
+  - **Widget Swift tests:** run first on the iOS 26.4 iPhone 17 Pro simulator: 143 tests, 0 failures. The already-booted iOS 26.5 simulator, which belongs to the other agent, was left alone.
+  - **Archive:** `tauri ios build --export-method app-store-connect --build-number 1`, run outside the sandbox, 07:16 to 07:18 UTC: `** BUILD SUCCEEDED **`. Tauri's own export then refused with the skill's third wording ("No Account for Team", "No profiles found"), as expected.
+  - **Archive checks:** it reads 1.0.75 / 1.0.75.1, `platform IOS`, minos 16.0, sdk 27.2; 18 of 18 swift-rs libraries report `platform 2`. The re-quoted `PRODUCT_NAME` lines were restored to HEAD.
+  - **Appex:** "not signed at all" before, then signed ad hoc with its entitlements; it now lists the App Group.
+  - **Manual export:** `** EXPORT SUCCEEDED **`. `DistributionSummary.plist` lists both bundles at 1.0.75 (1.0.75.1) on their profiles. The app has the App Group, `icloud-container-environment` Production, the container, ubiquity and `CloudDocuments`; the appex has the App Group only.
+  - **IPA:** SHA-256 `3bbcc31684e3544fa10102be352ec95e770af987d666b9a52d2f92cb39ce8e68`, 16,562,583 bytes.
+  - **`altool`:** `--validate-app` returned `VERIFY SUCCEEDED with no errors` (07:19:34 to 07:20:31). `--upload-app` returned `UPLOAD SUCCEEDED with no errors` (07:20:38 to 07:21:37), Delivery UUID `243a7405-4193-47a9-a2f9-f1f48c2e38ac`, plus the routine `CDUploaderStateInfoResumeFilePath` line.
+  - **Stamp:** `9e09c5b0` `chore(ios): stamp iOS 1.0.75 build 1` (both Info.plists), pushed at 07:21:46 UTC.
+- **TestFlight:** build 1.0.75.1 (`243a7405`) read `VALID` by 07:25:16 UTC. It is the only build on the new 1.0.75 train. App Store Connect then read 37 records all `READY_FOR_SALE`, 10 submissions all `COMPLETE`, and 107 builds all `VALID`. No 1.0.75 version record was created, and nothing was submitted.
+- **CI on the tag's commit:**
+  - Windows Build `44879313500` succeeded (07:14:33 to 07:20:39 UTC), the only Windows run on `6f5310f7`.
+  - Android Build `44879313585` succeeded.
+  - Pipeline `44879335954` on `ecb258be` was cancelled by the stamp push, as expected.
+- **The run of record: Pipeline `44879893516` on `9e09c5b0`, attempt 1, success.** Every step ran green in all three jobs:
+  - Backend (ruff, pytest), 07:22:04 to 07:22:40.
+  - Frontend (npm ci, lint, typecheck, build, vitest, tooling, Chromium and WebKit, Inter, the real-engine gate), 07:22:04 to 07:53:18.
+  - Native (Rust read from `toolchain.env`, `cargo test --locked`), 07:22:05 to 07:23:56.
+  - No re-run and no allowance. This is the first green push to `main` since 1.0.67.
+- **Desktop:** `zsh -lc ./release.sh`, 07:53:49 to 07:58:54 UTC, exit 0.
+  - **Build:** `Releasing v1.0.75: tag=6f5310f7 HEAD=9e09c5b0`; iCloud profile OK; bundle version verified 1.0.75; iCloud entitlements and embedded profile verified.
+  - **DMG:** styled and signed. Notarization submission `39718548-f0cb-44d2-a4c4-1dd8e171c874` was `Accepted`, and the DMG was stapled.
+  - **Windows and publish:** the Windows installer was fetched and signed, and the release published.
+  - **Release:** `453532814`, https://github.com/dtgibson/snowraven/releases/tag/v1.0.75, published 2026-11-21 07:58:53 UTC, Latest, not a draft or pre-release. Assets and SHA-256:
+    - `SnowRaven_1.0.75_universal.dmg` `564aea30...9623`;
+    - `SnowRaven-updater.app.tar.gz` and `.sig`;
+    - `SnowRaven_1.0.75_x64-setup.exe` `049bd2fc...2090` and `.sig`;
+    - `latest.json`.
+  - **Fresh download:** `codesign --verify` valid and satisfies its Designated Requirement; `stapler validate` worked; `spctl -a -t open --context context:primary-signature` accepted, `source=Notarized Developer ID`, team `8QKC3L2FKP`.
+  - **Windows installer:** the published installer is byte-identical to run `44879313500`'s artifact.
+  - **Updater:** `releases/latest/download/latest.json` serves 1.0.75 with `darwin-aarch64`, `darwin-x86_64` (both `SnowRaven-updater.app.tar.gz`) and `windows-x86_64` (`SnowRaven_1.0.75_x64-setup.exe`), each signed.
+- **Android:**
+  - **Preflight:** `preflight.sh` exit 0. It used run `44879313585`'s artifact: `com.dtgibson.snowraven` 1.0.75 / 1000075, not debuggable, with the three changelogs present at the tag. The unsigned APK's SHA-256 is `bcb0be7fa4254d390dcd91fc044bb2f5101bd9dce1b18b7b1ca5ab71dca0e3b0`.
+  - **Signing:** `sign.sh` with the recorded signer, schemes v2 and v3, `Signer #1 certificate SHA-256 digest: 42a3576e445bda4a994793f2ffa056663113275c9805eb2f6cffdc252375996a`. Signed APK SHA-256 `eebe8ae3112a26505cd523560aa5c5d4b2fcb8b33de8efcce1d28a1b85d51a25`.
+  - **Emulator check of those exact bytes:** `sr-api36-phone`, `-gpu host`, every call to `emulator-5554`, hash re-read equal.
+    - It installed fresh (no earlier install): `versionName` 1.0.75, `versionCode` 1000075, minSdk 26, targetSdk 36.
+    - Cold start `Status: ok`, `COLD`, 199 ms.
+    - Welcome drew; "Explore the app first" drew Weather with both key notices.
+    - Help's github.com/dtgibson/snowraven-mini link left the app and opened Chrome, as `topResumedActivity` `com.android.chrome`. It stopped at Chrome's first-run screen, which shows that the narrowed link permission still dispatches; Back returned to `MainActivity`.
+    - The crash buffer read 0 lines before the install and 40 after, all one emulator-system abort (`com.google.android.bluetooth`, a hardware error event) and none naming SnowRaven. The main log held no `FATAL EXCEPTION`, no SnowRaven `AndroidRuntime` line and no ANR, and the app was alive at the end (pid 4386).
+    - WebView 133.0.6943.137. Nothing was sent to eBird or OpenWeather. The emulator was stopped by serial.
+    - Screens are in the scratchpad's `predeploy/emulator-check/`.
+  - **Device check:** Partial on emulator evidence, under the standing decision (the user owns no Android device).
+  - **Attach:** `attach.sh` with `ANDROID_DEVICE_CHECK=partial`, exit 0. Asset `774885528` `SnowRaven_1.0.75_android_universal.apk`, 79,505,026 bytes, downloaded back byte-identical (`eebe8ae3...1a25`). The release's own asset digest reads the same.
+- **Stopped here, as directed:** the App Store version record and its submission wait for the user's iPhone check of TestFlight 1.0.75 (1).
+
+## Part three: the App Store submission and the records (2026-11-21 UTC 17:09 to 17:20; PST 09:09 to 09:20)
+
+- **The user's iPhone check (D-12)**, recorded as the user gave it, after the build read `VALID` and before any submission:
+  - Unprompted: "testflight seems to work fine on the phone".
+  - Asked once which build it was and whether the widgets were tried, they chose "1.0.75 (1), widgets fine too".
+  - The drafted step list had not reached the user, so the individual steps (Weather, List Comparer, a Statistics region link, Targets) are not recorded as checked.
+  - The widget pass owed since 1.0.71 is discharged.
+- **Read-back tooling:** a read-back script in the scratchpad (`predeploy/asc/`, on the committed `asc-lib.mjs`). It parses `appstore/LISTING.md`, and its lengths matched the ledger's figures: name 9, subtitle 27, promotional text 137, description 3,733, keywords 97, copyright 16, review notes 3,898. It was proved first on the released 1.0.74 record: `ALL SAME` with 1.0.74's own What's New, and exactly one DIFF (What's New) against 1.0.75's.
+- **The record:**
+  - **Pre-read (17:10:16 UTC):** 37 records all `READY_FOR_SALE`, no 1.0.75 record, 10 submissions all `COMPLETE`, build 1.0.75.1 (`243a7405`) `VALID` and not expired.
+  - **Created:** `POST /v1/appStoreVersions` 201, record **`3b2d00c7-f09d-41f1-8588-d0256b3ed943`**, 1.0.75, `PREPARE_FOR_SUBMISSION`, `AFTER_APPROVAL`, on build 1.0.75.1, copyright from `LISTING.md`.
+  - **Fields:** en-US `3e737d37` arrived with the promotional text, description, keywords and both URLs equal to `LISTING.md`, and with 1.0.74's What's New. Only the What's New was written (`PATCH` 200, 17:10:21 UTC): `Security and reliability fixes.` (31). The review notes arrived equal to `REVIEW_NOTES.md`.
+- **Listing read-back:** `READBACK 1.0.75: ALL SAME` at 17:10:29 UTC, covering:
+  - version, release type, earliest date, phased release, copyright and build;
+  - one localization, with every listing field and the What's New;
+  - review notes, contact and demo account;
+  - both app infos' name, subtitle, privacy policy URL and categories.
+- **Age rating:** 32 fields on both app infos (`b35aa005` live, `afebc5b0` new and editable), none true, with the same five nulls as 1.0.74. Nothing was changed.
+- **Screenshots:** `asc-screens.mjs readback --loc 3e737d37...` read **ALL MATCH, 21 of 21**. All three sets carried over (iPhone 6.9-inch `ee19d709`, iPad 13-inch `ca7fc938`, the iPhone Duo placements); nothing was re-placed.
+- **Submitted (17:11:13 to 17:11:21 UTC):**
+  - A re-read first found the record `PREPARE_FOR_SUBMISSION` on a `VALID` build, no phased release, and no open submission.
+  - `POST /v1/reviewSubmissions` 201, `POST /v1/reviewSubmissionItems` 201, `PATCH` `submitted: true` 200.
+  - **Submission `e0608e6e-0d01-4781-aa46-aaff56e36b36`, `WAITING_FOR_REVIEW`, submitted 2026-11-21 17:11:20 UTC (09:11 PST)**, its one item `READY_FOR_REVIEW`. The record reads `WAITING_FOR_REVIEW`.
+- **After submitting:** the listing read `ALL SAME` (17:11:32 UTC) and the screenshots `ALL MATCH`, 21 of 21.
+- **Reconciliation (17:11:39 UTC):** against the pre-deploy read there is one more of each, and no unaccounted gap:
+  - 38 records (1.0.75 waiting, 37 `READY_FOR_SALE`);
+  - 11 submissions (1 waiting, 10 `COMPLETE`);
+  - 99 trains and 107 builds, all `VALID`;
+  - the same 26 trains with no record of their own from 1.0.13 on.
+- **F-Droid (17:11:57 UTC):**
+  - 1.0.73 is **included and this tag picked up**: published, all three logs `Successfully built`.
+  - 1.0.74 is still **included and this tag not yet built**: its entries are on `0a9dd9a3` (`ffb0c1bd`), and its logs answer 404.
+  - 1.0.75 is **included and this tag not yet built**: no entry yet, and its logs answer 404.
+  - Nothing went to fdroiddata.
+- **`RELEASE_LEDGER.md`:**
+  - 1.0.74 is corrected in place to RESOLVED;
+  - the Android 1.0.73 and 1.0.74 entries are updated in place;
+  - 1.0.75 gets its App Store and Android entries.
+
+## Went differently from the plan
+
+- **The published sentence** is the shorter one the user chose at the sign-off (D-11), so the patch was rebuilt with it. The builder's clean-tree check was narrowed to the version-set files, because the D-11 edit was uncommitted.
+- **Local `main`** was fast-forwarded by moving the ref after an ancestry check, then switching to it, rather than `checkout main`. The uncommitted D-11 edit blocked a checkout, since `decisions.md` does not exist on the old `main`.
+- **The widget tests** ran on the iOS 26.4 simulator, because an iOS 26.5 simulator booted by another agent was left alone.
+- **The Android outbound-link leg** used Help's GitHub link. Settings links only to the eBird and OpenWeather key pages, and the acknowledgments carry no links. It stopped at Chrome's first-run screen, which shows that the link left the app, not that the page loaded.
+- **The crash buffer** read 0 lines before the install and 40 after, the reverse of the 1.0.73 and 1.0.74 records. All 40 lines are one emulator Bluetooth abort.
+- **The user checked the TestFlight build** before the step list reached them (D-12). The widget pass is recorded as passed and the individual steps as not reported.
+- **The run of record needed no re-run**, the first time since 1.0.67.
+- **Three read-back logs** were first written to the repository root by a relative `tee`, then moved to the scratchpad before anything was committed. They held record ids and lengths only.
+
+## Open after this ship
+
+- App Review of 1.0.75 (`e0608e6e`), released on approval; the next ship reads it.
+- F-Droid's pickup of `v1.0.74` and `v1.0.75`.
+- The age-rating declaration's two newer null fields (`datingAndRelationships`, `sharedLocation`), should Apple start requiring them.
+- The Pipeline run on this record's push, the next of the green pushes on `main` this run's brief counts toward three (D-07's macOS job reads the same runs).
