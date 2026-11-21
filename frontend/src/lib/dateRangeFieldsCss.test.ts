@@ -208,6 +208,28 @@ function inlineDecls(el: Element): Decl[] {
   return parseDecls(el.getAttribute('style') ?? '').flatMap(expand)
 }
 
+/**
+ * The rules that declare `prop`, in source order, each with its declarations of
+ * that property expanded, in their own order. `resolved` asked jsdom to match
+ * every rule in the stylesheet on every query and only then looked for the
+ * property, which was most of this file's time; a rule that does not declare the
+ * property can never be a candidate, so skipping it first leaves every
+ * candidate, its rank and the order of ties unchanged. Built on first use, after
+ * `expand`'s own tables exist.
+ */
+let byProp: Map<string, { rule: Rule; decls: Decl[] }[]> | null = null
+function rulesDeclaring(prop: string): { rule: Rule; decls: Decl[] }[] {
+  if (!byProp) {
+    byProp = new Map()
+    for (const rule of RULES) {
+      const own = new Map<string, Decl[]>()
+      for (const d of rule.decls.flatMap(expand)) own.set(d.prop, [...(own.get(d.prop) ?? []), d])
+      for (const [p, decls] of own) byProp.set(p, [...(byProp.get(p) ?? []), { rule, decls }])
+    }
+  }
+  return byProp.get(prop) ?? []
+}
+
 /** jsdom throws on a selector it cannot parse; such a rule cannot match here. */
 function matchesSafely(el: Element, selector: string): boolean {
   try {
@@ -225,15 +247,14 @@ function matchesSafely(el: Element, selector: string): boolean {
 function resolved(el: Element, prop: string, width: number): string | undefined {
   type Cand = { value: string; rank: number }
   const cands: Cand[] = []
-  for (const rule of RULES) {
+  for (const { rule, decls } of rulesDeclaring(prop)) {
     if (!applies(rule.ancestors, width)) continue
     let spec = -1
     for (const sel of rule.selectors) {
       if (matchesSafely(el, sel)) spec = Math.max(spec, specificity(sel))
     }
     if (spec < 0) continue
-    for (const d of rule.decls.flatMap(expand)) {
-      if (d.prop !== prop) continue
+    for (const d of decls) {
       cands.push({ value: d.value, rank: (d.important ? 4 : 0) * 1e15 + spec * 1e5 + rule.order })
     }
   }
