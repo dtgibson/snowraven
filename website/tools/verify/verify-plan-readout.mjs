@@ -141,6 +141,7 @@ const MEASURE = ({ scale }) => {
   return {
     ok: true, rootPx,
     height: rr.height,
+    roTop: rr.top - r0.top,
     weekTop: week.getBoundingClientRect().top - r0.top,
     daysTop: days.getBoundingClientRect().top - r0.top,
     boxHeight: box.getBoundingClientRect().height,
@@ -198,10 +199,31 @@ async function states(page, scale) {
   return out
 }
 
+/**
+ * Apply a text scale and wait until it has reached the measured subtree, not
+ * only the root (testing.md v1.0.56: after an in-place scale change WebKit
+ * updates the root's computed size at once while a descendant's rem lengths can
+ * lag). `.sr-plan-week` is `0.6875rem`, so it reads 11px per unit of scale once
+ * the scale has applied there. MEASURE used to make this change itself and read
+ * in the same task, so the first width of each scale's sweep was the one reading
+ * taken across a scale change; GitHub's WebKit read a 1px movement at exactly
+ * that reading twice (2026-10-08, saved idea da77d628, and 2026-11-20).
+ */
+async function applyScale(page, scale) {
+  await page.evaluate(s => document.documentElement.style.setProperty('--sr-text-scale', String(s)), scale)
+  await page.waitForFunction(s => {
+    const week = document.querySelector('.sr-plan-week')
+    return Math.abs(parseFloat(getComputedStyle(document.documentElement).fontSize) - 16 * s) < 0.01
+      && !!week && Math.abs(parseFloat(getComputedStyle(week).fontSize) - 11 * s) < 0.01
+  }, scale, { timeout: 10_000 })
+  await settle(page)
+}
+
 async function sweep(page, label, tide) {
   const worst = { d: 0, at: '' }
   let inkWorst = { over: 0, at: '' }
   for (const scale of SCALES) {
+    await applyScale(page, scale)
     let measured = 0
     let failed = 0
     let first = ''
@@ -232,12 +254,14 @@ async function sweep(page, label, tide) {
       const ok = d <= 0.5 && ink <= 0.5 && pageOk && marks && dailyOk && tideOk
       if (!ok) {
         failed += 1
-        if (!first) first = `${width}px @${scale}x: dH ${dH.toFixed(2)} dWeek ${dW.toFixed(2)} dList ${dD.toFixed(2)} ink ${ink.toFixed(2)} page ${pageOk} marks ${marks} daily ${dailyOk} tide ${tideOk}`
+        // Which box moved, state by state, so a failure localizes itself.
+        const per = Object.entries(s).map(([k, r]) => `${k} ro ${r.roTop.toFixed(2)} box ${r.boxHeight.toFixed(2)}`).join('; ')
+        if (!first) first = `${width}px @${scale}x: dH ${dH.toFixed(2)} dWeek ${dW.toFixed(2)} dList ${dD.toFixed(2)} ink ${ink.toFixed(2)} page ${pageOk} marks ${marks} daily ${dailyOk} tide ${tideOk} (${per})`
       }
     }
     check(`${label} @${scale}x: every width measured`, measured === WIDTHS.length, `${measured}/${WIDTHS.length}`)
     check(`${label} @${scale}x: the readout, the divider and the list hold their place across rest, an hourly pick, a daily-tail pick, the window's end and a clear, the ink stays in the box, and the page never scrolls sideways`,
-      failed === 0 && measured === WIDTHS.length, failed === 0 ? `${measured} widths ${WIDTHS[0]}-${WIDTHS[WIDTHS.length - 1]}` : `first: ${first}`)
+      failed === 0 && measured === WIDTHS.length, failed === 0 ? `${measured} widths ${WIDTHS[0]}-${WIDTHS[WIDTHS.length - 1]}` : `${failed} of ${measured} widths; first: ${first}`)
     check(`${label} @${scale}x: the daily-tail pick really read a daily cell (non-vacuity)`, sawDaily === measured, `${sawDaily}/${measured}`)
   }
   console.log(`      worst movement: ${worst.d.toFixed(2)}px at ${worst.at || 'n/a'}; worst ink overflow: ${inkWorst.over.toFixed(2)}px at ${inkWorst.at || 'n/a'}`)
