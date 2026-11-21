@@ -62,7 +62,8 @@ Unlike phases 1 and 2, this changes the shipped app and its native dependencies.
   - a prototype-named State/Province cell no longer takes down Statistics, and only a real subdivision code becomes a link (`25608818`);
   - the bar-chart reader builds each name in one piece, 320 MB to 25 MB on a 14 MB file, which also retires the last flaky speed row's residual (`b1e71586`).
 - **Five unused declarations removed** (frontend and backend), byte-identical bundle.
-- **A macOS job** runs all 140 Rust tests on GitHub; it needs no frontend build (measured).
+- **The opener and process grants narrowed** to what the page calls: `opener:allow-open-url` and `opener:allow-default-urls` in place of `opener:default` (whose unused `reveal_item_in_dir` let page script test whether a file exists), and no `process:allow-exit`. Probed in the running debug app against a control build first; a guard row holds the set.
+- **A macOS job** runs all 140 Rust tests on GitHub on Rust 1.96.1 (read from the Android pins); it needs no frontend build (measured).
 
 ### How to test
 1. `cd src-tauri && cargo test --locked` (140 pass) and `cargo tree -i tao --target aarch64-apple-ios` (the vendored path).
@@ -73,5 +74,5 @@ Unlike phases 1 and 2, this changes the shipped app and its native dependencies.
 ### Notes for reviewer
 - **The bundle changes, and every moved byte is accounted for** (engineering-log.md, Phase 3, H): the intended code in six chunks, minifier re-lettering, and one shared chunk renamed by Rollup; no CSS, `index.html` or entry-chunk byte moved.
 - **Deviation from a review's remediation:** `25608818`'s write-up named `isRegionCode` for the links, which is the US county shape and would have dropped every real state link. The gate is the ISO 3166-2 subdivision shape, checked against every value in the stored backup.
-- **Not done, and flagged:** narrowing `opener:default` (whose unused `reveal_item_in_dir` is a file-existence oracle for page script on Mac and Windows) and dropping the unused `process:allow-exit`. The brief allows either only on a probe of the running app, which this phase did not run. The probe is written down.
+- **The capability narrowing was probed on the Mac only.** The ACL is resolved from the same JSON on every desktop target, so the refusals carry to Windows; the Windows relaunch and its link opening are not shown here (engineering-log.md, Phase 3, I). The Windows workflow compiles the narrowed files.
 - **Still open, same family as `c5fa8455`:** `howManyStr`, `comments`, `obsDt` and a region-info name are not type-normalized on either twin.

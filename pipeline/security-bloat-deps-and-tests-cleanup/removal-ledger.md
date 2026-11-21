@@ -59,6 +59,7 @@ The bar is the brief's for code: no caller by import or by string (dynamic `impo
 | `WeatherSectionIcon` and its `CloudSun` import | `frontend/src/components/WeatherStatsSection.tsx` | Its last caller was removed earlier; the guards reading the file check other things; `lib/weatherDisplay.ts`'s comment citing it was reworded | `8e2966a4` |
 | `BreedingFilterSet` | `frontend/src/types.ts` | An unused type alias since v0.0.23 | `8e2966a4` |
 | `COMBINED_ATTRIBUTION` | `backend/formatters/tide.py` | Unused since 0.5.17; only the TypeScript twin composes the combined block; no test reads the file | `8e2966a4` |
+| `opener:default` (in place: `opener:allow-open-url` and `opener:allow-default-urls`) and `process:allow-exit` | `src-tauri/capabilities/default.json`, `desktop.json` | No caller of `reveal_item_in_dir` or `process\|exit`, by string, import or the bundle; no guard pinned the grants; no published claim. Probed in the running debug app against a control build: each refused leg reads as the ACL's refusal where the control reached the plugin or exited, and `open_url`, its three callers and `relaunch()` work unchanged (engineering-log.md, Phase 3, I) | `19eb72c8` |
 
 After `8e2966a4` the production build was byte-identical to `main`'s over all 190 files; pytest 2,080, ruff, eslint and typecheck clean.
 
@@ -75,7 +76,6 @@ After `8e2966a4` the production build was byte-identical to `main`'s over all 19
 | All 40 backend routes | vulture and a path map | 31 have a literal caller; the file routes are reached through `storage.ts`, `/settings/map-defaults` through `/settings/${key}`, `/health` by its tests and the Vite proxy |
 | Every crate in `src-tauri/Cargo.toml` | grep | All used |
 | `allow(dead_code)` in `alerts.rs` and `widgets.rs`, and on `BG_TASK_ID` | grep | iOS-only modules compiled for host `cargo test`; the constant is read by `alertsPaths.parity.test.ts` |
-| `opener:default` (its `reveal_item_in_dir` member) and `process:allow-exit` | capability read | Neither has a caller, and `reveal_item_in_dir` is a file-existence oracle for page script on Mac and Windows, but the brief allows narrowing only on a real probe of the running app, not run in this phase. The narrowing and the four-leg probe are written in engineering-log.md, Phase 3, E. Flagged |
 | `core:webview:allow-set-webview-zoom`, `core:default` | | Kept by the brief (ACCESSIBILITY.md's zoom promise; `core:default` out of scope) |
 
 ### Test rows added or repaired in phase 3
@@ -88,4 +88,5 @@ After `8e2966a4` the production build was byte-identical to `main`'s over all 19
 | `frontend/src/lib/atRouteServices.test.ts`, `backend/tests/test_checklist_provenance_parity.py` | weather lookup: four refused ids and a control, each side | Red with each side's weather gate removed |
 | `frontend/src/lib/regionNames.test.ts`, `frontend/src/components/BirdingStatsPrototypeNames.test.tsx` | prototype-named State/Province cells; the subnational shape; the Statistics render | Red with the bare-key read, and with either pair of link gates reverted |
 | `frontend/src/lib/barChart/parseBarChart.test.ts` | the `tidy` oracle over fixtures and a corpus; the source pin | Pin red on the previous `tidy`; corpus red on two wrong rewrites |
+| `frontend/src/lib/tauriHttpScope.test.ts` | the opener and process grants are exactly the three the page uses | Red with `opener:default` restored, with reveal or exit added back, with another opener member added, and with the restart grant dropped |
 | `frontend/src/lib/barChart/parseBarChart.test.ts` | names at 512 and 513 characters (comment only) | Its residual is retired by the code change; limit and inputs untouched |
