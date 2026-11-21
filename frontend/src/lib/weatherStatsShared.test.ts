@@ -366,7 +366,8 @@ describe('the one new scan over export text is linear by construction', () => {
     // took ~4.7 s on an idle dev machine when this budget was set, which is ~6%
     // under vitest's 5 s default, and the Pipeline job shares a runner with a
     // concurrent backend job, so 1.0.32 turned `main` red here on a run whose
-    // ratios were fine. The sampled form above costs about the same.
+    // ratios were fine. The sampled form above costs more (the file took
+    // 4.0 s against 2.7 s on the dev Mac, one worker), well inside it.
     // Same family as `.claude/rules/testing.md`'s note that a 3x floor measured
     // 2.79 with a parallel build on the machine: a timing test's WALL CLOCK is
     // a fact about the machine, its RATIO is the fact about the code.
