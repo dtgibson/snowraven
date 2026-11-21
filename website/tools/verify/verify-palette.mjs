@@ -72,11 +72,17 @@ async function run(engine, launcher, url) {
   // layer that was listening for it before this feature existed.
   // `dismissWelcome` presses that same real Escape, but only once the layer's
   // listener is armed, which happens a few ms after the dialog paints.
+  //
+  // Every run here is a cold start, so the screen MUST appear. This used to
+  // count it once and skip the row when the count was 0, so a screen that
+  // painted a moment late skipped FR-50 and the run still passed (idea
+  // 337b21d6). It now waits for the screen, bounded, and fails when it never
+  // comes.
   const welcome = page.getByRole('dialog', { name: 'Welcome to SnowRaven' })
-  if (await welcome.count()) {
-    await dismissWelcome(welcome)
-    record(engine, 'Escape still dismisses a shipped overlay while the palette is closed (FR-50)', true)
-  }
+  const appeared = await welcome.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)
+  if (appeared) await dismissWelcome(welcome)
+  record(engine, 'Escape still dismisses a shipped overlay while the palette is closed (FR-50)', appeared,
+    appeared ? '' : 'the Welcome screen never appeared on a cold start')
 
   // ── QA-01 / QA-45: both chords, on every engine ──────────────────────────
   for (const [label, key] of [['Meta+K', 'Meta+k'], ['Control+K', 'Control+k']]) {
