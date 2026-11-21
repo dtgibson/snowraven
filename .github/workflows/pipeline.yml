@@ -80,7 +80,14 @@ jobs:
       # workers repeatedly starved unrelated files into timeouts and late-effect
       # assertions even though every failed file passed when rerun. Serialize
       # files so worker contention cannot become the thing this gate measures.
+      #
+      # SR_SKIP_LOCAL_ONLY_TIMING skips the speed-ratio rows that cannot read
+      # steadily on these runners (frontend/src/test/localOnlyTiming.ts says
+      # which bar they missed; each file says which of its rows still run
+      # here). Every local full suite runs them.
       - run: npm run test -- --maxWorkers=1
+        env:
+          SR_SKIP_LOCAL_ONLY_TIMING: '1'
       - run: npm run build
 
       # The real-engine verification gate. Playwright is declared in

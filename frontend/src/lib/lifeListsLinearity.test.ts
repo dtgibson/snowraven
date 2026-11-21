@@ -45,11 +45,39 @@
 // the limit. It runs at 2k and 20k rows, because at 10N it would not finish.
 // A capped replica over 1,000 rows runs first, so a hang cannot sit behind the
 // timeout (testing.md v1.0.33).
+//
+// WHERE THESE ROWS RUN (security-bloat-deps-and-tests-cleanup, D-05). Every
+// quotient row here, and both mutant rows, runs in the local full suite only,
+// behind src/test/localOnlyTiming.ts's switch, with its legs, inputs and limits
+// unchanged. The capped replica and the 150,000-row bound (structural counts)
+// still run on GitHub. The bar was applied in its order. A WORK COUNT cannot
+// reach the defect: the plausible wrong implementation, this file's own
+// mutants, is a hand-written search over a collection the pass builds itself,
+// which no counter outside the module sees, and the passes carry no counter
+// (adding one would change the shipped bundle). A CPU QUOTIENT does not hold
+// on GitHub's runners: in 24 of the 25 failing runs from 2026-11-09 to
+// 2026-11-20 (Node 20) they read pass 1 at 20.3 to 26.1 against 20, pass 1R at
+// 25.6 to 32.4 against 25.5, and pass 2R at 20.7 to 45.2 against 20, where this
+// Mac reads about 12.5 and the quadratic about 99: the live-set residual above,
+// on hardware whose caches are shared with other jobs, reaching half the
+// defect's own reading. Measured on this Mac at a load average of about 2
+// (2026-11-20, three runs each), Node 20 reproduces that pattern (pass 1 17.2
+// to 20.4, pass 1R up to 28.2, two runs of three red), and Node 24, which CI
+// runs since it began following `.nvmrc`, reads the same rows steadily but no
+// further than 1.35x to 1.9x under their limits on every every-row-its-own-key
+// leg (pass 1 10.7 to 11.1, pass 1R 13.3 to 14.1, pass 2R 12.6 to 14.8), which
+// is not margin (testing.md v0.5.84) before any runner adds its share. The
+// method is measuring: a leg timed against itself read 0.94 to 1.09, so the
+// residual is the engine's, and the v1.0.74 form (25 rounds of about 100 ms
+// samples) read that control no tighter (0.91 to 1.02) at 3 to 7 s a pair,
+// which for the file's twenty quotient measurements (sixteen rows, and two in
+// each mutant row) is at least 100 s a run against 28 s for the whole file.
 
 import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
 import { bestPerCallCpuMs } from '../test/cpuTiming'
+import { LOCAL_ONLY, SKIP_LOCAL_ONLY_TIMING } from '../test/localOnlyTiming'
 import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
 import {
   deriveFirstAssets, deriveFirstSightings, selectRows, dayKey, minuteOf12h,
@@ -179,94 +207,96 @@ describe('the Life Lists derivation is linear in rows (NFR-01, QA-44)', { timeou
     expect(r.choices.total).toBe(2_001)
   })
 
-  for (const distinct of [true, false]) {
-    const leg = distinct ? 'every row its own species' : '200 species repeated'
+  describe.skipIf(SKIP_LOCAL_ONLY_TIMING)(`the CPU-time quotients ${LOCAL_ONLY}`, () => {
+    for (const distinct of [true, false]) {
+      const leg = distinct ? 'every row its own species' : '200 species repeated'
 
-    it(`pass 1 (first sightings), ${leg}`, () => {
-      const small = backup(N, distinct), large = backup(10 * N, distinct)
-      expect(quotient(() => deriveFirstSightings(small), () => deriveFirstSightings(large))).toBeLessThanOrEqual(LIMIT)
-    })
+      it(`pass 1 (first sightings), ${leg}`, () => {
+        const small = backup(N, distinct), large = backup(10 * N, distinct)
+        expect(quotient(() => deriveFirstSightings(small), () => deriveFirstSightings(large))).toBeLessThanOrEqual(LIMIT)
+      })
 
-    it(`pass 2 (first assets), ${leg}`, () => {
-      const small = mlExport(N, distinct), large = mlExport(10 * N, distinct)
-      expect(quotient(() => deriveFirstAssets(small), () => deriveFirstAssets(large))).toBeLessThanOrEqual(LIMIT)
-    })
+      it(`pass 2 (first assets), ${leg}`, () => {
+        const small = mlExport(N, distinct), large = mlExport(10 * N, distinct)
+        expect(quotient(() => deriveFirstAssets(small), () => deriveFirstAssets(large))).toBeLessThanOrEqual(LIMIT)
+      })
 
-    it(`pass 3 (the shown list, a media selection), ${leg}`, () => {
-      const fs = deriveFirstSightings(backup(PASS3_N, distinct)), fl = deriveFirstSightings(backup(10 * PASS3_N, distinct))
-      const as = deriveFirstAssets(mlExport(PASS3_N, distinct)), al = deriveFirstAssets(mlExport(10 * PASS3_N, distinct))
-      const c = { includeEscapees: false, includeExotics: false, formats: new Set<MediaFormat>(['Photo']) }
-      // Pass 3 sorts its output, so its expectation is S log S, not linear: the
-      // limit is the house 2x over THAT, derived from the rows each leg actually
-      // sorts (about 29 on the distinct leg; the repeated leg, where S does not
-      // grow, keeps the flat 20). A nested loop or a quadratic sort reads about
-      // 100 and fails it.
-      const ns = selectRows(fs, as, NONE, c).length, nl = selectRows(fl, al, NONE, c).length
-      const limit = distinct ? 2 * (nl / ns) * (Math.log2(nl) / Math.log2(ns)) : LIMIT
-      expect(limit).toBeLessThanOrEqual(30)
-      expect(quotient(() => selectRows(fs, as, NONE, c), () => selectRows(fl, al, NONE, c))).toBeLessThanOrEqual(limit)
-    })
-  }
-
-  for (const distinct of [true, false]) {
-    for (const shape of ['pairs', 'counties20'] as const) {
-      const leg = `${distinct ? 'every row its own species' : '200 species repeated'}, ${shape === 'pairs' ? 'every row its own (state, county)' : '20 counties in 4 states'}`
-
-      const n = shape === 'pairs' ? PAIRS_N : N
-
-      it(`pass 1R (the region index), ${leg}`, () => {
-        const small = backup(n, distinct, shape), large = backup(10 * n, distinct, shape)
-        // Pass 1 warms the species-name memos first, as the load effect does.
-        deriveFirstSightings(small); deriveFirstSightings(large)
-        const cs = choiceCount(small), cl = choiceCount(large)
-        const limit = cl > cs ? sortLimit(cs, cl) : LIMIT
+      it(`pass 3 (the shown list, a media selection), ${leg}`, () => {
+        const fs = deriveFirstSightings(backup(PASS3_N, distinct)), fl = deriveFirstSightings(backup(10 * PASS3_N, distinct))
+        const as = deriveFirstAssets(mlExport(PASS3_N, distinct)), al = deriveFirstAssets(mlExport(10 * PASS3_N, distinct))
+        const c = { includeEscapees: false, includeExotics: false, formats: new Set<MediaFormat>(['Photo']) }
+        // Pass 3 sorts its output, so its expectation is S log S, not linear: the
+        // limit is the house 2x over THAT, derived from the rows each leg actually
+        // sorts (about 29 on the distinct leg; the repeated leg, where S does not
+        // grow, keeps the flat 20). A nested loop or a quadratic sort reads about
+        // 100 and fails it.
+        const ns = selectRows(fs, as, NONE, c).length, nl = selectRows(fl, al, NONE, c).length
+        const limit = distinct ? 2 * (nl / ns) * (Math.log2(nl) / Math.log2(ns)) : LIMIT
         expect(limit).toBeLessThanOrEqual(30)
-        expect(quotient(() => deriveRegionIndex(small), () => deriveRegionIndex(large))).toBeLessThanOrEqual(limit)
-      })
-
-      it(`pass 2R (the region assets), ${leg}`, () => {
-        const js = deriveRegionIndex(backup(n, distinct, shape)).join, jl = deriveRegionIndex(backup(10 * n, distinct, shape)).join
-        const small = mlExport(n, distinct), large = mlExport(10 * n, distinct)
-        // Non-vacuity: every asset joins, so the per-key path runs at volume.
-        expect(js.size).toBe(n)
-        expect(jl.has(large[10 * n - 1].checklistId)).toBe(true)
-        expect(quotient(() => deriveRegionAssets(small, js), () => deriveRegionAssets(large, jl))).toBeLessThanOrEqual(LIMIT)
+        expect(quotient(() => selectRows(fs, as, NONE, c), () => selectRows(fl, al, NONE, c))).toBeLessThanOrEqual(limit)
       })
     }
-  }
 
-  it('a region press (the materializers plus pass 3), 500 and 5,000 regional species', () => {
-    const os = backup(PASS3_N, true, 'counties20'), ol = backup(10 * PASS3_N, true, 'counties20')
-    const ms = mlExport(PASS3_N, true), mll = mlExport(10 * PASS3_N, true)
-    const is = deriveRegionIndex(os), il = deriveRegionIndex(ol)
-    const as = deriveRegionAssets(ms, is.join), al = deriveRegionAssets(mll, il.join)
-    const ws = deriveFirstAssets(ms), wl = deriveFirstAssets(mll)
-    const us: RegionRef = { level: 'country', code: 'US' }
-    const c = { includeEscapees: false, includeExotics: false, formats: new Set<MediaFormat>(['Photo']) }
-    const press = (idx: typeof is, a: typeof as, o: ObservationEntry[], m: MLExportRow[], w: typeof ws) =>
-      selectRows(regionFirsts(idx, us, o)!, regionAssets(a, us, m), NONE, c, w)
-    const ns = press(is, as, os, ms, ws).length, nl = press(il, al, ol, mll, wl).length
-    expect(ns).toBeGreaterThan(100)
-    const limit = sortLimit(ns, nl)
-    expect(limit).toBeLessThanOrEqual(30)
-    const { perCall } = bestPerCallCpuMs([() => press(is, as, os, ms, ws), () => press(il, al, ol, mll, wl)], { rounds: ROUNDS })
-    // The small leg sits above the quotient's floor, so the asserted quotient
-    // is the raw one (testing.md v1.0.63).
-    expect(perCall[0]).toBeGreaterThan(0.05)
-    expect(perCall[1] / perCall[0]).toBeLessThanOrEqual(limit)
-  })
+    for (const distinct of [true, false]) {
+      for (const shape of ['pairs', 'counties20'] as const) {
+        const leg = `${distinct ? 'every row its own species' : '200 species repeated'}, ${shape === 'pairs' ? 'every row its own (state, county)' : '20 counties in 4 states'}`
 
-  it('the choice build sorts in C log C, 500 and 5,000 choices', () => {
-    const tiers = (n: number): RegionTiers<SpeciesSlots> => {
-      const states = new Map<string, SpeciesSlots>()
-      for (let i = 0; i < n; i++) states.set(['US-', String((i * 7919) % (n * 3))].join(''), new Map())
-      return { countries: new Map(), states, counties: new Map() }
+        const n = shape === 'pairs' ? PAIRS_N : N
+
+        it(`pass 1R (the region index), ${leg}`, () => {
+          const small = backup(n, distinct, shape), large = backup(10 * n, distinct, shape)
+          // Pass 1 warms the species-name memos first, as the load effect does.
+          deriveFirstSightings(small); deriveFirstSightings(large)
+          const cs = choiceCount(small), cl = choiceCount(large)
+          const limit = cl > cs ? sortLimit(cs, cl) : LIMIT
+          expect(limit).toBeLessThanOrEqual(30)
+          expect(quotient(() => deriveRegionIndex(small), () => deriveRegionIndex(large))).toBeLessThanOrEqual(limit)
+        })
+
+        it(`pass 2R (the region assets), ${leg}`, () => {
+          const js = deriveRegionIndex(backup(n, distinct, shape)).join, jl = deriveRegionIndex(backup(10 * n, distinct, shape)).join
+          const small = mlExport(n, distinct), large = mlExport(10 * n, distinct)
+          // Non-vacuity: every asset joins, so the per-key path runs at volume.
+          expect(js.size).toBe(n)
+          expect(jl.has(large[10 * n - 1].checklistId)).toBe(true)
+          expect(quotient(() => deriveRegionAssets(small, js), () => deriveRegionAssets(large, jl))).toBeLessThanOrEqual(LIMIT)
+        })
+      }
     }
-    const ts = tiers(500), tl = tiers(5_000)
-    expect(buildRegionChoices(ts).total).toBe(500)
-    const { perCall } = bestPerCallCpuMs([() => buildRegionChoices(ts), () => buildRegionChoices(tl)], { rounds: ROUNDS })
-    expect(perCall[0]).toBeGreaterThan(0.05)
-    expect(perCall[1] / perCall[0]).toBeLessThanOrEqual(sortLimit(500, 5_000))
+
+    it('a region press (the materializers plus pass 3), 500 and 5,000 regional species', () => {
+      const os = backup(PASS3_N, true, 'counties20'), ol = backup(10 * PASS3_N, true, 'counties20')
+      const ms = mlExport(PASS3_N, true), mll = mlExport(10 * PASS3_N, true)
+      const is = deriveRegionIndex(os), il = deriveRegionIndex(ol)
+      const as = deriveRegionAssets(ms, is.join), al = deriveRegionAssets(mll, il.join)
+      const ws = deriveFirstAssets(ms), wl = deriveFirstAssets(mll)
+      const us: RegionRef = { level: 'country', code: 'US' }
+      const c = { includeEscapees: false, includeExotics: false, formats: new Set<MediaFormat>(['Photo']) }
+      const press = (idx: typeof is, a: typeof as, o: ObservationEntry[], m: MLExportRow[], w: typeof ws) =>
+        selectRows(regionFirsts(idx, us, o)!, regionAssets(a, us, m), NONE, c, w)
+      const ns = press(is, as, os, ms, ws).length, nl = press(il, al, ol, mll, wl).length
+      expect(ns).toBeGreaterThan(100)
+      const limit = sortLimit(ns, nl)
+      expect(limit).toBeLessThanOrEqual(30)
+      const { perCall } = bestPerCallCpuMs([() => press(is, as, os, ms, ws), () => press(il, al, ol, mll, wl)], { rounds: ROUNDS })
+      // The small leg sits above the quotient's floor, so the asserted quotient
+      // is the raw one (testing.md v1.0.63).
+      expect(perCall[0]).toBeGreaterThan(0.05)
+      expect(perCall[1] / perCall[0]).toBeLessThanOrEqual(limit)
+    })
+
+    it('the choice build sorts in C log C, 500 and 5,000 choices', () => {
+      const tiers = (n: number): RegionTiers<SpeciesSlots> => {
+        const states = new Map<string, SpeciesSlots>()
+        for (let i = 0; i < n; i++) states.set(['US-', String((i * 7919) % (n * 3))].join(''), new Map())
+        return { countries: new Map(), states, counties: new Map() }
+      }
+      const ts = tiers(500), tl = tiers(5_000)
+      expect(buildRegionChoices(ts).total).toBe(500)
+      const { perCall } = bestPerCallCpuMs([() => buildRegionChoices(ts), () => buildRegionChoices(tl)], { rounds: ROUNDS })
+      expect(perCall[0]).toBeGreaterThan(0.05)
+      expect(perCall[1] / perCall[0]).toBeLessThanOrEqual(sortLimit(500, 5_000))
+    })
   })
 
   it('the bound holds at the cap: 150,000 rows, each its own (state, county), derive at most 3 x 150,000 choices (NFR-02, QA-32)', () => {
@@ -286,18 +316,20 @@ describe('the Life Lists derivation is linear in rows (NFR-01, QA-44)', { timeou
     expect(slots).toBeLessThanOrEqual(3 * rows)
   })
 
-  it('the region guard can go red: the linear-search mutant of pass 1R exceeds the limit', () => {
-    const small = backup(MUTANT_N, true, 'counties20'), large = backup(10 * MUTANT_N, true, 'counties20')
-    expect(mutantRegionIndex(small).get('US')).toHaveLength(MUTANT_N)
-    expect(quotient(() => mutantRegionIndex(small), () => mutantRegionIndex(large))).toBeGreaterThan(LIMIT)
-    expect(quotient(() => deriveRegionIndex(small), () => deriveRegionIndex(large))).toBeLessThanOrEqual(LIMIT)
-  })
+  describe.skipIf(SKIP_LOCAL_ONLY_TIMING)(`the quotients can go red ${LOCAL_ONLY}`, () => {
+    it('the region guard can go red: the linear-search mutant of pass 1R exceeds the limit', () => {
+      const small = backup(MUTANT_N, true, 'counties20'), large = backup(10 * MUTANT_N, true, 'counties20')
+      expect(mutantRegionIndex(small).get('US')).toHaveLength(MUTANT_N)
+      expect(quotient(() => mutantRegionIndex(small), () => mutantRegionIndex(large))).toBeGreaterThan(LIMIT)
+      expect(quotient(() => deriveRegionIndex(small), () => deriveRegionIndex(large))).toBeLessThanOrEqual(LIMIT)
+    })
 
-  it('the guard can go red: the linear-search mutant exceeds the limit on the distinct leg', () => {
-    const small = backup(MUTANT_N, true), large = backup(10 * MUTANT_N, true)
-    expect(mutantFirstSightings(small)).toHaveLength(MUTANT_N)
-    expect(quotient(() => mutantFirstSightings(small), () => mutantFirstSightings(large))).toBeGreaterThan(LIMIT)
-    // And the shipped pass, through the same procedure at the same sizes, does not.
-    expect(quotient(() => deriveFirstSightings(small), () => deriveFirstSightings(large))).toBeLessThanOrEqual(LIMIT)
+    it('the guard can go red: the linear-search mutant exceeds the limit on the distinct leg', () => {
+      const small = backup(MUTANT_N, true), large = backup(10 * MUTANT_N, true)
+      expect(mutantFirstSightings(small)).toHaveLength(MUTANT_N)
+      expect(quotient(() => mutantFirstSightings(small), () => mutantFirstSightings(large))).toBeGreaterThan(LIMIT)
+      // And the shipped pass, through the same procedure at the same sizes, does not.
+      expect(quotient(() => deriveFirstSightings(small), () => deriveFirstSightings(large))).toBeLessThanOrEqual(LIMIT)
+    })
   })
 })
