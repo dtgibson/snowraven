@@ -602,6 +602,8 @@ describe('the live region\'s announcement rate is bounded (Auditor finding 4)', 
     responses.set('S0', [{ speciesCode: 'c-sp0', exoticCategory: 'N' }])
     render(<Harness index={buildCoverIndex(rows, codeFor)} />)
     await waitFor(() => expect(kind()).toBe('complete'))
+    // Every emission, the last included: its effect can run after that commit.
+    await waitFor(() => expect(emissions().at(-1)?.kind).toBe('complete'))
     const seqs = emissions().map(a => a.seq)
     expect(new Set(seqs).size).toBe(seqs.length)
     expect(seqs).toEqual([...seqs].sort((a, b) => a - b))
@@ -772,7 +774,7 @@ describe('a species eBird answered without settles instead of re-opening every l
     expect(kind()).toBe('complete')
     // The paced re-ask shows its progress as any pass does, and the line
     // never reads unfinished: no partial, no "not checked".
-    expect(emissions().map(a => a.kind)).toEqual(['in-progress', 'complete'])
+    await waitFor(() => expect(emissions().map(a => a.kind)).toEqual(['in-progress', 'complete']))
     // Life Lists read complete on the 31-day-old stamp before the re-ask, at
     // every snapshot during it, and after it (D-04 holds: nothing is open).
     expect(watch.readings.length).toBeGreaterThanOrEqual(2)
@@ -782,7 +784,9 @@ describe('a species eBird answered without settles instead of re-opening every l
     await nextSession(expired)
     await waitFor(() => expect(settledNames()).toBe('Muscovy Duck'))
     expect(requested).toHaveLength(1)
-    expect(emissions().map(a => a.kind)).toEqual(['complete'])
+    // The emission is pushed by the harness's passive effect, which can run
+    // after the commit the wait above resolved on (GitHub, 2026-11-20).
+    await waitFor(() => expect(emissions().map(a => a.kind)).toEqual(['complete']))
   })
 
   it('with no stamp the heal re-opens as before, and the answer stamps and settles it', async () => {
@@ -906,7 +910,10 @@ describe('a species eBird answered without settles instead of re-opening every l
     render(<Harness index={alone} />)
     await waitFor(() => expect(settledNames()).toBe('Eurasian Skylark'))
     expect(requested).toEqual([])
-    expect(emissions().map(a => a.kind)).toEqual(['complete'])
+    // The emission is pushed by the harness's passive effect, which can run
+    // after the commit the wait above resolved on: GitHub read [] here once
+    // (run 44857230539).
+    await waitFor(() => expect(emissions().map(a => a.kind)).toEqual(['complete']))
   })
 
   it('a failed answer stamps nothing, so the next load asks again', async () => {
