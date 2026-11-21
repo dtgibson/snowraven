@@ -124,6 +124,18 @@ jobs:
       - name: Install Chromium and WebKit
         working-directory: website/tools
         run: npx playwright install --with-deps chromium webkit
+      # The app bundles no font: its stack is 'Inter', system-ui, 'Segoe UI',
+      # Roboto, sans-serif (globals.css), so every harness that measures text
+      # measures this machine's resolution of it. With nothing installed the
+      # runner falls back to a DejaVu-metric face, wider than the face any
+      # shipped platform resolves (SF on Apple, Segoe UI on Windows, Roboto on
+      # Android, each measured passing), and verify-hotspot-reports.mjs's
+      # tile-label row went red here on that alone (security-bloat-deps-and-
+      # tests-cleanup, phase 2). Installing the stack's first family makes the
+      # gate measure a face the app names; Inter passes as the others do. The
+      # Hotspot Reports harness prints the face it measured.
+      - name: Install the face the app's font stack names first
+        run: sudo apt-get install -y --no-install-recommends fonts-inter
       - name: Real-engine verification gate
         working-directory: website/tools
         run: npm run verify -- ../../frontend/dist

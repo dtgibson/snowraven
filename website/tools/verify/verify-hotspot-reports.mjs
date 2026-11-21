@@ -278,6 +278,22 @@ async function openStress(page) {
 
 const settle = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
 
+/** The face a tile label actually rendered in: Chromium's own answer through
+ *  CDP. WebKit has no such call here, so it reports the stack it was given. */
+async function labelFace(page) {
+  let cdp
+  try { cdp = await page.context().newCDPSession(page) } catch {
+    return `stack ${await page.evaluate(() => getComputedStyle(document.querySelector('.sr-hsr-tiles dt')).fontFamily)}`
+  }
+  try {
+    await cdp.send('DOM.enable'); await cdp.send('CSS.enable')
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1 })
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '.sr-hsr-tiles dt' })
+    const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId })
+    return fonts.map(f => `${f.familyName}${f.isCustomFont ? ' (web font)' : ''}`).join(', ')
+  } finally { await cdp.detach() }
+}
+
 const t = await thresholds()
 console.log(`built thresholds: report ${t.report}em, list ${t.list}em (mode: expect-${MODE})`)
 const NEUTER = MODE === 'broken' ? `${FORCE_WIDE_LIST} ${FORCE_TWO_COL}` : ''
@@ -382,6 +398,11 @@ try {
             }
           }
           console.log(`MEASURE ${name} glance ${scale * 100}% ${JSON.stringify(firstAt)} worst ink ${worstGlance}px`)
+          // Which face the labels were measured in. The app bundles no font, so
+          // a reading over text is a reading of the machine's resolution of the
+          // stack as much as of the build (security-bloat-deps-and-tests-cleanup:
+          // the runner resolved a wider face than any shipped platform).
+          if (scale === 1) console.log(`MEASURE ${name} face ${await labelFace(page)}`)
           check(`${name} ${scale * 100}% At a glance: no ink past a tile, a fact or the card across every track change`, worstGlance <= 0.5, `worst ${worstGlance}px`)
           check(`${name} ${scale * 100}% every tile label is one line wherever the tiles are two or more across`, labelBad === 0, `${labelBad} configurations wrapped a label`)
           check(`${name} ${scale * 100}% every fact's term and value sit side by side wherever the facts are two across`, sideBad === 0, `${sideBad} configurations stacked a fact`)
