@@ -18,9 +18,10 @@ concurrency:
 # frontend job now installs a third-party dependency tree and downloads and
 # executes two browser engines, and the bound on that should be visible to
 # whoever reads this file rather than living in a setting outside the repo that
-# could be flipped to "read and write" with no diff here. Nothing in either job
-# writes: checkout reads, npm and pip install from public registries with no
-# token, and the gate only runs code. If a future step needs more, add it to
+# could be flipped to "read and write" with no diff here. Nothing in any job
+# writes: checkout reads, npm, pip and cargo install from public registries with
+# no token, the Rust cache uses Actions' own cache service, and the gate only
+# runs code. If a future step needs more, add it to
 # that step rather than widening this.
 permissions:
   contents: read
@@ -159,3 +160,39 @@ jobs:
       - run: pip install ruff==0.15.20 pytest==9.1.1
       - run: ruff check .
       - run: pytest
+
+  native:
+    name: Native — cargo test (macOS)
+    # Every Rust test under src-tauri, on a Mac, because a Linux job would run
+    # only 76 of the 140: icloud.rs, whose 64 rows hold the regular-file, size
+    # and symlink guards on container reads, is cfg(macos or ios) and compiles
+    # nowhere else (security-bloat-deps-and-tests-cleanup D-07). Reversal: if
+    # this job does not read steady across that run's three consecutive green
+    # runs, it comes back out and the user is told.
+    runs-on: macos-latest
+    # Measured on the dev Mac: a cold `cargo test --locked -j 3` (a macOS
+    # runner's core count) compiled 353 crates and ran the 140 rows in 80 s
+    # wall, 201 s CPU. 30 minutes covers that build several times over on a
+    # slower runner, plus the crate download, the toolchain install and the
+    # cache upload, and still ends a hung job long before the frontend job's 90.
+    # The first runs on the pull request give the runner's own times.
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # The same two pins as windows-build.yml. The pin freezes the action's
+      # code, not the toolchain: like the Windows build, this installs whatever
+      # stable Rust is current when the job runs.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable (2026-11-15), the branch head; its action.yml defaults toolchain to stable
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+      # No frontend build and no placeholder: a debug build with `devUrl` set
+      # embeds no assets, so `generate_context!` never reads `frontendDist`
+      # (tauri-codegen 2.6.2, context.rs). Measured on the dev Mac with
+      # frontend/dist absent and the crate rebuilt: 140 of 140.
+      - run: cargo test --locked
