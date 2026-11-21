@@ -21,7 +21,6 @@ export interface MediaFilterState {
   video: MediaDimensionState
 }
 export const MEDIA_FILTER_CLEAR: MediaFilterState = { photo: null, audio: null, video: null }
-export type BreedingFilterSet = Set<string>
 export type SortOrder = 'taxonomic' | 'alpha'
 export type NameSortMode = 'az' | 'taxonomic'
 export type SortColumn = 'name' | 'photo' | 'audio' | 'video' | 'total'

@@ -13,8 +13,6 @@ const WEEKDAYS_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
 export type DateFormatPref = 'month-first' | 'day-first' | 'iso'
 
-export const DATE_FORMAT_PREFS: DateFormatPref[] = ['month-first', 'day-first', 'iso']
-
 // Module-level current preference. Call sites use `formatDate(value)` without
 // threading the pref; App sets it once on load (and on change) via
 // setDateFormatPref. Default is month-first.

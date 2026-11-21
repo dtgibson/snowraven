@@ -52,8 +52,6 @@ export const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 export const BACKEND_DOWN_MESSAGE =
   "Can't reach the SnowRaven server. Make sure it's running, then try again.";
 
-export const BACKEND_DOWN_MESSAGE_SHORT = "Can't reach the SnowRaven server.";
-
 /**
  * TRUE only on web/self-hosted (Pi) AND when the device reports connectivity
  * (`navigator.onLine === true`). In that case a connection-level failure is the

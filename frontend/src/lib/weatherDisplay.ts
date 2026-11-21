@@ -10,8 +10,7 @@
 //
 // A `.ts` RATHER THAN THE `.tsx` IT CAME FROM, deliberately: these are data and
 // a pure helper, and a non-component export from a `.tsx` trips
-// `react-refresh/only-export-components`, which is build-blocking in this repo
-// (the shipped `WeatherSectionIcon` comment records exactly that).
+// `react-refresh/only-export-components`, which is build-blocking in this repo.
 //
 // Entry-safe: its only import is a TYPE import, erased at build and invisible to
 // `entryChunk.test.ts`'s walker.

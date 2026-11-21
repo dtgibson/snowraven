@@ -34,7 +34,7 @@
 
 import { Button } from './ui/Button'
 import { useMemo, useState } from 'react'
-import { ArrowRight, CloudSun, Moon, Sun } from 'lucide-react'
+import { ArrowRight, Moon, Sun } from 'lucide-react'
 import { BirdName } from './BirdName'
 import { SpeciesCombobox } from './SpeciesCombobox'
 import { WeatherSpeciesRow } from './WeatherSpeciesRow'
@@ -523,11 +523,4 @@ export function WeatherStatsSection({
       )}
     </>
   )
-}
-
-/** The card icon. A COMPONENT rather than a bare JSX constant: a non-component
- *  export from a `.tsx` file trips `react-refresh/only-export-components`, which
- *  is build-blocking here. */
-export function WeatherSectionIcon() {
-  return <CloudSun size={16} />
 }
