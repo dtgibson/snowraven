@@ -33,7 +33,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { bestPerCallCpuMs } from '../../test/cpuTiming'
 import {
-  parseBarChart, splitNameCell, _parseBarChartWithIterationCapForTests,
+  parseBarChart, splitNameCell, _parseBarChartWithIterationCapForTests, _tidyForTests,
   MAX_PREAMBLE_LINES, MAX_LINE_CHARS, PERIODS, MAX_NUMERIC_TOKEN, MAX_NAME_CELL, MAX_RAW_NAME_CELL,
   MAX_SAMPLE_SIZE, MAX_TAXA_ROWS,
   type BarChartFile,
@@ -436,23 +436,21 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
    * time 2.00 to 2.19 batched against 1.99 to 2.01 call by call (three trials
    * each, load about 120).
    *
-   * THE ONE KNOWN RESIDUAL is that shape's LARGE leg, left on purpose. The
-   * parser's `tidy()` builds each kept name by `+=`, so the parse holds every
-   * 512-character name as a long chain of string pieces until it returns (a
-   * 14 MB file of 20,000 such names keeps 350 MB alive, 41 MB once the names
-   * are read), and the collector's share of the 4 MB parse is larger than its
-   * share of the 2 MB one, by an amount that depends on the heap's state when
-   * each call starts. So this one reading spreads under every clock: 2.18 to
-   * 2.82 across three plain full-suite runs where no other leg in this file
-   * read above 2.20, and over 3.2 in one plain full-suite run (3.37), in 1 of
-   * 10 full-suite runs beside a second looping suite (3.21), and in 1 of 20
-   * runs of this file beside two (3.39). The wall clock spreads it at least as
-   * far (up to 3.72 beside one looping suite, on the same samples where CPU
-   * time read at most 2.90). More rounds did not help, a held heap ballast and
-   * an untimed call before each sample made it worse, and a forced collection
-   * before each sample made it steady at 4.0 to 4.6. The limit and the inputs
-   * stay. What would retire it is building the name in one piece in `tidy()`
-   * (parseBarChart.ts), which is application code and a separate change.
+   * THE ONE KNOWN RESIDUAL WAS that shape's LARGE leg, and it is retired
+   * (idea b1e71586, security-bloat-deps-and-tests-cleanup). The parser's
+   * `tidy()` used to build each kept name by `+=`, so the parse held every
+   * 512-character name as a long chain of string pieces (a 14 MB file of
+   * 20,000 such names kept 320 MB with the text released), and the
+   * collector's share of the 4 MB parse was larger than its share of the 2 MB
+   * one, by an amount that depended on the heap's state when each call
+   * started: 2.18 to 2.82 across three plain full-suite runs, and over 3.2 in
+   * 1 of 10 to 1 of 20 runs under extra load. `tidy()` now builds each name in
+   * one piece (24.6 MB kept for the same file), and this file run alone, six
+   * times each at a load of about 2, read the large leg at 2.19 to 2.23 with
+   * it against 2.65 to 2.89 with the previous `tidy()` on the same runs. The
+   * limit and the inputs did not change. If a later change keeps more per
+   * name, this leg is the one that will spread first, so it keeps its CPU
+   * clock and its limit.
    */
   function assertLinear(
     make: (n: number) => string, legs: readonly [number, number][], run: (text: string) => unknown, floor: number,
@@ -568,4 +566,70 @@ describe('linear in the input over the hostile shapes (schema.md 9.2 and 10)', (
     const huge = 'x'.repeat(40_000_000)
     expect(_parseBarChartWithIterationCapForTests(huge, 3)).toEqual({ ok: false, reason: 'no-sample-size' })
   }, 60_000)
+})
+
+describe('each kept name is built in one piece (idea b1e71586)', () => {
+  // THE ORACLE: `tidy` and `isWs` exactly as they shipped through 1.0.74,
+  // copied verbatim with only the names changed (checked by diffing against
+  // `git show` of the previous parseBarChart.ts). The rewrite must give the
+  // same code units for every input; what it changes is how they are held.
+  function previousIsWs(c: number): boolean {
+    // Space, tab, CR, LF, and the NBSP eBird's HTML-sourced cells can carry.
+    return c === 32 || c === 9 || c === 13 || c === 10 || c === 0xa0 || c === 0xfeff
+  }
+  function previousTidy(text: string): string {
+    let out = ''
+    let pendingSpace = false
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i)
+      if (previousIsWs(c)) { if (out.length > 0) pendingSpace = true; continue }
+      if (pendingSpace) { out += ' '; pendingSpace = false }
+      out += text[i]
+    }
+    return out
+  }
+
+  it('gives the same text as the previous tidy for every cell of both fixtures', () => {
+    let cells = 0
+    for (const text of [SAMPLE, SYNTHETIC]) {
+      for (const line of text.split('\n')) {
+        for (const cell of line.split('\t')) { expect(_tidyForTests(cell)).toBe(previousTidy(cell)); cells++ }
+      }
+    }
+    expect(cells).toBeGreaterThan(1_000)
+  })
+
+  it('gives the same text as the previous tidy over a generated corpus, across the chunk boundary', () => {
+    // Every whitespace the tidier knows, text around it, a two-unit character,
+    // and lengths from empty to past TIDY_CHUNK (8,192) and its double.
+    const ALPHABET = [' ', '\t', '\r', '\n', '\u00a0', '\ufeff', 'a', 'Z', '-', "'", '&', '<', '\u00e9', '\u{1F426}']
+    let seed = 0x5eed
+    const next = () => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return seed }
+    const make = (len: number) => Array.from({ length: len }, () => ALPHABET[next() % ALPHABET.length]).join('')
+    const lengths = [...Array.from({ length: 3_000 }, (_, i) => i % 48), 2_048, 2_049, 8_191, 8_192, 8_193, 16_385, 20_000]
+    let longest = 0
+    for (const len of lengths) {
+      const text = make(len)
+      expect(_tidyForTests(text), `length ${len}`).toBe(previousTidy(text))
+      longest = Math.max(longest, previousTidy(text).length)
+    }
+    expect(longest).toBeGreaterThan(16_384) // the multi-chunk path really ran
+    for (const edge of ['', ' ', '\t\n', 'a', ' a ', 'a  b', '\ufeffa\u00a0\u00a0b\r\n']) {
+      expect(_tidyForTests(edge), JSON.stringify(edge)).toBe(previousTidy(edge))
+    }
+  })
+
+  it('builds no name by += of a character and returns no slice of its input (source pin, comments stripped)', () => {
+    // Equivalence cannot see this: both spellings give the same text. What
+    // differs is retention, so the spelling itself is pinned.
+    const src = readFileSync(new URL('./parseBarChart.ts', import.meta.url), 'utf8')
+    const start = src.indexOf('function tidy(')
+    const end = src.indexOf('export const _tidyForTests')
+    expect(start).toBeGreaterThan(0)
+    expect(end).toBeGreaterThan(start)
+    const code = src.slice(start, end).split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n')
+    expect(code).toContain('String.fromCharCode')
+    expect(code).not.toMatch(/\+=\s*(text\[|' '|ch\b)/)
+    expect(code).not.toMatch(/\.(slice|substring|substr)\(/)
+  })
 })

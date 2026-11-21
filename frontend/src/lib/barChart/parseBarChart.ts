@@ -225,18 +225,46 @@ function stripTags(text: string): string {
   return out
 }
 
-/** Collapse runs of whitespace to single spaces and trim, in one pass. */
+/** Kept code units for `tidy`, reused across calls and grown on demand. */
+let tidyBuf = new Uint16Array(MAX_RAW_NAME_CELL)
+/** Code units per `String.fromCharCode` call, well inside every engine's
+ *  argument limit; a cell that reaches `tidy` is under MAX_RAW_NAME_CELL, so
+ *  this is one call in practice. */
+const TIDY_CHUNK = 8_192
+
+/**
+ * Collapse runs of whitespace to single spaces and trim, in one pass.
+ *
+ * The result is built IN ONE PIECE (idea b1e71586): the kept code units go into
+ * a reused buffer and become one flat string through `String.fromCharCode`.
+ * Never `out += ch`, which held each kept name as a chain of one-character
+ * pieces until it was read (a 14 MB file of 20,000 512-character names kept
+ * 350 MB alive, 41 MB once read), and never a slice of the input, which is
+ * itself a slice of the whole file text and would keep the file alive (the
+ * retention rule in .claude/rules/testing.md, v1.0.13). parseBarChart.test.ts
+ * pins both spellings out of this function and holds the output equal to the
+ * previous implementation over the fixtures and a generated corpus.
+ */
 function tidy(text: string): string {
-  let out = ''
+  if (tidyBuf.length < text.length) tidyBuf = new Uint16Array(text.length)
+  const buf = tidyBuf
+  let n = 0
   let pendingSpace = false
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i)
-    if (isWs(c)) { if (out.length > 0) pendingSpace = true; continue }
-    if (pendingSpace) { out += ' '; pendingSpace = false }
-    out += text[i]
+    if (isWs(c)) { if (n > 0) pendingSpace = true; continue }
+    if (pendingSpace) { buf[n++] = 32; pendingSpace = false }
+    buf[n++] = c
+  }
+  let out = ''
+  for (let i = 0; i < n; i += TIDY_CHUNK) {
+    out += String.fromCharCode.apply(null, buf.subarray(i, Math.min(n, i + TIDY_CHUNK)) as unknown as number[])
   }
   return out
 }
+
+/** The name tidier itself, for the oracle row in parseBarChart.test.ts. */
+export const _tidyForTests = tidy
 
 /**
  * Split a species row's name cell into the common name and, in the current
