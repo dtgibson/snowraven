@@ -385,10 +385,14 @@ describe('mapFullscreenClass', () => {
 // over-read: it admits a selector when every class in each compound is on the
 // element (rightmost compound) or somewhere on its ancestor chain (the others),
 // so it does not distinguish a child from a descendant combinator, and it reads
-// `:not(.x)` only as "the element does not carry .x". Whether the rules work in
-// an engine is the Tester's real-browser reading.
+// `:not(.x)` only as "the element does not carry .x". An attribute selector in
+// an ANCESTOR compound (`:root[data-sr-fs-open] .sr-navbar`) is read as a token
+// the ancestors must list (`[data-sr-fs-open]`), and a subject compound naming a
+// pseudo-element (`*::before`) is not the element. The reduced-motion block is
+// collected as its own tier and only `resolvedTransition` below reads it.
+// Whether the rules work in an engine is the Tester's real-browser reading.
 
-interface FlatRule { selector: string; body: string; tier: 'top' | 'phone'; order: number }
+interface FlatRule { selector: string; body: string; tier: 'top' | 'phone' | 'motion'; order: number }
 
 function flatRules(): FlatRule[] {
   const src = CSS.replace(/\/\*[\s\S]*?\*\//g, m => ' '.repeat(m.length))
@@ -407,6 +411,7 @@ function flatRules(): FlatRule[] {
       const body = text.slice(i + 1, end - 1)
       if (prelude.startsWith('@')) {
         if (tier === 'top' && /^@media \(max-width: ?640px\)$/.test(prelude)) walk(body, 'phone')
+        else if (tier === 'top' && /^@media \(prefers-reduced-motion: ?reduce\)$/.test(prelude)) walk(body, 'motion')
       } else if (tier) {
         for (const one of splitList(prelude)) out.push({ selector: one, body, tier, order: order++ })
       }
@@ -421,11 +426,14 @@ const FLAT = flatRules()
 
 const classesIn = (compound: string) => [...compound.matchAll(/(?<!:not\()\.([-\w]+)/g)].map(m => m[1])
 const notClassesIn = (compound: string) => [...compound.matchAll(/:not\(\.([-\w]+)\)/g)].map(m => m[1])
+const attrsIn = (compound: string) => [...compound.matchAll(/(?<!:not\()\[([^\]]+)\]/g)].map(m => `[${m[1]}]`)
 
 /** Whether `selector` can match an element with `own` classes under `ancestors`. */
 function admits(selector: string, own: string[], ancestors: string[]): boolean {
   const compounds = compoundsOf(selector)
   const last = compounds[compounds.length - 1]
+  // A pseudo-element is a different box from the element asked about.
+  if (last.includes('::')) return false
   // A type selector in the subject compound (`... button`, `... svg`) names an
   // element these rows never model, and a state pseudo-class is not the resting
   // value being asked about.
@@ -434,20 +442,81 @@ function admits(selector: string, own: string[], ancestors: string[]): boolean {
   if (/:(hover|focus|focus-visible|focus-within|active|disabled|checked|empty)\b/.test(last)) return false
   if (!classesIn(last).every(c => own.includes(c))) return false
   if (notClassesIn(last).some(c => own.includes(c))) return false
-  const up = compounds.slice(0, -1).flatMap(classesIn)
-  return up.every(c => ancestors.includes(c))
+  const up = compounds.slice(0, -1)
+  return up.flatMap(classesIn).every(c => ancestors.includes(c)) && up.flatMap(attrsIn).every(a => ancestors.includes(a))
 }
+
+const rank = ([a, b, c]: [number, number, number]) => a * 1e6 + b * 1e3 + c
 
 /** The winning value of `prop` on the element, at the phone tier or above it. */
 function resolved(prop: string, own: string[], ancestors: string[], phone: boolean): string | undefined {
-  const rank = ([a, b, c]: [number, number, number]) => a * 1e6 + b * 1e3 + c
   let win: { value: string; spec: number; order: number } | undefined
   for (const r of FLAT) {
-    if (!phone && r.tier === 'phone') continue
+    if (r.tier === 'motion' || (!phone && r.tier === 'phone')) continue
     const value = decl(`;${r.body}`, prop)
     if (value === undefined || !admits(r.selector, own, ancestors)) continue
     const spec = rank(specificity(r.selector))
     if (!win || spec > win.spec || (spec === win.spec && r.order > win.order)) win = { value, spec, order: r.order }
+  }
+  return win?.value
+}
+
+/** Split at top-level commas (a `cubic-bezier(a, b, c, d)` keeps its own). */
+function topLevelParts(value: string, sep: RegExp): string[] {
+  const out: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of value) {
+    if (ch === '(') depth++
+    else if (ch === ')') depth--
+    if (depth === 0 && sep.test(ch)) { if (cur.trim()) out.push(cur.trim()); cur = '' } else cur += ch
+  }
+  if (cur.trim()) out.push(cur.trim())
+  return out
+}
+const TIME = /^-?[\d.]+m?s$/
+const EASING = /^(ease|ease-in|ease-out|ease-in-out|linear|step-start|step-end|steps\(.*\)|cubic-bezier\(.*\)|linear\(.*\)|allow-discrete|normal)$/
+
+/** The `transition-property` and `transition-duration` a `transition` shorthand
+ *  sets: every longhand, the omitted ones at their initial values (`all`, `0s`). */
+function transitionLonghands(shorthand: string): Record<'transition-property' | 'transition-duration', string> {
+  const parts = topLevelParts(shorthand, /,/).map(p => topLevelParts(p, /\s/))
+  return {
+    'transition-property': parts.map(t => t.find(x => !TIME.test(x) && !EASING.test(x)) ?? 'all').join(', '),
+    'transition-duration': parts.map(t => t.find(x => TIME.test(x)) ?? '0s').join(', '),
+  }
+}
+
+/**
+ * The winning TRANSITION longhand on the element, the reduced-motion block in or
+ * out: `!important` beats every normal declaration, a `transition` shorthand
+ * sets both longhands, and within one rule the later declaration wins. Written
+ * for the bar's hide (QA round 1, F-2), whose defect lived exactly in that
+ * interplay: a near-zero `!important` duration from the block on `*`, and no
+ * `transition-property` anywhere, so the initial `all` took `visibility` in.
+ * `undefined` means no rule declares it: the initial value (`all`, `0s`).
+ */
+function resolvedTransition(
+  longhand: 'transition-property' | 'transition-duration', own: string[], ancestors: string[],
+  { phone, motion }: { phone: boolean; motion: boolean },
+): string | undefined {
+  let win: { value: string; key: [number, number, number] } | undefined
+  for (const r of FLAT) {
+    if ((r.tier === 'phone' && !phone) || (r.tier === 'motion' && !motion)) continue
+    if (!admits(r.selector, own, ancestors)) continue
+    let value: string | undefined
+    for (const m of `;${r.body}`.matchAll(/(?:^|[;{]|\n)\s*(transition(?:-property|-duration)?)\s*:\s*([^;}]+)/g)) {
+      const v = m[2].trim()
+      if (m[1] === longhand) value = v
+      else if (m[1] === 'transition') {
+        const important = /!important$/.test(v)
+        value = transitionLonghands(v.replace(/\s*!important$/, ''))[longhand] + (important ? ' !important' : '')
+      }
+    }
+    if (value === undefined) continue
+    const key: [number, number, number] = [/!important$/.test(value) ? 1 : 0, rank(specificity(r.selector)), r.order]
+    const beats = !win || key[0] > win.key[0] || (key[0] === win.key[0] && (key[1] > win.key[1] || (key[1] === win.key[1] && key[2] > win.key[2])))
+    if (beats) win = { value, key }
   }
   return win?.value
 }
@@ -468,6 +537,33 @@ describe('the bar while a panel is expanded (D-07)', () => {
   it('does not hide the bar any other way, so it keeps its box and --sr-navbar-h stands', () => {
     expect(decl(rule(`:root[${FS_OPEN_ATTR}] .sr-navbar`), 'display')).toBeUndefined()
   })
+
+  // QA round 1, F-2: in WebKit with reduced motion the bar showed over the panel
+  // for the first frame, because the hide was a `visibility` transition there.
+  const OPEN = `[${FS_OPEN_ATTR}]`
+  it('the reduced-motion block reaches the bar, which is what turns an untouched hide into a transition', () => {
+    // The guard is only meaningful if the resolver reads the block: its
+    // `!important` near-zero duration wins on the bar, open or not.
+    for (const ancestors of [[], [OPEN], ['sr-android-app', OPEN]]) {
+      expect(resolvedTransition('transition-duration', ['sr-navbar'], ancestors, { phone: true, motion: true })).toBe('0.001ms !important')
+    }
+    // And with the attribute absent the bar keeps what it had: every property
+    // under the block on the web and iOS bars (no rule names one, so `all`), the
+    // Android bar's own `transform`, which its keyboard slide uses.
+    expect(resolvedTransition('transition-property', ['sr-navbar'], [], { phone: true, motion: true })).toBeUndefined()
+    expect(resolvedTransition('transition-property', ['sr-navbar'], ['sr-ios-app'], { phone: true, motion: true })).toBeUndefined()
+    expect(resolvedTransition('transition-property', ['sr-navbar'], ['sr-android-app'], { phone: true, motion: true })).toBe('transform')
+  })
+
+  it.each([[[]], [['sr-ios-app']], [['sr-android-app']]])(
+    'while a panel is open nothing on the bar transitions, in every motion setting (%j)',
+    app => {
+      for (const motion of [true, false]) for (const phone of [true, false]) {
+        expect(resolvedTransition('transition-property', ['sr-navbar'], [...app, OPEN], { phone, motion }), `motion ${motion}, phone ${phone}`).toBe('none')
+        expect(resolved('visibility', ['sr-navbar'], [...app, OPEN], phone)).toBe('hidden')
+      }
+    },
+  )
 })
 
 describe('the still on the phone tier (D-08)', () => {
@@ -552,6 +648,23 @@ describe('the exit and the corner row while expanded on the phone tier (D-10)', 
     for (const row of [['sr-map-corner-row'], ['sr-map-corner-row', 'sr-map-corner-row--compact']]) {
       expect(resolved('bottom', row, [...app, ...PANEL], true), row.join(' ')).toBe(bottom)
     }
+  })
+
+  it.each([
+    [['sr-ios-app'], 'env(safe-area-inset-bottom, 0px)'],
+    [['sr-android-app'], 'var(--sr-inset-bottom, 0px)'],
+  ])('in the apps the credits rise by the same bottom inset the row adds, and nowhere else (%j; QA round 1, F-4)', (app, inset) => {
+    const CREDITS = ['maplibregl-ctrl-bottom-left']
+    expect(resolved('bottom', CREDITS, [...app, ...PANEL], true)).toBe(inset)
+    // The row's lift carries the same term, so the gap between them is the
+    // no-inset gap whatever the inset is.
+    expect(resolved('bottom', ['sr-map-corner-row'], [...app, ...PANEL], true)).toBe(`calc(20px + 3rem + ${inset})`)
+    // Not in the page, not above the tier (HEAD), not in the Map Explorer's own
+    // panel (D-30), and not on the web: maplibre's own `bottom: 0` stands.
+    expect(resolved('bottom', CREDITS, [...app, 'sr-map-container'], true)).toBeUndefined()
+    expect(resolved('bottom', CREDITS, [...app, ...PANEL], false)).toBeUndefined()
+    expect(resolved('bottom', CREDITS, [...app, 'sr-map-fullscreen-panel'], true)).toBeUndefined()
+    expect(resolved('bottom', CREDITS, PANEL, true)).toBeUndefined()
   })
 
   it('above the tier the row keeps HEAD\'s offsets', () => {

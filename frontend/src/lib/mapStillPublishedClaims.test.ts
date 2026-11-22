@@ -75,7 +75,9 @@ describe('docs/HELP.md: Maps on a phone', () => {
   it('"the tab bar is hidden while a map is open" is the stylesheet rule keyed on the hook\'s attribute', () => {
     expect(para).toContain('The tab bar at the bottom is hidden while a map is open.')
     const stripped = CSS.replace(/\/\*[\s\S]*?\*\//g, '')
-    expect(stripped).toMatch(new RegExp(String.raw`:root\[${FS_OPEN_ATTR}\] \.sr-navbar \{ visibility: hidden; \}`))
+    // The rule also carries `transition-property: none` since QA round 1 (F-2);
+    // the claim is about the hide, so the row reads that declaration alone.
+    expect(stripped).toMatch(new RegExp(String.raw`:root\[${FS_OPEN_ATTR}\] \.sr-navbar \{[^}]*\bvisibility: hidden;[^}]*\}`))
   })
 
   it('the Weather, Hotspot Reports and Map Explorer passages carry their phone sentences', () => {

@@ -7434,6 +7434,18 @@ select:focus-visible {
   .sr-ios-app .sr-map-fs-panel .sr-map-corner-row--compact { bottom: calc(20px + 3rem + env(safe-area-inset-bottom, 0px)); }
   .sr-android-app .sr-map-fs-panel .sr-map-corner-row,
   .sr-android-app .sr-map-fs-panel .sr-map-corner-row--compact { bottom: calc(20px + 3rem + var(--sr-inset-bottom, 0px)); }
+  /* THE CREDITS TAKE THE SAME BOTTOM INSET in the apps (QA round 1, F-4; this
+     reverses D-27). The panel pads no bottom, so the credits end at maplibre's
+     10px margin from the window's bottom edge: any bottom inset over 10px covers
+     them, the iPhone home indicator's 34px included (measured with a 34px
+     Android inset: all 24px of them, the "i" too, inside the band). The group
+     moves up by exactly the inset the row above moves by, so the gap between
+     them is the no-inset gap. Three classes deep, so each beats
+     maplibre-gl.css's (0,1,0) `bottom: 0`, which loads later. The Map
+     Explorer's own panel is `.sr-map-fullscreen-panel` and is NOT given this:
+     lifted, its credits run under its button cluster (D-30). */
+  .sr-ios-app .sr-map-fs-panel .maplibregl-ctrl-bottom-left { bottom: env(safe-area-inset-bottom, 0px); }
+  .sr-android-app .sr-map-fs-panel .maplibregl-ctrl-bottom-left { bottom: var(--sr-inset-bottom, 0px); }
 
   /* THE MAP EXPLORER'S FLOOR on this tier is 300px on every platform (D-14;
      it was 340px outside the iPhone app). At 320 x 568 the window leaves 305px
@@ -8860,8 +8872,16 @@ select:focus-visible {
    there is no bar there is nothing to hide. NO DESCENDANT MAY SET
    `visibility: visible`, which would undo it for that descendant
    (navCss.test.ts). The Map Explorer's own fullscreen keeps its shipped
-   mechanism (App.tsx does not render the bar). */
-:root[data-sr-fs-open] .sr-navbar { visibility: hidden; }
+   mechanism (App.tsx does not render the bar).
+   THE HIDE IS INSTANT IN EVERY MOTION SETTING (QA round 1, F-2): the global
+   reduced-motion block gives every element `transition-duration: 0.001ms
+   !important` and leaves `transition-property` at its initial `all`, which made
+   this hide a `visibility` transition, and WebKit paints a transition's start
+   value (`visible`) for one frame, so the bar showed over the panel for a frame
+   on open. `transition-property: none` here out-ranks the Android bar's
+   `transition: transform` and is untouched by that block, which sets only the
+   duration; mapFullscreenPanelCss.test.ts resolves it with the block in. */
+:root[data-sr-fs-open] .sr-navbar { visibility: hidden; transition-property: none; }
 
 /* THE FIELD BEFORE A LIST OPENS (map-scroll-on-phones D-15). When the room
    under a field is short of what its list wants, lib/useListFit.ts brings the
