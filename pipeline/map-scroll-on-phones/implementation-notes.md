@@ -153,3 +153,47 @@ The Tester's round 1 returned F-1 to F-4 plus three items for the live look (`qa
 - A page offset kept across a class swap that takes an element out of the flow is recorded in the event path, before the state update; a passive effect reads the offset the engine has already clamped (F-1).
 - A double tap that opens a surface is recognised by a window anchored on the opening press's own point and event time, never by `MouseEvent.detail`, which WebKit reports as 1 for the second tap; a keyboard activation (`detail: 0`) opens no window (D-31).
 - A measurement that depends on the Android insets also observes `<html>`'s `style` attribute, where MainActivity.kt writes them; observing `<body>`'s border box instead would re-trigger on the measurement's own result (D-33).
+
+## Round 2 errand (2026-11-22, hands-off)
+
+The orchestrator routed one item from the Tester's round 2 (D-35): in an expanded embedded map on the phone tier, the zoom control covered part of the base map switcher. Decision D-36 has the measurements, the choice of bound and what would reverse it. Probe scripts and readings are in the session scratchpad's `errand/`: `zs.mjs` is the probe, `run.sh` and `above.sh` the matrices, `summ.mjs` and `abovesumm.mjs` the summaries, `mut.py` the mutation harness, and `side-by-side-320-200.png` the before-and-after picture.
+
+### What changed
+
+- **`frontend/src/globals.css` line 7475**, in the established phone block straight after the expanded credits rules: `.sr-map-fs-panel .sr-map-layers { max-width: calc(100% - 8px - 10px - 29px - 2px) !important; }`.
+  - The switcher's box stops at the zoom group's painted edge, ring included. The bound binds only where the two would otherwise meet.
+  - `!important` out-ranks the switcher's inline `max-width` in `SnowMap.tsx` (line 232).
+  - The built CSS shows it as `calc(100% - 49px)!important`, inside `@media (width<=640px)`.
+- **`frontend/src/lib/mapFullscreenPanelCss.test.ts`**, four rows (line 691):
+  - the resolved value at the expanded panel on the tier, in both hosts;
+  - its terms against `SnowMap.tsx` and `maplibre-gl.css`;
+  - where it must not resolve;
+  - that the tier resizes no switcher control.
+- Nothing else. No component, hook, token or script, and no app-class twin: `100%` is the map's width, which already excludes a side inset.
+
+### Verification record
+
+- **Built-app probe.** The tip `0bbdfd96` (pre-fix) and the fixed build, each built and served by its own scratch backend on 18991 and 18992, against identical copies of the demo data (7,869 rows, asserted in the page). Playwright Chromium and WebKit; a fresh browser context per configuration, opened by the opener.
+  - **Switcher hosts.** Species Detail Pins and Heatmap and Statistics, at 12 widths from 320 to 640 px and four text scales (288 configurations per build).
+    - Before: 18 of 288 overlapped, all at 200% and 320 to 360 px (worst 31.0% of "Map" at 320 px, 75% of the Trails checkbox at 340 px in WebKit).
+    - After: 0 of 288 by rectangle and 0 covered device px by pixel sampling (noise 0), every control hit-tested whole.
+    - Exactly those 18 moved; none of the 270 that already cleared did.
+    - Control heights are unchanged in every row. Zoom, the corner row, the credits and every on-map control are unchanged in 311 of 312; the 312th was a pre-fix timing reading, and its re-run is identical.
+  - **Hosts with no switcher.** Weather and Hotspot Reports are identical in 16 of 16.
+  - **Above 640 px.** 641, 900 and 1280 px, 100% and 200%, by the corner toggle: geometry identical in 24 of 24; frames pixel-identical in 21 of 24, and the other three are WebKit at 1280 px, inside that engine's same-build variance.
+- **Guard rows.** 3 of the 4 new rows were red on the pre-fix stylesheet, run before the rule existed. Seven mutations went red, and an equivalent spelling stayed green (D-36).
+- **Full `npx vitest run`**, default parallelism, nothing else compiling: 527 files passed, 5 skipped; 11,688 tests passed, 9 skipped, 0 failed (11,697, the Tester's 11,693 plus these 4).
+- **`npm run build`:** exit 0, twice, the same CSS hash; `vendor-maplibre` absent from `dist/index.html`. Built CSS against the pre-fix build: exactly one rule added, and the utilities layer is identical (82 rules), so no comment or test word minted a utility.
+- **`npm run lint`:** exit 0, 0 problems. `weft-design-lint` is not installed on this Mac, so it was not run. The diff's added lines hold no non-ASCII character.
+- **Requests and cleanup.** Every eBird- and third-party-backed path was answered in the browser and counted (2,208 stubbed). The two backends served 48,378 and 44,143 requests, none on an eBird-backed path. No key was written or read. Both servers are stopped and no Playwright browser is left running.
+- **Page errors.** WebKit only, in similar numbers in both builds: the "ResizeObserver loop completed with undelivered notifications" message of D-34 and D-35, raised here by the probe's text-scale change.
+
+### Not changed
+
+- **The Map Explorer's own fullscreen** carries the identical overlap at 320 x 568 and 200%. It is outside this errand, and its fix needs a measurement against the Search this area fit, which reads the switcher's box. Exact fix in D-36.
+- **The switcher's controls are 28px tall** (the Trails label 20px, the checkbox 12 to 13px) at every text scale, before and after, because they inherit maplibre's `line-height: 20px`. The brief's 44px condition does not hold at HEAD or in the mockup, and raising them is a design change.
+
+### Convention Flags
+
+- A stylesheet rule that must beat a React inline style on a map control carries `!important`, and its guard reads the inline competitor from the component source, so lifting the inline style turns the guard red rather than leaving a needless flag (D-36).
+- A bound computed from a vendor's control geometry is guarded by reading that geometry from the vendor's own stylesheet in node_modules, so a maplibre upgrade that resizes the control turns the row red (maps.md v1.0.5's rule, made mechanical).

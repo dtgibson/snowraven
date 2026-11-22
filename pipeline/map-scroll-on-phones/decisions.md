@@ -91,3 +91,49 @@ The Tester's round 1 (`qa-report.md`) returned F-1 to F-4 and three items for th
   - **Accepted: in the app-class models at 320 x 568 and 100% text the Map Explorer is a still, not a live map with no page scroll.** The panel reads 1 px under its 300 px floor once the bar's true height is published (D-34). The done line allows either form; the smallest current iPhone is wider and taller than this size. Reversal: a device or simulator reading on a current phone shows a still at 100% text; the fix is the floor in `.sr-map-explorer-panel`'s phone rule.
   - **Not acted on: WebKit's "ResizeObserver loop completed with undelivered notifications" when the Android inset lands with the Map Explorer showing** (8 of 8 in the WebKit model at 390 x 844). Evidence: no value is stale and nothing moves after the next frame; Android's engine is Chromium, not WebKit, so the model that shows it is a pairing no shipped app has; HEAD logs the same message on a text-scale change on the Map Explorer in both engines (6 of 6 and 4 of 4) and this build no longer does; and the launch frame in `frontend/index.html` listens for window errors and ignores this message by name. Two statements in D-34 are corrected by this entry: HEAD logs it on the Map Explorer only, not on every tab, and the launch frame does listen for window errors. Reversal: the message is seen in Chromium with the Android class, or a stale `--sr-navbar-h` is ever read after it; the fix is writing the property from a `requestAnimationFrame` in `useNavBarHeight` (`frontend/src/components/TabNav.tsx`), at the cost of one frame.
   - **Noted for the user's live look, not changed:** D-31's guard ignores a deliberate tap within 500 ms and 100 px of the press that opened the Weather picker; D-30's Map Explorer fullscreen credits; D-32's Targets chooser under the keyboard at 320 x 568 and 200%.
+
+## The Engineer's round 2 errand (2026-11-22, hands-off)
+
+- **D-36. In an expanded embedded map on the phone tier the base map switcher is bounded clear of the zoom control, at the zoom group's painted edge, and nowhere else.**
+  - **Measured before** (the tip `0bbdfd96`, built and served from scratch; Playwright Chromium and WebKit; Species Detail Pins and Heatmap and Statistics, the three hosts that draw a switcher; 12 widths from 320 to 640 px; 100%, 125%, 150% and 200% text; opened by the opener; 288 configurations). The zoom control covered a switcher control in **18 of 288**, all at 200% and at 320, 340 and 360 px, on every host in both engines:
+    - 320 px: 31.0% of "Map" and 11.9% of "Topo (US)" by rectangle; 893 and 697 device px by pixel sampling in Chromium, 888 and 662 in WebKit.
+    - 340 px: 30% of "Map" and 73.1% (Chromium) or 75% (WebKit) of the Trails checkbox.
+    - 360 px: slivers (0.4% to 0.5% of "Map", 1.7% to 2.1% of the checkbox).
+    - Every other configuration: 0.
+  - **The cause.** The switcher is anchored 8px from the map's right edge by an inline style in `SnowMap.tsx` (line 232), capped by an inline `max-width: calc(100vw - 16px)`, and wraps as text grows. Its max-content width is 214.3, 242.0, 269.2 and 323.3px at the four scales, identical to a tenth of a pixel in both engines. maplibre draws zoom 10px from the left edge, 29px wide, with a 2px ring, all in px, so zoom does not grow with text: measured 29 x 58 at x 10 at every scale.
+  - **What changed.** `frontend/src/globals.css` line 7475, in the established phone block straight after the expanded credits rules: `.sr-map-fs-panel .sr-map-layers { max-width: calc(100% - 8px - 10px - 29px - 2px) !important; }`.
+    - The terms are the switcher's right offset, maplibre's control margin, the zoom button width and its ring.
+    - `100%` is the map's width, so a side inset in the apps is already out of it, and no app-class twin is needed.
+    - `!important` because the competitor is the inline `max-width` (1,0,0), which no class rule out-ranks without it.
+    - px rather than rem because the zoom group the bound clears is px; the switcher's own growth is its wrapping.
+    - No component, hook, token or script changed.
+  - **Why the ring's edge and not the mockup's `100% - 57px`.** The brief asks that nothing move where the two already clear each other. The bound at the ring's outer edge binds exactly where the switcher would otherwise reach the zoom's paint.
+    - The mockup's 8px gap would also re-wrap two configurations that cleared: 320 px at 150%, whose box is 1.77px clear of the ring, and 375 to 380 px at 200%, 2.7px clear.
+    - Where it binds, the switcher's box now starts at the ring's outer edge, 2px from the zoom group's box. The buttons and checkbox sit 10px further in, inside the switcher's padding.
+  - **Measured after** (the same probe, the same 288 configurations, the fixed build).
+    - **Overlap.** 0 of 288 by rectangle, with zoom's box and its ring both tested. 0 covered device px by pixel sampling: zoom hidden against shown, with a repeat frame as the noise control, which read 0 px.
+    - **Hit testing.** Every switcher control is hit-tested whole at its centre and four corners in 288 of 288. Before the fix, 18 were not.
+    - **What moved.** Exactly the 18 that overlapped. **0 of the 270 that already cleared.**
+    - **Neighbors.** Control heights are identical before and after in 312 of 312 rows. Zoom, the corner row, the credits and every on-map control are identical in 311 of 312. The 312th was a pre-fix reading taken before maplibre had drawn the credits, and it re-reads identical.
+    - **Hosts with no switcher.** Weather and Hotspot Reports have none and are identical in 16 of 16 (both engines, 320 x 568 and 390 x 844, 100% and 200%).
+    - **Above 640 px.** At 641, 900 and 1280 px, 100% and 200%, expanded by the corner toggle: the computed `max-width` and every rect are identical in 24 of 24, and whole frames are pixel-identical in 21 of 24. The three that differ are WebKit at 1280 px, where the same build differs from itself across sessions by 1,708 to 4,275 px; fix against pre falls inside that range on a re-run, and Statistics re-reads 0.
+    - **Built CSS.** Exactly one rule added, inside `@media (width<=640px)`, and the utilities layer is identical.
+  - **Not changed, and why.**
+    - **(1) The Map Explorer's own fullscreen has the identical overlap** at 320 x 568 and 200%: 31.0% of "Map" and 11.9% of "Topo (US)", in both engines.
+      - Its panel is `.sr-map-fullscreen-panel`, which the brief keeps untouched. Its switcher is also read by `lib/useSearchControlFit.ts` (`SWITCHER_SELECTOR`) for the Search this area fit, so a taller wrapped switcher there is a reading that has to be measured, not assumed (maps.md v0.5.91, rule (b)).
+      - The exact fix is the same declaration under `.sr-map-fullscreen-panel .sr-map-layers` in the same block, measured against the cluster and the top-centre anchor at all four text scales.
+      - The Map Explorer's live in-page map at 340 and 360 px and 200% was not measured.
+    - **(2) The switcher's controls are not 44px tall at any text scale, before or after.**
+      - The buttons measure 28px, the Trails label 20px, and the checkbox 13px (Chromium) or 12px (WebKit), at 100% and 200% alike, because they inherit maplibre's `.maplibregl-map { line-height: 20px }`. At 200% their 24px text sits in a 20px line box.
+      - The mockup draws them the same size. The brief's "at least 44 CSS px tall at 100% (doubling at 200%)" therefore does not hold at HEAD, and this change leaves every height exactly as it was.
+      - Raising them is a design change that would move every configuration, so it is for The Designer or the user, not this errand.
+  - **Guard.** `mapFullscreenPanelCss.test.ts`, four rows under "the base map switcher while expanded on the phone tier (D-36)" (line 691):
+    - The resolved `max-width` at the expanded panel on the tier, in both hosts, carries `!important`, with the inline competitor read from `SnowMap.tsx`.
+    - Its four terms equal the inline `right` and the margin, button width and ring read from `maplibre-gl.css`.
+    - It resolves nowhere above the tier, in the page, on a still, or in the Map Explorer's panel.
+    - The only phone-tier rules naming the switcher are this one and the still's hide, and this one declares `max-width` alone.
+    - **Red first:** 3 of the 4 rows failed on the pre-fix stylesheet; the fourth is a must-stay-green row. Seven mutations went red (no `!important`; unscoped from the panel; widened to the Map Explorer's panel; the ring term dropped; a wrong margin term; a resize added; the rule moved to top level), and the same rule respelled stayed green. The stylesheet was restored by hash after each.
+  - **Reversal.**
+    - The Designer or the user prefers the mockup's 8px gap: write the bound as `calc(100% - 57px)`, accepting the re-wrap at 320 px and 150% and at 375 to 380 px and 200%.
+    - maplibre changes its zoom geometry: the second guard row goes red and the terms move with it.
+    - The switcher's inline style is lifted to its class: the first row says so, and the `!important` can go.
