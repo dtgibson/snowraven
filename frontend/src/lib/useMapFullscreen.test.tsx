@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useMapFullscreen, MAP_FS_PANEL_CLASS, MAP_STILL_CLASS, FS_OPEN_ATTR, MapTabShowingProvider } from './useMapFullscreen'
 import { useFocusTrap } from './useFocusTrap'
 import { FsOpenRow } from '../components/ui/FsOpenRow'
@@ -629,10 +629,19 @@ function PhoneHost({ tab = true, label }: { tab?: boolean; label?: string }) {
   return <MapTabShowingProvider value={tab}><PhoneMap label={label} /></MapTabShowingProvider>
 }
 
+/** What a real engine does at LAYOUT, after the commit and before any passive
+ *  effect: the container has left the flow, the page is shorter, and its offset
+ *  is clamped to the new end. jsdom has no layout and never clamps, which is why
+ *  QA round 1's F-1 went unseen here; a row sets this to model it. A layout
+ *  effect declared AFTER the hook call runs before the hook's passive effects,
+ *  exactly as the browser's layout does. */
+let onPanelLayout: ((expanded: boolean) => void) | null = null
+
 function PhoneMap({ label = 'Map showing sighting locations' }: { label?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-map-container' })
   const { hostClassName, still, open, expanded, toggle: onToggle, registerToggle } = fs
+  useLayoutEffect(() => { onPanelLayout?.(expanded) }, [expanded])
   return (
     <>
       <button type="button">before the map</button>
@@ -754,25 +763,36 @@ describe('the phone tier: the still, the opener and the bar (map-scroll-on-phone
     expect(document.activeElement).toBe(exit)
   })
 
-  it('puts the page back where it was after a user exit, and only then', () => {
+  it('puts the page back where it was after a user exit, and only then, the page at its maximum scroll included', () => {
+    // The page is at its end (500). While the container is out of the flow its
+    // end is 230, and the engine clamps at LAYOUT, before any passive effect
+    // (QA round 1, F-1: a reading taken in the lock effect was the clamped one,
+    // so the page came back short by the container's height).
     let y = 500
     const scrollTo = vi.fn((_x: number, ny: number) => { y = ny })
     vi.stubGlobal('scrollTo', scrollTo)
     const desc = Object.getOwnPropertyDescriptor(window, 'scrollY')
     Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+    onPanelLayout = expanded => { if (expanded) y = Math.min(y, 230) }
     try {
       const { rerender } = render(<PhoneHost />)
       fireEvent.click(opener())
-      y = 230 // the container left the flow and the browser clamped the page
+      expect(y).toBe(230)
       fireEvent.click(exitBtn())
       expect(scrollTo).toHaveBeenCalledTimes(1)
       expect(scrollTo).toHaveBeenLastCalledWith(0, 500)
+      // Escape is a user exit too, from the same clamped place.
+      fireEvent.click(opener())
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(scrollTo).toHaveBeenCalledTimes(2)
+      expect(y).toBe(500)
       // A derived collapse leaves the page alone.
       fireEvent.click(opener())
-      y = 120
       rerender(<PhoneHost tab={false} />)
-      expect(scrollTo).toHaveBeenCalledTimes(1)
+      expect(scrollTo).toHaveBeenCalledTimes(2)
+      expect(y).toBe(230)
     } finally {
+      onPanelLayout = null
       if (desc) Object.defineProperty(window, 'scrollY', desc)
       else delete (window as { scrollY?: number }).scrollY
     }
@@ -799,6 +819,27 @@ describe('above the phone tier the host is HEAD\'s (map-scroll-on-phones)', () =
     expect(document.activeElement).toBe(exitBtn())
     fireEvent.click(exitBtn())
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Enter fullscreen' }))
+  })
+
+  it('the toggle that opens records the page\'s place at its press too, so a clamped page comes back whole', () => {
+    let y = 500
+    const scrollTo = vi.fn((_x: number, ny: number) => { y = ny })
+    vi.stubGlobal('scrollTo', scrollTo)
+    const desc = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+    onPanelLayout = expanded => { if (expanded) y = Math.min(y, 230) }
+    try {
+      render(<PhoneHost />)
+      fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }))
+      expect(y).toBe(230)
+      fireEvent.click(exitBtn())
+      expect(scrollTo).toHaveBeenCalledTimes(1)
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 500)
+    } finally {
+      onPanelLayout = null
+      if (desc) Object.defineProperty(window, 'scrollY', desc)
+      else delete (window as { scrollY?: number }).scrollY
+    }
   })
 
   it('still marks the root while expanded: the stylesheet, not the hook, knows there is no bar here', () => {

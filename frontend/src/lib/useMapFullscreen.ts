@@ -253,6 +253,21 @@ export function useMapFullscreen({
   // the next open so a stale request cannot reach a later derived collapse.
   const userExit = useRef(false)
 
+  // THE PAGE'S PLACE, RECORDED AT THE PRESS (map-scroll-on-phones QA round 1,
+  // F-1). The container leaves the flow in the commit that expands it, and the
+  // browser lays the shorter page out, clamping its offset, BEFORE any passive
+  // effect runs; a reading taken in the scroll-lock effect below is therefore
+  // the clamped offset whenever less than one container height of page was left
+  // below the window (measured: 154px on Named Birds, 88px on Weather). So the
+  // offset is read in the event path, before the state update, and the lock
+  // effect restores this reading. Overwritten by every press that opens, and
+  // spent when the expansion ends, so an expansion with no press (a `resetKey`
+  // returning to the stamped key) falls back to the lock effect's own reading.
+  const placeAtPress = useRef<{ x: number; y: number } | null>(null)
+  const recordPlace = useCallback(() => {
+    placeAtPress.current = { x: window.scrollX, y: window.scrollY }
+  }, [])
+
   // The fallback arm for a toggle that never registered, or whose replacement
   // has not registered yet. Optional, never required: a consumer with no
   // `.sr-map-fullscreen-btn` (the Family Tree) registers its controls instead.
@@ -265,18 +280,20 @@ export function useMapFullscreen({
   // change belongs to the new species rather than reviving the old state.
   const toggle = useCallback(() => {
     if (expanded) userExit.current = true
+    else recordPlace()
     setRaw(p => ({ on: !(p.on && p.key === resetKey), key: resetKey }))
-  }, [resetKey, expanded])
+  }, [resetKey, expanded, recordPlace])
   const collapse = useCallback(() => {
     userExit.current = true
     setRaw({ on: false, key: resetKey })
   }, [resetKey])
   // Idempotent: returning the same object when already open bails the update
-  // out, so a quick second tap on the still or the opener changes nothing.
-  const open = useCallback(
-    () => setRaw(p => (p.on && p.key === resetKey ? p : { on: true, key: resetKey })),
-    [resetKey],
-  )
+  // out, so a quick second tap on the still or the opener changes nothing (and
+  // records nothing: the place is the one the first press left).
+  const open = useCallback(() => {
+    if (!expanded) recordPlace()
+    setRaw(p => (p.on && p.key === resetKey ? p : { on: true, key: resetKey }))
+  }, [resetKey, expanded, recordPlace])
 
   // Escape exits. BUBBLE phase, armed only while expanded: SharePopup owns
   // Escape in the CAPTURE phase with stopPropagation, so one Escape closes that
@@ -315,17 +332,19 @@ export function useMapFullscreen({
   // THE PAGE'S PLACE (map-scroll-on-phones). The container leaves the flow while
   // expanded, so a page near its end gets shorter and the browser clamps its
   // offset; back in flow, the page would sit higher than the user left it. The
-  // offset is recorded when the lock takes and, for a user exit only, put back
-  // after the lock lets go (the container is already back in flow by then: this
-  // cleanup runs after the collapsed commit).
+  // offset the opening PRESS recorded (`placeAtPress` above; by this effect the
+  // page is already clamped) is put back, for a user exit only, after the lock
+  // lets go (the container is already back in flow by then: this cleanup runs
+  // after the collapsed commit). This effect's own reading is only the fallback
+  // for an expansion no press made.
   useEffect(() => {
     if (!expanded) return
     const prev = document.body.style.overflow
-    const x = window.scrollX
-    const y = window.scrollY
+    const { x, y } = placeAtPress.current ?? { x: window.scrollX, y: window.scrollY }
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = prev
+      placeAtPress.current = null
       if (userExit.current && (window.scrollY !== y || window.scrollX !== x)) window.scrollTo(x, y)
     }
   }, [expanded])
