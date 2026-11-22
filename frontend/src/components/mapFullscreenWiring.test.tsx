@@ -15,7 +15,7 @@
 // keeps a host that was never wired from reading as nothing at all.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 /// <reference types="node" />
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -66,6 +66,8 @@ vi.mock('../lib/storage', () => ({
 }))
 
 import { SightingsMap } from './SightingsMap'
+import { PredictMap } from './PredictMap'
+import type { OpeningPress } from '../lib/mapOpeningTap'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 import type { SightingMarker } from '../lib/sightingMarkers'
 
@@ -186,6 +188,46 @@ describe('what the user had set up survives the round trip (QA-12, QA-13)', () =
     expect(screen.getByRole('button', { name: /Share this location$/ }).getAttribute('aria-label'))
       .toBe(pin.getAttribute('aria-label'))
     expect(dropButton().getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+// map-scroll-on-phones QA round 1, item 5: a quick double tap on the Weather
+// picker's opener (or its still) opened the map with the first tap and dropped a
+// pin with the second, which landed on the map it had just opened (16 of 16
+// runs). Driven through the REAL PredictMap and its click handler on the fake
+// map; the press is what the host records (WeatherForecastPanel.test.tsx holds
+// that half), and the window's two sides are in lib/mapOpeningTap.test.ts.
+describe('the Weather picker takes no pin from the second tap of the double tap that opened it', () => {
+  function PickerHost({ onPick, press }: { onPick: (c: { lat: number; lng: number }) => void; press: { current: OpeningPress | null } }) {
+    const ref = useRef<HTMLDivElement>(null)
+    const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-wx-pick-map' })
+    return (
+      <div ref={ref} className={fs.className}>
+        <MapFullscreenProvider value={fs}>
+          <PredictMap coord={null} onPick={onPick} openPress={press} />
+        </MapFullscreenProvider>
+      </div>
+    )
+  }
+  const tapMap = (clientX: number, clientY: number, timeStamp: number) => act(() => {
+    for (const h of handlers.click ?? []) h({ lngLat: { lat: 37.5, lng: -122.4 }, originalEvent: { clientX, clientY, timeStamp } })
+  })
+
+  it('ignores the second tap, and takes a deliberate tap: later at the same point, or elsewhere at once', () => {
+    const onPick = vi.fn()
+    const press = { current: { x: 195, y: 422, t: 1000 } as OpeningPress | null }
+    render(<PickerHost onPick={onPick} press={press} />)
+    expect(handlers.click?.length).toBe(1)
+    tapMap(195, 422, 1112)      // WebKit's measured second tap: 112ms on, the same point
+    expect(onPick).not.toHaveBeenCalled()
+    tapMap(195, 422, 1600)      // the same point once the window has passed
+    expect(onPick).toHaveBeenCalledTimes(1)
+    tapMap(345, 422, 1150)      // 150px away, inside the window: aimed, not a second tap
+    expect(onPick).toHaveBeenCalledTimes(2)
+    press.current = null        // above the tier, or opened by the keyboard: no press
+    tapMap(195, 422, 1112)
+    expect(onPick).toHaveBeenCalledTimes(3)
+    expect(onPick).toHaveBeenLastCalledWith({ lat: 37.5, lng: -122.4 })
   })
 })
 

@@ -2,8 +2,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 
-// Mock the map so maplibre never loads in jsdom.
-vi.mock('./PredictMap', () => ({ PredictMap: () => <div data-testid="predict-map" /> }))
+// Mock the map so maplibre never loads in jsdom. It keeps the last props it was
+// rendered with, so a row can read what the host hands the map.
+const predictMap = vi.hoisted(() => ({ props: null as null | { openPress?: { current: unknown } } }))
+vi.mock('./PredictMap', () => ({
+  PredictMap: (p: { openPress?: { current: unknown } }) => { predictMap.props = p; return <div data-testid="predict-map" /> },
+}))
 vi.mock('../lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) }))
 
 const getMock = vi.fn()
@@ -103,6 +107,37 @@ describe('WeatherForecastPanel', () => {
     expect(container.textContent).not.toMatch(/where you are/)
     expect(screen.queryByRole('button', { name: /current weather and tide/i })).toBeNull()
     expect(screen.getByRole('button', { name: PLAN_COPY.entryAria })).toBeTruthy()
+  })
+
+  // map-scroll-on-phones QA round 1, item 5: the second tap of a double tap on
+  // the opener or the still dropped a pin on the map the first tap had opened.
+  // The map ignores a tap that continues the press that opened it
+  // (mapFullscreenWiring.test.tsx); this is the host's half: it records that
+  // press from a tap on either opening path, and none from the keyboard.
+  it('on the phone tier the picker hands its map the press that opened it, from a tap, never from the keyboard', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true, media: query, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    }))
+    try {
+      getCurrentLocationMock.mockRejectedValue({ code: 'unavailable' })
+      render(<WeatherForecastPanel />)
+      fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
+      const opener = await waitFor(() => screen.getByRole('button', { name: 'Open the map' }))
+      await waitFor(() => expect(predictMap.props).toBeTruthy())
+      const press = () => predictMap.props?.openPress?.current
+      fireEvent.click(opener, { clientX: 120, clientY: 400, detail: 1 })
+      expect(press()).toMatchObject({ x: 120, y: 400 })
+      fireEvent.keyDown(document, { key: 'Escape' })
+      fireEvent.click(screen.getByRole('img', { name: 'Map showing the chosen place' }), { clientX: 160, clientY: 300, detail: 1 })
+      expect(press()).toMatchObject({ x: 160, y: 300 })
+      fireEvent.keyDown(document, { key: 'Escape' })
+      fireEvent.click(opener, { clientX: 120, clientY: 400, detail: 0 })
+      expect(press()).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('Current: shows live weather + tide summary', async () => {
