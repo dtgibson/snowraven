@@ -74,8 +74,8 @@ Docs (commit 4):
 ## Verification record
 
 Unit and build gates, from `frontend/`:
-- Full `npx vitest run`: see the hand-back for the final counts (recorded there from the last run on the committed tree).
-- `npm run build` (tsc -b and vite build): passes. `npm run lint` (eslint over the whole tree): 0 problems.
+- Full `npx vitest run` on the committed tree (`a3603770`): 526 files passed, 5 skipped; 11,663 tests passed, 9 skipped, 0 failed. An earlier full run, at a load average near 7.7 from outside this session, failed one local-only CPU-quotient row, `lifeListsLinearity.test.ts` pass 2R, at 20.001 against a limit of 20; this build touches nothing that row times, it passed in isolation, and it passed in the final clean run above.
+- `npm run build` (tsc -b and vite build): passes. `npm run lint` (eslint over the whole tree): 0 problems (one immutability error on the committed tree was fixed in `a3603770`).
 - Built CSS against a HEAD build, rule by rule: 6 rules replaced and 40 added, every one of them this build's; the Tailwind utilities layer identical (82 rules in both), so no test or comment word minted a utility.
 - `weft-design-lint check frontend/src`: 0 warnings; the notes in touched files are pre-existing (PredictMap's 500ms `flyTo`, recorded at D-19; the global reduced-motion block covers the CSS motion).
 - Mutation checks, each restored and hash-verified: in the hook (no bar signal, an uncounted bar, focus moved on a derived collapse, no scroll restore, `open` toggling, the toggle before the opener) and in the stylesheet (the iOS lifted twin dropped, the pill rule before the compact one, `.sr-hsr-map` unscoped, a `visibility: visible` cell under the bar, the still body taking pointers): each turned its row red.
