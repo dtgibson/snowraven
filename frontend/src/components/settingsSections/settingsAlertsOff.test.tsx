@@ -29,6 +29,13 @@
 // inserted row per platform, naming Hotspot Reports and no other tab, equal to
 // the Checklists row with its label swapped, everything else byte-identical.
 //
+// AND A THIRD TAB-LAYOUT ROW HAS JOINED, ON PURPOSE (family-rollups-and-tree):
+// each platform's markup gained exactly the Family Tree row, between Breeding
+// Codes and Hotspot Reports. The fixture was edited by inserting, before the
+// Hotspot Reports row, a copy of that row with its label swapped, and this
+// file's own render then matched it on every platform: one inserted row,
+// naming Family Tree and no other tab, everything else byte-identical.
+//
 // On these three platforms the gate is false, so the section and its lazy
 // chunk are never reached; the section's own iOS rendering is covered by
 // AlertsSection.test.tsx and settingsSectionOrder.test.tsx.

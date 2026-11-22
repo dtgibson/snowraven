@@ -134,9 +134,12 @@ const HELP_SECTIONS = [...HELP.matchAll(/^## (.+)$/gm)].map(m => m[1].trim())
 const passage = () => helpPassage(LABEL)
 
 describe('the Hotspot Reports tab sits where Help says it does', () => {
-  it('DEFAULT_TAB_ORDER places it between Breeding Codes and Checklists (FR-02)', () => {
+  it('DEFAULT_TAB_ORDER places it before Checklists, after Breeding Codes and the Family Tree (FR-02)', () => {
+    // Between Breeding Codes and Checklists as it shipped (1.0.71); the Family
+    // Tree took the place directly before it (family-rollups-and-tree D-13).
     expect(AT, 'hotspot-reports is in DEFAULT_TAB_ORDER').toBeGreaterThan(0)
-    expect(DEFAULT_TAB_ORDER[AT - 1]).toBe('breeding-codes')
+    expect(DEFAULT_TAB_ORDER[AT - 1]).toBe('family-tree')
+    expect(DEFAULT_TAB_ORDER[AT - 2]).toBe('breeding-codes')
     expect(DEFAULT_TAB_ORDER[AT + 1]).toBe('checklists')
   })
 

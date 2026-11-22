@@ -20,7 +20,7 @@
 // identity, and that is the whole point. Mutation-checked: reverting a tab to an
 // in-branch region turns its roster rows red.
 //
-// ONE ROSTER, ELEVEN TABS (Targets joined at targets-tab, Life Lists at life-lists-tab, Hotspot Reports at hotspot-reports). The rows below are the coverage. They are not
+// ONE ROSTER, TWELVE TABS (Targets joined at targets-tab, Life Lists at life-lists-tab, Hotspot Reports at hotspot-reports, Family Tree at family-rollups-and-tree). The rows below are the coverage. They are not
 // eight hand-written copies, because the failure mode is per-tab (each has its
 // own phase switch and its own load effect) while the guarantee is identical, so
 // a dropped tab has to be visible as a missing row rather than as an absent file.
@@ -159,6 +159,7 @@ import { MapExplorer } from './MapExplorer'
 import { Targets } from './targets/Targets'
 import { LifeListsTab } from './lifeLists/LifeListsTab'
 import { HotspotReportsTab } from './hotspotReports/HotspotReportsTab'
+import { FamilyTreeTab } from './familyTree/FamilyTreeTab'
 import { notifyFilesChanged } from '../lib/filesChanged'
 import { loadEbirdObservations } from '../lib/observationsCache'
 
@@ -200,6 +201,8 @@ const ROSTER: Row[] = [
   { name: 'Life Lists', render: () => <LifeListsTab onGoToSettings={noop} />, epochDriven: true },
   // Reads the files epoch itself too (useFilesEpoch), the Life Lists precedent.
   { name: 'Hotspot Reports', render: () => <HotspotReportsTab onGoToSettings={noop} />, epochDriven: true },
+  // Reads the files epoch itself too (useFilesEpoch), the Life Lists precedent.
+  { name: 'Family Tree', render: () => <FamilyTreeTab onGoToSettings={noop} showing />, epochDriven: true },
 ]
 
 /** The live region, addressed the way the app renders it and no other way. */
@@ -230,9 +233,9 @@ afterEach(() => {
 })
 
 describe('the roster covers every tab that can fail to load', () => {
-  it('has all eleven, and no duplicates', () => {
-    expect(ROSTER).toHaveLength(11)
-    expect(new Set(ROSTER.map(r => r.name)).size).toBe(11)
+  it('has all twelve, and no duplicates', () => {
+    expect(ROSTER).toHaveLength(12)
+    expect(new Set(ROSTER.map(r => r.name)).size).toBe(12)
   })
 })
 

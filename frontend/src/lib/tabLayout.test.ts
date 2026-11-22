@@ -30,10 +30,57 @@ describe('DEFAULT_TAB_ORDER', () => {
   it('matches the intended first-run navigation order', () => {
     // Map Explorer third and Calendar fifth since 1.0.19, so the phone bar's
     // default first four (Weather, Statistics, Map Explorer, Species Detail)
-    // put the map above the fold; Targets sits right after Calendar, Hotspot
-    // Reports between Breeding Codes and Checklists (hotspot-reports D-03), and
-    // Life Lists right after Checklists (life-lists-tab QA-01).
+    // put the map above the fold; Targets sits right after Calendar, Family
+    // Tree between Breeding Codes and Hotspot Reports (family-rollups-and-tree
+    // D-13), Hotspot Reports before Checklists (hotspot-reports D-03), and Life
+    // Lists right after Checklists (life-lists-tab QA-01).
     expect(DEFAULT_TAB_ORDER).toEqual([
+      'weather',
+      'birding-stats',
+      'map-explorer',
+      'species-detail',
+      'calendar',
+      'targets',
+      'life-list',
+      'breeding-codes',
+      'family-tree',
+      'hotspot-reports',
+      'checklists',
+      'life-lists',
+      'comparer',
+      'named-birds',
+    ])
+    expect(DEFAULT_TAB_ORDER.indexOf('targets')).toBe(5)
+    expect(DEFAULT_TAB_ORDER.indexOf('targets')).toBe(DEFAULT_TAB_ORDER.indexOf('calendar') + 1)
+  })
+
+  it('places Family Tree at index 8, between Breeding Codes and Hotspot Reports, under its own key and label (QA-08)', () => {
+    expect(DEFAULT_TAB_ORDER.indexOf('family-tree')).toBe(8)
+    expect(DEFAULT_TAB_ORDER[7]).toBe('breeding-codes')
+    expect(DEFAULT_TAB_ORDER[9]).toBe('hotspot-reports')
+    expect(TAB_LABELS['family-tree']).toBe('Family Tree')
+    // Removing the new id yields the previous default exactly, so the new tab
+    // moved nothing else.
+    expect(DEFAULT_TAB_ORDER.filter(t => t !== 'family-tree')).toEqual([...PREVIOUS_DEFAULT_TAB_ORDER])
+  })
+
+  it('keeps Hotspot Reports at index 9, before Checklists, and Life Lists at index 11, after it', () => {
+    expect(DEFAULT_TAB_ORDER.indexOf('hotspot-reports')).toBe(9)
+    expect(DEFAULT_TAB_ORDER[10]).toBe('checklists')
+    expect(TAB_LABELS['hotspot-reports']).toBe('Hotspot Reports')
+    expect(DEFAULT_TAB_ORDER.indexOf('life-lists')).toBe(11)
+    expect(DEFAULT_TAB_ORDER.indexOf('life-lists')).toBe(DEFAULT_TAB_ORDER.indexOf('checklists') + 1)
+    expect(TAB_LABELS['life-lists']).toBe('Life Lists')
+    // The Multimedia tab keeps its own key and label.
+    expect(TAB_LABELS['life-list']).toBe('Multimedia')
+  })
+
+  it('keeps the Hotspot Reports default as a literal, since the migration below is one equality against it', () => {
+    // Spelled out rather than derived: if this constant drifts, every device
+    // still on the old default silently stops following the new one. Exactly
+    // one generation: the pre-Hotspot-Reports order this constant used to
+    // hold is retired.
+    expect(PREVIOUS_DEFAULT_TAB_ORDER).toEqual([
       'weather',
       'birding-stats',
       'map-explorer',
@@ -48,49 +95,8 @@ describe('DEFAULT_TAB_ORDER', () => {
       'comparer',
       'named-birds',
     ])
-    expect(DEFAULT_TAB_ORDER.indexOf('targets')).toBe(5)
-    expect(DEFAULT_TAB_ORDER.indexOf('targets')).toBe(DEFAULT_TAB_ORDER.indexOf('calendar') + 1)
-  })
-
-  it('places Hotspot Reports at index 8, between Breeding Codes and Checklists, under its own key and label', () => {
-    // hotspot-reports QA-01, QA-02.
-    expect(DEFAULT_TAB_ORDER.indexOf('hotspot-reports')).toBe(8)
-    expect(DEFAULT_TAB_ORDER[7]).toBe('breeding-codes')
-    expect(DEFAULT_TAB_ORDER[9]).toBe('checklists')
-    expect(TAB_LABELS['hotspot-reports']).toBe('Hotspot Reports')
-    // Removing the new id yields the previous default exactly, so the new tab
-    // moved nothing else.
-    expect(DEFAULT_TAB_ORDER.filter(t => t !== 'hotspot-reports')).toEqual([...PREVIOUS_DEFAULT_TAB_ORDER])
-  })
-
-  it('places Life Lists at index 10, directly after Checklists, under its own key and label (QA-01)', () => {
-    expect(DEFAULT_TAB_ORDER.indexOf('life-lists')).toBe(10)
-    expect(DEFAULT_TAB_ORDER.indexOf('life-lists')).toBe(DEFAULT_TAB_ORDER.indexOf('checklists') + 1)
-    expect(TAB_LABELS['life-lists']).toBe('Life Lists')
-    // The Multimedia tab keeps its own key and label (FR-04).
-    expect(TAB_LABELS['life-list']).toBe('Multimedia')
-  })
-
-  it('keeps the Life Lists default as a literal, since the migration below is one equality against it', () => {
-    // Spelled out rather than derived: if this constant drifts, every device
-    // still on the old default silently stops following the new one. Exactly
-    // one generation: the 1.0.38 order this constant used to hold is retired.
-    expect(PREVIOUS_DEFAULT_TAB_ORDER).toEqual([
-      'weather',
-      'birding-stats',
-      'map-explorer',
-      'species-detail',
-      'calendar',
-      'targets',
-      'life-list',
-      'breeding-codes',
-      'checklists',
-      'life-lists',
-      'comparer',
-      'named-birds',
-    ])
     expect(PREVIOUS_DEFAULT_TAB_ORDER).not.toEqual(DEFAULT_TAB_ORDER)
-    expect(PREVIOUS_DEFAULT_TAB_ORDER).not.toContain('hotspot-reports')
+    expect(PREVIOUS_DEFAULT_TAB_ORDER).not.toContain('family-tree')
   })
 })
 
@@ -106,131 +112,124 @@ const DEFAULT_1_0_38 = [
   'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
   'targets', 'life-list', 'breeding-codes', 'checklists', 'comparer', 'named-birds',
 ]
-// The default from Life Lists (1.0.63) until Hotspot Reports: twelve ids.
-const PREVIOUS_DEFAULT_LIFE_LISTS = [
+// The default from Life Lists (1.0.63) until Hotspot Reports: twelve ids. Retired.
+const DEFAULT_LIFE_LISTS = [
   'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
   'targets', 'life-list', 'breeding-codes', 'checklists', 'life-lists', 'comparer', 'named-birds',
 ]
-const NEW_DEFAULT_WITH_HOTSPOT_REPORTS = [
+// The default from Hotspot Reports (1.0.71) until Family Tree: thirteen ids.
+const PREVIOUS_DEFAULT_HOTSPOT_REPORTS = [
   'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
   'targets', 'life-list', 'breeding-codes', 'hotspot-reports', 'checklists', 'life-lists', 'comparer', 'named-birds',
 ]
+const NEW_DEFAULT_WITH_FAMILY_TREE = [
+  'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
+  'targets', 'life-list', 'breeding-codes', 'family-tree', 'hotspot-reports', 'checklists', 'life-lists', 'comparer', 'named-birds',
+]
 
-describe('parseLayout: a saved order equal to the Life Lists default reads as the current default (QA-03)', () => {
-  it('maps the previous default to the new default, Hotspot Reports between Breeding Codes and Checklists, with an empty hidden set', () => {
-    const state = parseLayout({ order: PREVIOUS_DEFAULT_LIFE_LISTS, hidden: [] })
-    expect(state.order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+describe('parseLayout: a saved order equal to the Hotspot Reports default reads as the current default (QA-10)', () => {
+  it('maps the previous default to the new default, Family Tree between Breeding Codes and Hotspot Reports, with an empty hidden set', () => {
+    const state = parseLayout({ order: PREVIOUS_DEFAULT_HOTSPOT_REPORTS, hidden: [] })
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
     expect(state.hidden.size).toBe(0)
   })
 
   it('keeps the hidden set through the migration (hide/show without a drag writes the default order back)', () => {
-    const state = parseLayout({ order: PREVIOUS_DEFAULT_LIFE_LISTS, hidden: ['comparer', 'life-list'] })
-    expect(state.order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    const state = parseLayout({ order: PREVIOUS_DEFAULT_HOTSPOT_REPORTS, hidden: ['comparer', 'life-list'] })
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
     expect([...state.hidden].sort()).toEqual(['comparer', 'life-list'])
-    // and the visible list is the new default minus exactly those two
-    expect(visibleTabs(state)).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS.filter(t => t !== 'comparer' && t !== 'life-list'))
+    expect(visibleTabs(state)).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE.filter(t => t !== 'comparer' && t !== 'life-list'))
   })
 
   it('returns the new default unchanged (round-trip)', () => {
-    const state = parseLayout({ order: NEW_DEFAULT_WITH_HOTSPOT_REPORTS, hidden: ['weather'] })
-    expect(state.order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    const state = parseLayout({ order: NEW_DEFAULT_WITH_FAMILY_TREE, hidden: ['weather'] })
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
     expect(state.hidden.has('weather')).toBe(true)
   })
 
-  it('leaves a custom order verbatim with Hotspot Reports appended LAST, including a single swap elsewhere', () => {
-    // Breeding Codes and Checklists swapped; everything else in its Life Lists
+  it('leaves a custom order verbatim with Family Tree appended LAST, including a single swap elsewhere', () => {
+    // Breeding Codes and Hotspot Reports swapped; everything else in its
     // slot. This is a user's order: it must not move, and the new tab arrives
-    // by the existing missing-tab step at the end, not between Breeding Codes
-    // and Checklists.
+    // by the existing missing-tab step at the end.
     const oneSwap = [
       'weather', 'birding-stats', 'map-explorer', 'species-detail', 'calendar',
-      'targets', 'life-list', 'checklists', 'breeding-codes', 'life-lists', 'comparer', 'named-birds',
+      'targets', 'life-list', 'hotspot-reports', 'breeding-codes', 'checklists', 'life-lists', 'comparer', 'named-birds',
     ]
-    expect(parseLayout({ order: oneSwap, hidden: [] }).order).toEqual([...oneSwap, 'hotspot-reports'])
+    expect(parseLayout({ order: oneSwap, hidden: [] }).order).toEqual([...oneSwap, 'family-tree'])
 
-    // A thoroughly custom twelve-id order is likewise untouched, Hotspot
-    // Reports last.
     const custom = [
-      'named-birds', 'comparer', 'life-lists', 'checklists', 'breeding-codes', 'life-list', 'targets',
+      'named-birds', 'comparer', 'life-lists', 'checklists', 'hotspot-reports', 'breeding-codes', 'life-list', 'targets',
       'map-explorer', 'species-detail', 'calendar', 'birding-stats', 'weather',
     ]
     const state = parseLayout({ order: custom, hidden: ['calendar'] })
-    expect(state.order).toEqual([...custom, 'hotspot-reports'])
-    expect(state.order[state.order.length - 1]).toBe('hotspot-reports')
+    expect(state.order).toEqual([...custom, 'family-tree'])
+    expect(state.order[state.order.length - 1]).toBe('family-tree')
     expect([...state.hidden]).toEqual(['calendar'])
   })
 
   it('compares AFTER the unknown-id drop, so a stray id does not mask an otherwise-default order', () => {
-    const withStray = [...PREVIOUS_DEFAULT_LIFE_LISTS.slice(0, 3), 'unknown-future-tab', ...PREVIOUS_DEFAULT_LIFE_LISTS.slice(3)]
-    const state = parseLayout({ order: withStray, hidden: [] })
-    expect(state.order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    const withStray = [...PREVIOUS_DEFAULT_HOTSPOT_REPORTS.slice(0, 3), 'unknown-future-tab', ...PREVIOUS_DEFAULT_HOTSPOT_REPORTS.slice(3)]
+    expect(parseLayout({ order: withStray, hidden: [] }).order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
   })
 
   it('compares against the constant given the SAME missing-tab append, or the migration could never fire', () => {
-    // The saved Life Lists default has twelve ids; after the append it has
-    // thirteen, with Hotspot Reports last. Compared against the bare twelve-id
-    // constant it would never be equal and every device on the old default
-    // would silently keep Hotspot Reports last. This row goes red if the
-    // comparison loses its append.
-    const appended = [...PREVIOUS_DEFAULT_LIFE_LISTS, 'hotspot-reports']
-    expect(parseLayout({ order: appended, hidden: [] }).order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    const appended = [...PREVIOUS_DEFAULT_HOTSPOT_REPORTS, 'family-tree']
+    expect(parseLayout({ order: appended, hidden: [] }).order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
   })
 
   it('a previous default missing its tail reaches the new default through the append alone', () => {
     // Cut through Breeding Codes (the first eight ids): every id from the
-    // insertion point on is restored in default order, so the plain
-    // missing-tab append rebuilds the new default exactly. This is the
-    // standing rule for any order, not the migration firing.
-    const missingTail = PREVIOUS_DEFAULT_LIFE_LISTS.slice(0, 8) // through 'breeding-codes'
+    // insertion point on is restored in default order.
+    const missingTail = PREVIOUS_DEFAULT_HOTSPOT_REPORTS.slice(0, 8)
     expect(missingTail[missingTail.length - 1]).toBe('breeding-codes')
-    const state = parseLayout({ order: missingTail, hidden: [] })
-    expect(state.order).toEqual([...missingTail, 'hotspot-reports', 'checklists', 'life-lists', 'comparer', 'named-birds'])
-    expect(state.order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    expect(parseLayout({ order: missingTail, hidden: [] }).order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
 
-    // Cut AFTER Breeding Codes (through Checklists) and it is a custom order:
-    // that prefix, then Hotspot Reports, then the rest. This is where the new
-    // anchor differs from the Life Lists generation, whose row cut here.
-    const throughChecklists = PREVIOUS_DEFAULT_LIFE_LISTS.slice(0, 9) // through 'checklists'
-    expect(throughChecklists[throughChecklists.length - 1]).toBe('checklists')
-    const custom = parseLayout({ order: throughChecklists, hidden: [] })
-    expect(custom.order).toEqual([...throughChecklists, 'hotspot-reports', 'life-lists', 'comparer', 'named-birds'])
-    expect(custom.order).not.toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    // Cut AFTER Breeding Codes (through Hotspot Reports) and it is a custom
+    // order: that prefix, then Family Tree, then the rest.
+    const throughHotspot = PREVIOUS_DEFAULT_HOTSPOT_REPORTS.slice(0, 9)
+    expect(throughHotspot[throughHotspot.length - 1]).toBe('hotspot-reports')
+    const custom = parseLayout({ order: throughHotspot, hidden: [] })
+    expect(custom.order).toEqual([...throughHotspot, 'family-tree', 'checklists', 'life-lists', 'comparer', 'named-birds'])
+    expect(custom.order).not.toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
   })
 
-  it('does NOT migrate the 1.0.38 default: exactly one generation migrates', () => {
-    // Two generations old now: the eleven ids as saved, then the missing ids in
-    // the NEW default's order, so Hotspot Reports precedes Life Lists.
-    const state = parseLayout({ order: DEFAULT_1_0_38, hidden: ['comparer'] })
-    expect(state.order).toEqual([...DEFAULT_1_0_38, 'hotspot-reports', 'life-lists'])
-    expect(state.order).not.toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+  it('does NOT migrate the retired Life Lists default: those twelve, then Family Tree, then Hotspot Reports (FR-10)', () => {
+    const state = parseLayout({ order: DEFAULT_LIFE_LISTS, hidden: ['comparer'] })
+    expect(state.order).toEqual([...DEFAULT_LIFE_LISTS, 'family-tree', 'hotspot-reports'])
+    expect(state.order).not.toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
     expect(state.hidden.has('comparer')).toBe(true)
     expect(state.hidden.size).toBe(1)
   })
 
-  it('does NOT migrate the retired 1.0.19 default: exactly one generation migrates', () => {
-    const state = parseLayout({ order: DEFAULT_1_0_19, hidden: ['comparer'] })
-    expect(state.order).toEqual([...DEFAULT_1_0_19, 'targets', 'hotspot-reports', 'life-lists'])
-    expect(state.order[state.order.length - 1]).toBe('life-lists')
+  it('does NOT migrate the 1.0.38 default: exactly one generation migrates', () => {
+    const state = parseLayout({ order: DEFAULT_1_0_38, hidden: ['comparer'] })
+    expect(state.order).toEqual([...DEFAULT_1_0_38, 'family-tree', 'hotspot-reports', 'life-lists'])
     expect(state.hidden.has('comparer')).toBe(true)
   })
 
-  it('does NOT migrate a pre-Calendar (0.5.42) default: the append puts Calendar, Targets, Hotspot Reports and Life Lists last', () => {
+  it('does NOT migrate the retired 1.0.19 default: exactly one generation migrates', () => {
+    const state = parseLayout({ order: DEFAULT_1_0_19, hidden: ['comparer'] })
+    expect(state.order).toEqual([...DEFAULT_1_0_19, 'targets', 'family-tree', 'hotspot-reports', 'life-lists'])
+    expect(state.hidden.has('comparer')).toBe(true)
+  })
+
+  it('does NOT migrate a pre-Calendar (0.5.42) default: the append puts the later tabs last, in default order', () => {
     const preCalendar = [
       'weather', 'birding-stats', 'species-detail', 'map-explorer',
       'life-list', 'breeding-codes', 'checklists', 'comparer', 'named-birds',
     ]
     const state = parseLayout({ order: preCalendar, hidden: [] })
-    expect(state.order).toEqual([...preCalendar, 'calendar', 'targets', 'hotspot-reports', 'life-lists'])
-    expect(state.order).not.toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    expect(state.order).toEqual([...preCalendar, 'calendar', 'targets', 'family-tree', 'hotspot-reports', 'life-lists'])
+    expect(state.order).not.toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
   })
 })
 
-describe('loadTabLayout: the Life Lists default on disk', () => {
+describe('loadTabLayout: the Hotspot Reports default on disk', () => {
   it('reads as the new default and writes nothing back', () => {
-    const stored = JSON.stringify({ order: PREVIOUS_DEFAULT_LIFE_LISTS, hidden: ['comparer'] })
+    const stored = JSON.stringify({ order: PREVIOUS_DEFAULT_HOTSPOT_REPORTS, hidden: ['comparer'] })
     localStorageMock.setItem('sr-tab-layout', stored)
     const state = loadTabLayout()
-    expect(state.order).toEqual(NEW_DEFAULT_WITH_HOTSPOT_REPORTS)
+    expect(state.order).toEqual(NEW_DEFAULT_WITH_FAMILY_TREE)
     expect(state.hidden.has('comparer')).toBe(true)
     // Hydration never persists: the document on disk is byte-for-byte what was there.
     expect(localStorageMock.getItem('sr-tab-layout')).toBe(stored)
@@ -308,7 +307,7 @@ describe('loadTabLayout — unknown or missing tab IDs (FR-13)', () => {
     }))
     const state = loadTabLayout()
     expect(state.order).toContain('comparer')
-    expect(state.order.slice(-5)).toEqual(['hotspot-reports', 'checklists', 'life-lists', 'comparer', 'named-birds'])
+    expect(state.order.slice(-6)).toEqual(['family-tree', 'hotspot-reports', 'checklists', 'life-lists', 'comparer', 'named-birds'])
   })
 })
 
@@ -389,7 +388,7 @@ describe('parseLayout (used by both the localStorage and storage-seam paths)', (
 describe('serializeLayout', () => {
   it('converts the hidden Set to an array and round-trips through parseLayout', () => {
     const original: TabLayoutState = {
-      order: ['birding-stats', 'weather', 'calendar', 'targets', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'hotspot-reports', 'named-birds', 'checklists', 'life-lists', 'comparer'],
+      order: ['birding-stats', 'weather', 'calendar', 'targets', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'family-tree', 'hotspot-reports', 'named-birds', 'checklists', 'life-lists', 'comparer'],
       hidden: new Set(['comparer', 'life-list']),
     }
     const serialized = serializeLayout(original)

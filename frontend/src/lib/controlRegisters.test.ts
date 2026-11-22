@@ -645,7 +645,7 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     }
   })
 
-  it('opts each of the 33 paired labels in, and no unpaired one', () => {
+  it('opts each of the 36 paired labels in, and no unpaired one', () => {
     // The boundary the spec draws, and the reason it is a boundary: a label with
     // no floored control beside it is not broken, it renders exactly as designed,
     // so flooring its register globally would enlarge labels across two dozen
@@ -673,6 +673,11 @@ describe('the clamp repair and the label floor reached their call sites', () => 
     // 32 -> 33 at hotspot-reports: the uppercase LOCATION label sits beside the
     // location picker's input, a standalone `.sr-input-16` (the Region picker's
     // shape).
+    //
+    // 33 -> 36 at family-rollups-and-tree: the Family Tree strip is a
+    // `.sr-ctl-row` block whose uppercase YEAR and MEDIA labels sit beside the
+    // floored Year select and the three floored pills, and its toolbar's SORT
+    // label sits beside the floored Sort select.
     const counts = new Map<string, number>()
     for (const file of sources) {
       // Counted as a class TOKEN anywhere in the file's code, not through one
@@ -696,6 +701,8 @@ describe('the clamp repair and the label floor reached their call sites', () => 
       'components/lifeLists/LifeListsControls.tsx': 1,  // MEDIA, beside the three media pills
       'components/lifeLists/LifeListsRegionPicker.tsx': 1,  // REGION, beside the Region field
       'components/hotspotReports/HotspotReportsPicker.tsx': 1,  // LOCATION, beside the location picker
+      'components/familyTree/FamilyTreeControls.tsx': 2,  // YEAR and MEDIA, beside the Year select and the pills
+      'components/familyTree/FamilyTreeTab.tsx': 1,       // SORT, beside the Sort select
     })
     // The opt-in prop, counted where it is PASSED rather than where it is read.
     const mapExplorer = sources.find(f => f.name === 'components/MapExplorer.tsx')!

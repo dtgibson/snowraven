@@ -142,6 +142,15 @@ describe('the passive provenance path can never reach the network (FR-35, QA-40)
     'lib/hotspotReportsLocation.ts',
     'lib/hotspotReportsProvenance.ts',
     'lib/hotspotReportsCopy.ts',
+    // family-rollups-and-tree (FR-12, QA-12): the tab's lib modules join the
+    // passive side. The tab itself reaches transport for its one codes batch.
+    'lib/familyTreeAsset.ts',
+    'lib/familyTreeScope.ts',
+    'lib/familyTreeModel.ts',
+    'lib/familyTreeNames.ts',
+    'lib/familyTreeSettings.ts',
+    'lib/familyTreeCopy.ts',
+    'lib/familyTreeLinks.ts',
   ]) {
     it(`${root} statically reaches no network module`, () => {
       expect(networkReach(root)).toEqual([])
@@ -250,6 +259,35 @@ describe('Life Lists reads the rule passively (life-lists-tab FR-14, QA-15)', ()
       } else {
         expect(code, `${f} names buildCoverIndex (symbol scan)`).not.toContain('buildCoverIndex')
       }
+    }
+  })
+})
+
+describe('Family Tree reads the rule passively (family-rollups-and-tree FR-20, QA-20)', () => {
+  // The tab reaches `transport` BY DESIGN for its one `/taxonomy/codes` batch,
+  // so the whole-closure assertion does not transfer to it. What holds: the
+  // escapee rule comes through Life Lists' passive reader, the controller is
+  // never reached, and no feature file builds a cover index.
+  const FEATURE_FILES = [
+    'lib/familyTreeAsset.ts', 'lib/familyTreeScope.ts', 'lib/familyTreeModel.ts', 'lib/familyTreeNames.ts',
+    'lib/familyTreeSettings.ts', 'lib/familyTreeCopy.ts', 'lib/familyTreeLinks.ts',
+    'components/familyTree/FamilyTreeTab.tsx', 'components/familyTree/FamilyTreeControls.tsx',
+    'components/familyTree/FamilyTreeRollup.tsx',
+  ]
+  it('the tab reads provenance through Life Lists\' reader, which reaches the store, and never reaches the controller', () => {
+    const code = stripComments(readFileSync(resolve(SRC, 'components/familyTree/FamilyTreeTab.tsx'), 'utf8'))
+    expect(code).toContain("from '../../lib/lifeListsProvenance'")
+    const tab = closure('components/familyTree/FamilyTreeTab.tsx')
+    expect(tab).not.toContain('lib/useExoticProvenance.ts')
+    expect(tab).toContain('lib/lifeListsProvenance.ts')
+    expect(networkReach('components/familyTree/FamilyTreeTab.tsx')).toContain('lib/transport.ts')
+  })
+  it('a SYMBOL scan: no Family Tree file names buildCoverIndex or useExoticProvenance', () => {
+    for (const f of FEATURE_FILES) {
+      const code = stripComments(readFileSync(resolve(SRC, f), 'utf8'))
+      expect(code.length, `${f} was read`).toBeGreaterThan(200)
+      expect(code, `${f} names buildCoverIndex (symbol scan)`).not.toContain('buildCoverIndex')
+      expect(code, `${f} names useExoticProvenance (symbol scan)`).not.toContain('useExoticProvenance')
     }
   })
 })

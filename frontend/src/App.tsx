@@ -83,6 +83,10 @@ const importLifeLists = () => import('./components/lifeLists/LifeListsTab')
 // second lazy chunk inside it (entryChunk.test.ts, NFR-09). Not warmed at idle,
 // the Life Lists precedent.
 const importHotspotReports = () => import('./components/hotspotReports/HotspotReportsTab')
+// The Family Tree tab (family-rollups-and-tree): lazy, so the family asset, its
+// derivation, its copy and its table ride their own chunks (entryChunk.test.ts,
+// NFR-06). Not warmed at idle, the Life Lists precedent.
+const importFamilyTree = () => import('./components/familyTree/FamilyTreeTab')
 // The per-row Named Birds map chunk (maplibre). The component is lazy-rendered
 // inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
 // so opening a row stays instant for returning users.
@@ -101,6 +105,7 @@ const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })
 const Targets = lazy(() => importTargets().then(m => ({ default: m.Targets })))
 const LifeListsTab = lazy(() => importLifeLists().then(m => ({ default: m.LifeListsTab })))
 const HotspotReportsTab = lazy(() => importHotspotReports().then(m => ({ default: m.HotspotReportsTab })))
+const FamilyTreeTab = lazy(() => importFamilyTree().then(m => ({ default: m.FamilyTreeTab })))
 const CommandPalette = lazy(() => importCommandPalette().then(m => ({ default: m.CommandPalette })))
 // The Alerts inbox sheet (ios-alerts design-spec 7.3, the revision after the
 // live look). Lazy like Help and the palette, and reachable only on iPhone and
@@ -151,7 +156,7 @@ type TideState =
 // the tab is first opened, instead of running it all on first paint.
 const DEFERRED_TABS: Tab[] = [
   'map-explorer', 'species-detail', 'birding-stats', 'calendar', 'targets',
-  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'life-lists', 'hotspot-reports', 'settings',
+  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'life-lists', 'hotspot-reports', 'family-tree', 'settings',
 ]
 
 // Setter for the persistent loading-status region (mounted once in App, OUTSIDE
@@ -1537,6 +1542,31 @@ export default function App() {
               onOpenSpecies={navigateToSpeciesDetail}
               requestedLocationId={requestedLocation}
               onRequestedLocationConsumed={clearRequestedLocation}
+            />
+          </Suspense>
+        )}
+      </div>
+
+      {/* Family Tree tab content. The tab reads the files epoch itself
+          (useFilesEpoch), so it takes no filesVersion prop. */}
+      <div
+        role="tabpanel"
+        id="panel-family-tree"
+        aria-labelledby="tab-family-tree"
+        aria-label="Family Tree"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'family-tree' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        {mountedTabs.has('family-tree') && (
+          <Suspense fallback={<TabLoading label="Loading the family tree…" />}>
+            <FamilyTreeTab
+              onGoToSettings={() => setActiveTab('settings')}
+              onOpenSpecies={navigateToSpeciesDetail}
+              showing={activeTab === 'family-tree'}
             />
           </Suspense>
         )}

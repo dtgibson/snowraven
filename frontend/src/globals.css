@@ -6707,8 +6707,208 @@ select:focus-visible {
 .sr-hsr-stack { display: flex; flex-direction: column; gap: 10px; }
 .sr-hsr-gap { height: 16px; }
 
+/* -- The Family Tree tab (family-rollups-and-tree, `.sr-ft-*`) ----------------
+   Built from registers the app already has: the house tab header, the Life
+   Lists control strip and its Region combobox (reused, so its own `.sr-lfl-*`
+   rules draw it), the Hotspot Reports at a glance tile, the compact segmented
+   toggle, the Life Lists media presence cell. Every colour is a token in both
+   themes (familyTreeCss.test.ts). The base rules sit ABOVE the established
+   640px tier on purpose: the tab's phone rules live inside that tier and must
+   come later in the file than the base rules they refine, or a phone rule of
+   equal specificity loses on source order.
+
+   The table has no scroller of its own on any tier (FR-86, D-17): nothing
+   between the tab panel and the rows declares a vertical overflow that scrolls
+   or a height cap. The list is an inline-size container so its rows stack when
+   it is narrower than 44em, whatever the window (design-spec 11). Containment,
+   argued at the declaration (ui.md v1.0.23): `container-type: inline-size`
+   makes the list the containing block for positioned descendants and a
+   stacking context; the only positioned descendants are the `.sr-only` spans
+   BirdName and the rows carry, which resolve against it harmlessly, and no
+   descendant declares a `z-index`. */
+.sr-ft-tab { display: flex; flex-direction: column; min-width: 0; }
+.sr-ft-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.sr-ft-head-tile { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+.sr-ft-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); letter-spacing: -0.01em; }
+.sr-ft-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+.sr-ft-loading { flex: 1; display: flex; align-items: center; justify-content: center; padding: 60px 0; color: var(--sr-accent); }
+/* The card releases its clip so the Region listbox can hang below the strip. */
+.sr-ft-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); min-width: 0; }
+
+/* The filter strip: the Life Lists strip, with Year added and the media pills tri-state. */
+.sr-ft-controls { display: flex; flex-direction: column; gap: 9px; padding: 12px 18px; border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); border-radius: 11px 11px 0 0; }
+.sr-ft-ctl-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.sr-ft-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin-right: 2px; --sr-label-ratio: var(--sr-label-optical); }
+.sr-ft-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.sr-ft-media-pills { display: contents; }
+.sr-ft-pill-glyph { flex-shrink: 0; }
+.sr-ft-note { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; max-width: 64ch; overflow-wrap: anywhere; }
+/* The reused Region picker takes the accent tint while a region is set. */
+.sr-ft-region { display: contents; }
+.sr-ft-region[data-set] .sr-lfl-region-field { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); }
+.sr-ft-region[data-set] .sr-lfl-region-input { color: var(--sr-accent); }
+/* Year and Sort: native selects at the strip's 30px register, the native
+   control removed so a phone-tier height applies in WebKit (ui.md v1.0.34)
+   and clipped ON THE SELECT so a long option cannot widen the page (v1.0.39). */
+.sr-ft-selwrap { position: relative; display: inline-flex; min-width: 0; max-width: 100%; }
+.sr-ft-select {
+  appearance: none; -webkit-appearance: none; overflow: hidden; text-overflow: ellipsis;
+  min-height: 30px; max-width: 100%; padding: 0 28px 0 10px; border: 1.5px solid var(--sr-border-input); border-radius: 6px;
+  background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 0.75rem; --sr-ctl-rem: 0.75rem; font-weight: 600; cursor: pointer;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+}
+.sr-ft-select.is-set { border-color: var(--sr-accent-border-strong); background: var(--sr-accent-bg); color: var(--sr-accent); }
+.sr-ft-selcaret { position: absolute; right: 9px; top: 50%; margin-top: -6px; pointer-events: none; color: var(--sr-text-muted); }
+
+/* The headline: the at a glance tile, three counts each against the world's. */
+.sr-ft-glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 12px 36px; margin: 0; padding: 14px 18px 13px; min-width: 0; }
+.sr-ft-tile { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }
+.sr-ft-tile dt { order: 2; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); overflow-wrap: break-word; }
+.sr-ft-tile dd { display: contents; }
+.sr-ft-tile-value { order: 1; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-ft-tile-den { order: 3; flex: 1 1 8rem; display: flex; align-items: baseline; justify-content: space-between; gap: 0 10px; flex-wrap: wrap; font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+.sr-ft-bar { display: block; height: 4px; border-radius: 2px; background: var(--sr-surface-subtle); overflow: hidden; min-width: 0; }
+.sr-ft-bar i { display: block; height: 100%; width: var(--w, 0%); min-width: 2px; border-radius: 2px; background: var(--sr-accent); transition: width 240ms cubic-bezier(0.2, 0, 0, 1); }
+.sr-ft-bar.is-zero i { min-width: 0; }
+.sr-ft-tile .sr-ft-bar { order: 4; flex: 0 0 100%; height: 5px; border-radius: 3px; margin-top: 4px; }
+.sr-ft-notes { display: flex; flex-direction: column; gap: 2px; padding: 0 18px 12px; }
+.sr-ft-notes:empty { padding-bottom: 0; }
+.sr-ft-status { font-size: 0.71875rem; line-height: 1.5; color: var(--sr-text-gray); margin: 0; overflow-wrap: anywhere; }
+.sr-ft-status b { font-weight: 600; color: var(--sr-text); }
+
+/* The view bar and the host's toolbar. */
+.sr-ft-viewbar { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 18px; border-top: 1px solid var(--sr-border-subtle); border-bottom: 1px solid var(--sr-border-subtle); min-width: 0; }
+/* Names: the compact segmented toggle. Its options wrap at large text; the
+   dividers are each option's own left and top edge, clipped by the shell, so a
+   wrapped row stays ruled. */
+.sr-ft-namesseg { flex-wrap: wrap; margin-left: auto; }
+.sr-ft-namesseg .sr-segbar-btn { flex: 1 1 auto; min-height: 30px; box-shadow: -1.5px 0 0 var(--sr-border), 0 -1.5px 0 var(--sr-border); }
+.sr-ft-namesseg .sr-segbar-btn + .sr-segbar-btn { border-left: 0; }
+.sr-ft-toolbar { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 18px; border-bottom: 1px solid var(--sr-border-subtle); min-width: 0; }
+.sr-ft-tablebar { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.sr-ft-tools { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; min-width: 0; }
+.sr-ft-tool {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 30px; min-width: 30px; padding: 0 10px; border-radius: 6px;
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface); color: var(--sr-text);
+  font-family: inherit; font-size: 0.75rem; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+.sr-ft-tool-glyph { flex-shrink: 0; }
+.sr-ft-tool .cap { display: none; }
+.sr-ft-tool:disabled, .sr-ft-tool[aria-disabled="true"] { border-color: var(--sr-border); background: var(--sr-surface-subtle); color: var(--sr-text-disabled); cursor: not-allowed; }
+@media (hover: hover) {
+  .sr-ft-tool:where(:not(:disabled):not([aria-disabled="true"])):hover { background: var(--sr-surface-subtle); }
+}
+
+/* The table. */
+.sr-ft-list { container-type: inline-size; container-name: sr-ft-list; min-width: 0; }
+.sr-ft-cols, .sr-ft-frow {
+  display: grid; grid-template-columns: 1rem minmax(0, 1fr) 12.5rem repeat(3, 6.75rem);
+  column-gap: 16px; align-items: start; padding: 9px 18px 10px;
+}
+.sr-ft-tab[data-media="off"] :is(.sr-ft-cols, .sr-ft-frow) { grid-template-columns: 1rem minmax(0, 1fr) 14rem; }
+.sr-ft-cols { padding-top: 7px; padding-bottom: 7px; background: var(--sr-surface-faint); border-bottom: 1px solid var(--sr-border-subtle); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); }
+.sr-ft-cols .c-name { grid-column: 2; }
+.sr-ft-cols .c-m { display: inline-flex; align-items: center; gap: 5px; }
+.sr-ft-oband { display: flex; align-items: baseline; flex-wrap: wrap; gap: 1px 12px; padding: 14px 18px 6px; border-top: 1px solid var(--sr-border-subtle); min-width: 0; }
+.sr-ft-cols + .sr-ft-order .sr-ft-oband { border-top: 0; }
+.sr-ft-oband h3 { font-size: 0.8125rem; font-weight: 700; letter-spacing: -0.005em; color: var(--sr-text); margin: 0; overflow-wrap: anywhere; }
+.sr-ft-oband p { font-size: 0.71875rem; color: var(--sr-text-muted); margin: 0; font-variant-numeric: tabular-nums; }
+.sr-ft-oband p b { font-weight: 600; color: var(--sr-text); }
+.sr-ft-oband .alt, .sr-ft-genus .alt { font-size: 0.71875rem; font-weight: 400; color: var(--sr-text-gray); }
+.sr-ft-frow {
+  width: 100%; text-align: left; border: 0; border-top: 1px solid var(--sr-border-subtle); background: none; color: inherit; cursor: pointer;
+  font-family: inherit; transition: background-color 120ms ease-out;
+}
+/* After the global ring block on purpose: at (0,2,0) this ties
+   `[tabindex]:focus-visible`, so its place in the file is load-bearing (ui.md
+   v1.0.54). The ring sits inside the row's own edge. */
+.sr-ft-frow:focus-visible { outline-offset: -3px; }
+.sr-ft-rowchev { color: var(--sr-text-muted); margin-top: 3px; transition: transform 140ms ease-out; }
+.sr-ft-frow[aria-expanded="true"] .sr-ft-rowchev { transform: rotate(90deg); color: var(--sr-text); }
+.sr-ft-fname { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-ft-fname .n { font-size: 0.84375rem; font-weight: 600; line-height: 1.4; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-ft-fname .s { font-size: 0.71875rem; line-height: 1.4; color: var(--sr-text-gray); overflow-wrap: anywhere; }
+.sr-ft-seen { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding-top: 1px; }
+.sr-ft-seen-figs { display: flex; align-items: baseline; justify-content: space-between; gap: 0 10px; flex-wrap: wrap; font-size: 0.75rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+.sr-ft-seen-figs b { font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); }
+.sr-ft-seen-figs .pct { font-weight: 600; color: var(--sr-text); }
+.sr-ft-mc { min-width: 0; display: flex; flex-direction: column; padding-top: 1px; font-variant-numeric: tabular-nums; }
+.sr-ft-mc b { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); line-height: 1.4; }
+.sr-ft-mc span { font-size: 0.6875rem; color: var(--sr-text-muted); line-height: 1.4; }
+.sr-ft-mc.is-zero b { font-weight: 400; color: var(--sr-text-muted); }
+.sr-ft-mline { display: none; }
+@media (hover: hover) {
+  .sr-ft-frow:hover { background: var(--sr-surface-subtle); }
+}
+/* An opened family: genera, each over its species. Rows a press adds fade in
+   from 4px above over 180ms (the Life Lists rule); a re-sort is instant. */
+.sr-ft-open { padding: 0 18px 12px calc(18px + 1rem + 16px); background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle); }
+.sr-ft-open.is-new { animation: sr-ft-row-in 180ms cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes sr-ft-row-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.sr-ft-genus { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; margin: 0; padding: 11px 0 4px; font-size: 0.75rem; color: var(--sr-text-muted); }
+.sr-ft-genus b { font-weight: 600; color: var(--sr-text); overflow-wrap: anywhere; }
+.sr-ft-genus .is-sci { font-style: italic; }
+.sr-ft-sp { display: grid; grid-template-columns: minmax(0, 1fr) max(46px, 2.5rem); column-gap: 14px; align-items: center; padding: 7px 0; border-top: 1px solid var(--sr-border); }
+.sr-ft-tab[data-media="off"] .sr-ft-sp { grid-template-columns: minmax(0, 1fr); }
+/* The shared cell carries Life Lists' grid area; here it sits in a plain track. */
+.sr-ft-sp .sr-lfl-media { grid-area: auto; justify-self: end; padding-top: 0; }
+.sr-ft-sp .sr-birdname { width: 100%; max-width: 100%; }
+.sr-ft-sp .sr-birdname-row { flex-wrap: wrap; }
+.sr-ft-sp .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+.sr-ft-reason { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; padding: 10px 0 6px; max-width: 64ch; }
+.sr-ft-empty { padding: 34px 18px 36px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; margin: 0; }
+.sr-ft-tablefoot { padding: 10px 18px 12px; border-top: 1px solid var(--sr-border-subtle); }
+/* The table stacks by the LIST's own width, so a wide window at 200% text and
+   the phone both get it; each figure then carries its own glyph. */
+@container sr-ft-list (max-width: 44em) {
+  .sr-ft-cols { display: none; }
+  .sr-ft-frow { grid-template-columns: 1rem minmax(0, 1fr); row-gap: 6px; column-gap: 12px; }
+  .sr-ft-tab[data-media="off"] .sr-ft-frow { grid-template-columns: 1rem minmax(0, 1fr); }
+  .sr-ft-frow > :not(.sr-ft-rowchev) { grid-column: 2; }
+  .sr-ft-mc { display: none; }
+  .sr-ft-mline { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; font-size: 0.75rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+  .sr-ft-mline > span { display: inline-flex; align-items: center; gap: 5px; }
+  .sr-ft-mline b { font-weight: 600; color: var(--sr-text); }
+  .sr-ft-open { padding-left: calc(18px + 1rem + 12px); }
+}
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
+  /* The Family Tree tab's phone tier (family-rollups-and-tree design-spec 4 to
+     11, 14). Inside the established tier and after the tab's base block, so
+     each rule here refines its base rule on source order. Every control in the
+     strip, the view bar and the toolbar is at least 2.75rem tall; the table
+     still has no scroller of its own (FR-86). */
+  .sr-ft-controls { padding: 12px; }
+  .sr-ft-ctl-row { gap: 8px 6px; }
+  .sr-ft-select { min-height: 2.75rem; }
+  .sr-ft-controls .sr-toggle { height: auto !important; min-height: 2.75rem; white-space: normal !important; }
+  .sr-ft-controls .sr-pill { min-height: 2.75rem; white-space: normal; }
+  .sr-ft-group--media { flex: 1 1 100%; }
+  .sr-ft-glance { padding: 14px 12px 12px; gap: 12px 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sr-ft-tile { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  .sr-ft-tile dt { order: 0; color: var(--sr-text-muted); font-weight: 600; }
+  .sr-ft-tile-den { flex: none; }
+  .sr-ft-tile .sr-ft-bar { flex: none; }
+  .sr-ft-tile-value { font-size: 1.375rem; }
+  .sr-ft-notes { padding: 0 12px 10px; }
+  .sr-ft-viewbar, .sr-ft-toolbar { padding: 10px 12px; }
+  .sr-ft-namesseg { margin-left: 0; flex: 1 1 100%; }
+  .sr-ft-namesseg .sr-segbar-btn { flex: 1 1 0; min-height: 2.75rem; }
+  .sr-ft-tablebar { flex: 1 1 12rem; }
+  .sr-ft-tablebar .sr-ft-selwrap { flex: 1 1 auto; }
+  .sr-ft-tablebar .sr-ft-select { width: 100%; }
+  .sr-ft-tools { flex: 1 1 100%; }
+  .sr-ft-tool { min-height: 2.75rem; }
+  .sr-ft-frow { padding: 10px 12px 11px; min-height: 2.75rem; }
+  .sr-ft-oband { padding: 14px 12px 6px; }
+  .sr-ft-open { padding: 0 12px 12px calc(12px + 1rem + 12px); }
+  .sr-ft-sp { min-height: 2.75rem; }
+  .sr-ft-empty { padding: 28px 12px; }
+  .sr-ft-tablefoot { padding: 10px 12px 12px; }
   /* The county panel's rows stack on a phone, and the action slot takes its own
      line rather than competing with the section title for width. */
   .sr-cardhead-action { margin-left: 0; width: 100%; }

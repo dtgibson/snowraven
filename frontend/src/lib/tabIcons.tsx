@@ -24,7 +24,7 @@
 // Entry-chunk safety: this file imports `react` types and `lucide-react` only,
 // both of which App.tsx already carries. entryChunk.test.ts is the live guard.
 
-import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target, ListChecks, MapPinned } from 'lucide-react'
+import { BookOpen, BarChart2, Images, Dna, Tag, ClipboardList, CalendarDays, Target, ListChecks, MapPinned, Network } from 'lucide-react'
 import type { Tab } from './tabLayout'
 
 export interface TabIconProps {
@@ -100,6 +100,11 @@ export const TAB_ICONS: Record<Tab, TabIcon> = {
   // folded map, which carries no pin (hotspot-reports decisions.md D-01).
   'hotspot-reports': ({ size, strokeWidth }) => (
     <MapPinned size={size} strokeWidth={strokeWidth} aria-hidden="true" />
+  ),
+  // Family Tree. lucide `Network` (three nodes joined, a tree read from its
+  // root): used nowhere else in the app (family-rollups-and-tree design-spec 3).
+  'family-tree': ({ size, strokeWidth }) => (
+    <Network size={size} strokeWidth={strokeWidth} aria-hidden="true" />
   ),
   'comparer': ({ size, strokeWidth }) => (
     <svg {...svgProps(size, strokeWidth)}>

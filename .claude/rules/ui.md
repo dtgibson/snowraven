@@ -30,6 +30,8 @@ paths:
   - "frontend/src/lib/namedBirdCardCss.test.ts"
   - "frontend/src/lib/controlRegisters.test.ts"
   - "frontend/src/test/cssSpecificity.ts"
+  - "frontend/src/lib/familyTreeCopy.ts"
+  - "frontend/src/lib/familyTreeLayout.ts"
 ---
 
 # SnowRaven UI construction conventions (colors, responsive layout, accessibility, display copy)

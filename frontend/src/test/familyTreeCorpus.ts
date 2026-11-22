@@ -12,12 +12,19 @@
 // name past the placement key bound).
 
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { buildFamilyIndex, type FamiliesAssetJson, type FamilyIndex } from '../lib/familyTreeAsset'
 
+/** A path beside this file, as a plain string, so a jsdom suite (whose global
+ *  URL is jsdom's, not Node's) can read it as well as a node one. */
+function asPath(rel: string): string {
+  return fileURLToPath(String(new URL(rel, import.meta.url)))
+}
+
 export function readFamilyIndex(): FamilyIndex {
-  const raw = JSON.parse(readFileSync(new URL('../assets/ebird-families.json', import.meta.url), 'utf8')) as FamiliesAssetJson
+  const raw = JSON.parse(readFileSync(asPath('../assets/ebird-families.json'), 'utf8')) as FamiliesAssetJson
   return buildFamilyIndex(raw)
 }
 
@@ -25,7 +32,7 @@ interface Snapshot { byCode: Record<string, string>; byCom: Record<string, strin
 let snapshot: Snapshot | null = null
 /** Every species name of the snapshot, spelled as eBird spells it, in taxonomic order of the asset. */
 export function speciesNames(index: FamilyIndex): string[] {
-  if (snapshot === null) snapshot = JSON.parse(readFileSync(new URL('../assets/ebird-taxonomy.json', import.meta.url), 'utf8')) as Snapshot
+  if (snapshot === null) snapshot = JSON.parse(readFileSync(asPath('../assets/ebird-taxonomy.json'), 'utf8')) as Snapshot
   const byLower = new Array<string>(index.epithets.length)
   for (const [lc, seq] of index.bySpecies) byLower[seq] = snapshot.byCode[snapshot.byCom[lc]]
   return byLower

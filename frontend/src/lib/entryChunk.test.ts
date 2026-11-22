@@ -1187,6 +1187,63 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(hasIn(map.files, 'components/SnowMap.tsx')).toBe(true)
   })
 
+  // -- The Family Tree tab (family-rollups-and-tree NFR-06, schema 13). Lazy
+  // like every tab: only its registry entries in lib/tabLayout.ts and
+  // lib/tabIcons.tsx ride the entry chunk. The family asset is a chunk of its
+  // own, named exactly once, inside the one import() in familyTreeAsset.ts, so
+  // it is off the tab's static graph as well as App's. Negatives first, then
+  // the positive legs proving the subtree really does reach what it must.
+  const FAMILY_TREE_TAB_FILES = [
+    'components/familyTree/FamilyTreeTab.tsx',
+    'components/familyTree/FamilyTreeControls.tsx',
+    'components/familyTree/FamilyTreeRollup.tsx',
+    'lib/familyTreeAsset.ts',
+    'lib/familyTreeScope.ts',
+    'lib/familyTreeModel.ts',
+    'lib/familyTreeNames.ts',
+    'lib/familyTreeSettings.ts',
+    'lib/familyTreeCopy.ts',
+  ]
+  const FAMILY_TREE_ASSET = 'assets/ebird-families.json'
+
+  it.each([...FAMILY_TREE_TAB_FILES, FAMILY_TREE_ASSET])('%s is off the App static closure (family-rollups-and-tree)', file => {
+    expect(has(file)).toBe(false)
+  })
+
+  it('the Family Tree subtree reaches every one of its own files, and no map, chart library or family asset', () => {
+    const sub = closureFrom(resolve(SRC, 'components/familyTree/FamilyTreeTab.tsx'))
+    for (const file of FAMILY_TREE_TAB_FILES) {
+      expect(hasIn(sub.files, file), `Family Tree must reach ${file}`).toBe(true)
+    }
+    expect(maplibreIn(sub.externals)).toEqual([])
+    expect([...sub.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    expect(hasIn(sub.files, 'components/SnowMap.tsx')).toBe(false)
+    // The asset rides its own chunk: off the tab's static graph too.
+    expect(hasIn(sub.files, FAMILY_TREE_ASSET)).toBe(false)
+    // The shared pieces it reuses are on its graph (positive legs).
+    expect(hasIn(sub.files, 'lib/lifeLists.ts')).toBe(true)
+    expect(hasIn(sub.files, 'lib/lifeListsRegion.ts')).toBe(true)
+    expect(hasIn(sub.files, 'components/MediaPresenceCell.tsx')).toBe(true)
+    expect(has('lib/tabLayout.ts')).toBe(true)
+    expect(has('lib/tabIcons.tsx')).toBe(true)
+    const appCode = stripComments(readFileSync(APP, 'utf8'))
+    expect(appCode).toContain("import('./components/familyTree/FamilyTreeTab')")
+    // Not warmed at idle (the Life Lists precedent): the one call of the
+    // importer is the lazy() line.
+    expect(appCode.split('importFamilyTree()').length - 1).toBe(1)
+    expect(appCode).toContain('lazy(() => importFamilyTree()')
+  })
+
+  it('the family asset is named exactly once in source, inside import() in familyTreeAsset.ts', () => {
+    const asset = stripComments(readFileSync(resolve(SRC, 'lib/familyTreeAsset.ts'), 'utf8'))
+    expect(asset).toContain("import('../assets/ebird-families.json')")
+    expect(asset.split('ebird-families.json').length - 1).toBe(1)
+    for (const file of FAMILY_TREE_TAB_FILES.filter(f => f !== 'lib/familyTreeAsset.ts')) {
+      const code = stripComments(readFileSync(resolve(SRC, file), 'utf8'))
+      expect(code.includes('ebird-families.json'), file).toBe(false)
+    }
+  })
+
   it('the distribution row is shared with Statistics, and the Statistics weather section is NOT on the tab\'s graph (schema 8.1)', () => {
     const sub = closureFrom(resolve(SRC, 'components/hotspotReports/HotspotReportsTab.tsx'))
     expect(hasIn(sub.files, 'components/WeatherStatsSection.tsx')).toBe(false)

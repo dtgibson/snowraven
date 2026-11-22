@@ -22,6 +22,11 @@ export type KindState = 'any' | 'has' | 'lacks'
 export interface MediaConstraints { readonly photo: KindState; readonly audio: KindState; readonly video: KindState }
 export const NO_MEDIA_CONSTRAINTS: MediaConstraints = { photo: 'any', audio: 'any', video: 'any' }
 
+/** The next state of a tri-state Media pill: any, then has, then lacks, then any. */
+export function nextKindState(s: KindState): KindState {
+  return s === 'any' ? 'has' : s === 'has' ? 'lacks' : 'any'
+}
+
 export interface SpeciesLeaf {
   /** The roster's own name (BirdName's commonName, the Species Detail key). */
   readonly name: string
@@ -290,5 +295,32 @@ export function sortFamilies(model: FamilyModel, index: FamilyIndex, key: SortKe
     else if (kind !== null) c = (fb.withKind?.[kind] ?? 0) - (fa.withKind?.[kind] ?? 0)
     return c !== 0 ? c : fa.family - fb.family
   })
+  return out
+}
+
+// -- Expand all in the table (FR-84, schema 9.2) -----------------------------
+
+/** One commit of the table's Expand all mounts about this many species rows. */
+export const EXPAND_CHUNK_SPECIES = 150
+
+/**
+ * The chunks the table's Expand all commits, in taxonomic order: families are
+ * added until a chunk has reached `size` species rows, and a family is never
+ * split, so no commit mounts more than `size` rows plus the rest of the family
+ * that crossed the line. The Not placed group (key -1) is one more group, last.
+ * A pure plan; the tab commits one chunk per macrotask (schema 9.2, D-32).
+ */
+export function expandChunks(model: FamilyModel, size: number = EXPAND_CHUNK_SPECIES, unplacedKey = -1): number[][] {
+  const out: number[][] = []
+  let cur: number[] = []
+  let rows = 0
+  const add = (key: number, n: number) => {
+    cur.push(key)
+    rows += n
+    if (rows >= size) { out.push(cur); cur = []; rows = 0 }
+  }
+  for (const o of model.orders) for (const f of o.families) add(f.family, f.seen)
+  if (model.unplaced.length > 0) add(unplacedKey, model.unplaced.length)
+  if (cur.length > 0) out.push(cur)
   return out
 }

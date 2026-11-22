@@ -44,8 +44,35 @@ type Surface = keyof typeof SURFACES
 const TAB = 'hotspot-reports' as const
 const LABEL = TAB_LABELS[TAB]
 const AT = DEFAULT_TAB_ORDER.indexOf(TAB)
-const BEFORE = TAB_LABELS[DEFAULT_TAB_ORDER[AT - 1]]
-const AFTER = TAB_LABELS[DEFAULT_TAB_ORDER[AT + 1]]
+// The release's own neighbours, pinned (docs-and-website.md v1.0.64: a guard
+// over one release's published text names that release). 1.0.71's What's New
+// placed the tab between these two; a later tab inserted beside it in the
+// default order (Family Tree, family-rollups-and-tree D-13) does not rewrite
+// that release's sentence.
+const RELEASE_BEFORE = 'Breeding Codes'
+const RELEASE_AFTER = 'Checklists'
+
+/** Where each surface carries a tab's entry. */
+const MARKS: Record<'readme' | 'website' | 'listing', (label: string) => string> = {
+  readme: l => `\n### ${l}\n`,
+  website: l => `<h3>${l}</h3>`,
+  listing: l => `\n\u2022 ${l}: `,
+}
+
+/**
+ * The tab's neighbour on a surface: the nearest tab in DEFAULT_TAB_ORDER, in
+ * `dir`, that the surface carries an entry for. A surface lists only the tabs
+ * whose copy the user has approved, so a newer tab whose sentence is still held
+ * (family-rollups-and-tree FR-74) is skipped rather than demanded; the order
+ * claim is held over the entries the surface does carry.
+ */
+function neighbour(text: string, surface: 'readme' | 'website' | 'listing', dir: -1 | 1): string {
+  for (let i = AT + dir; i >= 0 && i < DEFAULT_TAB_ORDER.length; i += dir) {
+    const label = TAB_LABELS[DEFAULT_TAB_ORDER[i]]
+    if (text.includes(MARKS[surface](label))) return label
+  }
+  throw new Error(`${surface} carries no neighbour of ${LABEL} in direction ${dir}`)
+}
 
 interface Block { kind: string; name: string; n: number; body: string; from: string }
 
@@ -221,16 +248,16 @@ describe('the Hotspot Reports sentence on the three decision surfaces', () => {
   it('README.md: a section named from TAB_LABELS, between its neighbours in DEFAULT_TAB_ORDER, holding the sentence', () => {
     const text = published('readme')
     const sec = readmeSection(text, LABEL)
-    expect(sec.at).toBeGreaterThan(readmeSection(text, BEFORE).at)
-    expect(sec.at).toBeLessThan(readmeSection(text, AFTER).at)
+    expect(sec.at).toBeGreaterThan(readmeSection(text, neighbour(text, 'readme', -1)).at)
+    expect(sec.at).toBeLessThan(readmeSection(text, neighbour(text, 'readme', 1)).at)
     expect(sec.body).toBe(S())
   })
 
   it('website/index.html: a row between its neighbours, the same sentence, its figure, and the rows still alternating', () => {
     const text = published('website')
     const row = siteArticle(text, LABEL)
-    expect(row.at).toBeGreaterThan(siteArticle(text, BEFORE).at)
-    expect(row.at).toBeLessThan(siteArticle(text, AFTER).at)
+    expect(row.at).toBeGreaterThan(siteArticle(text, neighbour(text, 'website', -1)).at)
+    expect(row.at).toBeLessThan(siteArticle(text, neighbour(text, 'website', 1)).at)
     expect(siteSentence(text, LABEL)).toBe(S())
     expect(row.html).toContain('src="assets/shots/hotspot-reports.webp"')
     expect(row.html).toMatch(/ alt="The Hotspot Reports tab [^"]+"/)
@@ -247,8 +274,8 @@ describe('the Hotspot Reports sentence on the three decision surfaces', () => {
   it('appstore/LISTING.md: a bullet between its neighbours, the sentence first letter down, and the recorded length matching its block', () => {
     const text = published('listing')
     const b = listingBullet(text, LABEL)
-    expect(b.at).toBeGreaterThan(listingBullet(text, BEFORE).at)
-    expect(b.at).toBeLessThan(listingBullet(text, AFTER).at)
+    expect(b.at).toBeGreaterThan(listingBullet(text, neighbour(text, 'listing', -1)).at)
+    expect(b.at).toBeLessThan(listingBullet(text, neighbour(text, 'listing', 1)).at)
     expect(b.text).toBe(proposal('listing'))
     const m = /\n## Description \(([\d,]+) \/ 4,000\)\n/.exec(text)
     expect(m, 'the Description heading records its length').not.toBeNull()
@@ -277,7 +304,7 @@ describe("the release's What's New, F-Droid changelog and screenshot caption", (
     expect(proposal('fastlane')).toBe(whatsNew)
     expect(whatsNew.length + 1, 'the file holds the text and one newline').toBeLessThanOrEqual(500)
     expect(whatsNew.slice(0, -1).includes('. '), 'one sentence').toBe(false)
-    expect(whatsNew).toMatch(new RegExp(`^A new ${LABEL} tab, between ${BEFORE} and ${AFTER}, `))
+    expect(whatsNew).toMatch(new RegExp(`^A new ${LABEL} tab, between ${RELEASE_BEFORE} and ${RELEASE_AFTER}, `))
     const findings = registerFindings(whatsNew).filter(f => f !== 'operating detail')
     expect(findings).toEqual([])
   })

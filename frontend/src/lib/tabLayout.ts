@@ -12,6 +12,7 @@ export type ConfigurableTab =
   | 'targets'
   | 'life-lists'
   | 'hotspot-reports'
+  | 'family-tree'
 
 export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'weather',
@@ -22,6 +23,7 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'targets',
   'life-list',
   'breeding-codes',
+  'family-tree',
   'hotspot-reports',
   'checklists',
   'life-lists',
@@ -30,19 +32,21 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
 ]
 
 /**
- * The default order as it shipped from Life Lists until Hotspot Reports
- * arrived (Life Lists after Checklists, no Hotspot Reports). It exists for ONE
- * equality in parseLayout: a saved order that is this list element-for-element
- * was never reordered by the user (Restore defaults, or a hide/show with no
- * drag, writes the default back verbatim), so it carries no order preference
- * and reads as the current default, which puts Hotspot Reports between Breeding
- * Codes and Checklists rather than last. The tab layout is device-local and
- * never synced, so without this step the new default would reach fresh installs
- * only. Exactly ONE generation migrates (CLAUDE.md, v1.0.19): the 1.0.38 order
- * this constant used to hold is retired, because chaining generations turns the
- * one equality back into a heuristic, so a saved 1.0.38 default now reads as a
- * custom order (hotspot-reports schema 10.2). Not a default for anything; do
- * not read it as one.
+ * The default order as it shipped from Hotspot Reports until the Family Tree
+ * arrived (no Family Tree). It exists for ONE equality in parseLayout: a saved
+ * order that is this list element-for-element was never reordered by the user
+ * (Restore defaults, or a hide/show with no drag, writes the default back
+ * verbatim), so it carries no order preference and reads as the current
+ * default, which puts Family Tree between Breeding Codes and Hotspot Reports
+ * rather than last (family-rollups-and-tree D-13, schema 14.2). The tab layout
+ * is device-local and never synced, so without this step the new default would
+ * reach fresh installs only. Exactly ONE generation migrates (CLAUDE.md,
+ * v1.0.19): the pre-Hotspot-Reports order this constant used to hold is
+ * retired, because chaining generations turns the one equality back into a
+ * heuristic, so a saved pre-Hotspot-Reports default now reads as a custom order
+ * and on such a device Hotspot Reports moves to the end, followed by Family
+ * Tree (FR-10 accepts it; Restore defaults puts it back). Not a default for
+ * anything; do not read it as one.
  */
 export const PREVIOUS_DEFAULT_TAB_ORDER: readonly ConfigurableTab[] = [
   'weather',
@@ -53,6 +57,7 @@ export const PREVIOUS_DEFAULT_TAB_ORDER: readonly ConfigurableTab[] = [
   'targets',
   'life-list',
   'breeding-codes',
+  'hotspot-reports',
   'checklists',
   'life-lists',
   'comparer',
@@ -73,6 +78,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'targets':        'Targets',
   'life-lists':     'Life Lists',
   'hotspot-reports': 'Hotspot Reports',
+  'family-tree':    'Family Tree',
 }
 
 export type Tab = ConfigurableTab | 'settings'
