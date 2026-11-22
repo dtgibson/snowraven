@@ -206,3 +206,57 @@ describe('the phone full screen\'s tools row resolves as designed (QA-98, D-55(c
     expect(matches('.sr-ft-other .cap', CAP)).toBe(false)
   })
 })
+
+// -- QA-57's scan half: the diagram's CODE scales nothing --------------------------
+// A computed font size cannot see a scaled box, so the tree's code is scanned
+// too, comments stripped first (and the strip proven): no CSS `zoom`, no
+// `transform` and no `scale` in any spelling (`scale3d`, `scaleX`, the `scale`
+// property), in a style object or through `.style`; and the one SVG viewBox
+// maps 1:1, its width and height the element's own width and height, so it
+// places the edges in plane coordinates and scales nothing.
+function stripCode(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map(l => {
+    const i = l.indexOf('//')
+    if (i === -1) return l
+    const before = l.slice(0, i)
+    return (before.match(/['"`]/g) ?? []).length % 2 === 1 ? l : before
+  }).join('\n')
+}
+const SCALE_CALL = /\b(scale|scale3d|scaleX|scaleY|scaleZ)\s*\(/
+const STYLE_SCALE = /\.style\.(zoom|transform|scale)\b|\btransform\s*:/
+function styleObjects(code: string): string[] {
+  return [
+    ...[...code.matchAll(/style=\{\{([^}]*)\}\}/g)].map(m => m[1]),
+    ...[...code.matchAll(/:\s*CSSProperties\s*=\s*\{([^}]*)\}/g)].map(m => m[1]),
+  ]
+}
+
+describe('the diagram\'s code scales nothing (QA-57, scan half)', () => {
+  const files = ['../components/familyTree/FamilyTreeDiagram.tsx', './familyTreeLayout.ts']
+    .map(f => ({ f, code: stripCode(readFileSync(new URL(f, import.meta.url), 'utf8')) }))
+  it('the strip is proven: a commented scale is not seen, a coded one is', () => {
+    expect(SCALE_CALL.test(stripCode('// transform: scale(2)\nconst a = 1'))).toBe(false)
+    expect(SCALE_CALL.test(stripCode("el.style.transform = 'scale(2)'"))).toBe(true)
+    expect(STYLE_SCALE.test(stripCode("el.style.transform = 'none'"))).toBe(true)
+    expect(styleObjects('style={{ zoom: 2 }}')[0]).toContain('zoom')
+  })
+  it('no zoom, transform or scale anywhere in the code, nor in an inline style object', () => {
+    for (const { f, code } of files) {
+      expect(code.length, `${f} was read`).toBeGreaterThan(2000)
+      expect(SCALE_CALL.test(code), f).toBe(false)
+      expect(STYLE_SCALE.test(code), f).toBe(false)
+      for (const o of styleObjects(code)) expect(/\b(zoom|transform|scale)\b/.test(o), `${f}: ${o}`).toBe(false)
+    }
+    expect(styleObjects(files[0].code).length).toBeGreaterThanOrEqual(3)
+  })
+  it('the one viewBox is 1:1 with the element\'s own width and height', () => {
+    const svgs = [...files[0].code.matchAll(/<svg\b[^>]*>/g)].map(m => m[0])
+    expect(svgs).toHaveLength(1)
+    const w = /\bwidth=\{([^}]+)\}/.exec(svgs[0])![1]
+    const h = /\bheight=\{([^}]+)\}/.exec(svgs[0])![1]
+    const vb = /viewBox=\{`([^`]+)`\}/.exec(svgs[0])![1].trim().split(/\s+/)
+    expect(vb).toHaveLength(4)
+    expect(vb[2]).toBe('${' + w + '}')
+    expect(vb[3]).toBe('${' + h + '}')
+  })
+})

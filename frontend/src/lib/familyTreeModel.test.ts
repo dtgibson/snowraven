@@ -6,6 +6,8 @@
 // from the asset when the test runs.
 
 import { describe, it, expect } from 'vitest'
+import v8 from 'node:v8'
+import vm from 'node:vm'
 import { deriveFirstSightings } from './lifeLists'
 import { deriveRegionIndex, type RegionRef } from './lifeListsRegion'
 import { deriveScope, deriveYearColumns, type ScopeBase } from './familyTreeScope'
@@ -321,5 +323,50 @@ describe('the table\'s Expand all plan (schema 9.2 as amended, D-43)', () => {
     const first = FULL.orders[0].families[0].family
     const steps = expandSteps(FULL, EXPAND_CHUNK_SPECIES, -1, new Set([first]))
     expect(steps.flat().some(([k]) => k === first)).toBe(false)
+  })
+})
+
+// -- QA-78's model leg: the model holds none of its inputs (NFR-05) ---------------
+// The model is the one long-lived derivation a view holds. Built inside a
+// closure and kept alone, it must let the observation and ML arrays, the
+// scope base and the roster go: the model holds no copy of the arrays, and no
+// family tree module keeps a reference of its own (the tab's leg is in
+// FamilyTreeTab.test.tsx).
+v8.setFlagsFromString('--expose-gc')
+const gc = vm.runInNewContext('gc') as (() => void) | undefined
+async function collect(): Promise<void> {
+  for (let i = 0; i < 3; i++) {
+    await new Promise<void>(r => setTimeout(r, 0))
+    gc!()
+  }
+}
+function buildAlone(seed: number, keepInput: boolean) {
+  const { obs, ml } = generateCorpus(seed, SPECIES)
+  const base = baseOf(obs, ml)
+  const held = model(base)
+  return {
+    held: keepInput ? { held, base } : { held },
+    refs: { obs: new WeakRef(obs), ml: new WeakRef(ml), base: new WeakRef(base), firsts: new WeakRef(base.firsts) },
+  }
+}
+
+describe('the model holds none of its inputs (QA-78, NFR-05)', () => {
+  it('this process can force a collection (the suite fails rather than skips without it)', () => {
+    expect(typeof gc).toBe('function')
+  })
+  it('with the model held alone, the observation and ML arrays, the scope base and the roster are collected', async () => {
+    const { held, refs } = buildAlone(31, false)
+    await collect()
+    expect(held.held.seen.species).toBeGreaterThan(0)
+    expect(refs.obs.deref(), 'the observation array').toBeUndefined()
+    expect(refs.ml.deref(), 'the ML array').toBeUndefined()
+    expect(refs.base.deref(), 'the scope base').toBeUndefined()
+    expect(refs.firsts.deref(), 'the roster').toBeUndefined()
+  })
+  it('CONTROL: a holder that kept the input retains every one of them', async () => {
+    const { held, refs } = buildAlone(37, true)
+    await collect()
+    expect(held.held.seen.species).toBeGreaterThan(0)
+    for (const r of Object.values(refs)) expect(r.deref()).toBeDefined()
   })
 })

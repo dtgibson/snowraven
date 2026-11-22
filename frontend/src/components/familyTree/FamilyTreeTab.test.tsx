@@ -11,6 +11,10 @@
 // The real family asset is loaded, as in the app.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import v8 from 'node:v8'
+import vm from 'node:vm'
+import { readFileSync } from 'node:fs'
+import { resolve as resolvePath } from 'node:path'
 import { render, screen, cleanup, fireEvent, waitFor, act, within } from '@testing-library/react'
 import type { ObservationEntry } from '../../types'
 import type { MLExportRow } from '../../lib/parseMLExport'
@@ -29,6 +33,10 @@ const H = vi.hoisted(() => ({
   snapshot: null as unknown,
   getFilesStatus: vi.fn(),
   listeners: new Set<() => void>(),
+  // A gate a load waits on after reading its dataset (QA-15's supersession rows).
+  hold: null as Promise<void> | null,
+  // A WeakRef to every model the tab builds (QA-78): weak, so it retains none.
+  models: [] as WeakRef<object>[],
   // The still tier (useIsPhone). True by default so the Slice A rows meet the
   // table, the first view at or under the tier (FR-53); the tree rows set it.
   phone: true,
@@ -38,11 +46,33 @@ vi.mock('../../lib/storage', () => ({
   storage: { getFilesStatus: H.getFilesStatus, getSetting: H.getSetting, setSetting: H.setSetting, deleteSetting: H.deleteSetting },
 }))
 vi.mock('../../lib/observationsCache', () => ({
-  loadEbirdObservations: vi.fn(async () => (H.ebirdNull ? null : { headerLine: '', observations: H.observations })),
+  loadEbirdObservations: vi.fn(async () => {
+    const observations = H.observations
+    if (H.hold) await H.hold
+    return H.ebirdNull ? null : { headerLine: '', observations }
+  }),
 }))
 vi.mock('../../lib/mlExportCache', () => ({
   loadMLExport: vi.fn(async () => (H.mlRows ? { entries: [], mediaMap: {}, rows: H.mlRows } : null)),
 }))
+// Passing through, keeping only a WeakRef to each model built (QA-78). A plain
+// function, not vi.fn, whose recorded results would retain every model.
+vi.mock('../../lib/familyTreeModel', async importOriginal => {
+  const m = await importOriginal<typeof import('../../lib/familyTreeModel')>()
+  return {
+    ...m,
+    buildFamilyModel: (input: Parameters<typeof m.buildFamilyModel>[0]) => {
+      const out = m.buildFamilyModel(input)
+      H.models.push(new WeakRef(out))
+      return out
+    },
+  }
+})
+// Counted, passing through: a superseded run must never reach the passes.
+vi.mock('../../lib/lifeLists', async importOriginal => {
+  const m = await importOriginal<typeof import('../../lib/lifeLists')>()
+  return { ...m, deriveFirstSightings: vi.fn(m.deriveFirstSightings) }
+})
 vi.mock('../../lib/transport', () => ({ transport: { post: H.post, get: vi.fn() } }))
 vi.mock('../../lib/useIsPhone', () => ({ useIsPhone: () => H.phone }))
 vi.mock('../../lib/exoticProvenanceCache', () => ({
@@ -63,6 +93,9 @@ vi.mock('../../lib/familyTreeAsset', async importOriginal => {
 
 import { FamilyTreeTab } from './FamilyTreeTab'
 import { notifyFilesChanged } from '../../lib/filesChanged'
+import { deriveFirstSightings } from '../../lib/lifeLists'
+import { loadEbirdObservations } from '../../lib/observationsCache'
+import { loadMLExport } from '../../lib/mlExportCache'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
 import { FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING } from '../../lib/familyTreeSettings'
 import {
@@ -126,6 +159,65 @@ async function ready(props: Partial<{ showing: boolean }> = {}) {
 }
 const familyRow = (name: RegExp | string) => screen.getByRole('button', { name: typeof name === 'string' ? new RegExp(`^${name}`) : name })
 const tileValue = (i: number) => document.querySelectorAll('.sr-ft-tile-value')[i]?.textContent
+
+describe('one model, both views (QA-33)', () => {
+  it('a control change builds the model once; a view switch builds it zero times and keeps every filter', async () => {
+    const { modelWork } = await import('../../lib/familyTreeModel')
+    await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
+    await act(async () => { await new Promise(r => setTimeout(r, 30)) })
+    const b0 = modelWork.builds
+    fireEvent.change(screen.getByRole('combobox', { name: 'Year' }), { target: { value: '2021' } })
+    expect(modelWork.builds).toBe(b0 + 1)
+    expect(tileValue(0)).toBe('2')
+    fireEvent.click(screen.getByRole('button', { name: 'Tree' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+    expect(modelWork.builds).toBe(b0 + 1)
+    expect(tileValue(0)).toBe('2')
+    expect((screen.getByRole('combobox', { name: 'Year' }) as HTMLSelectElement).value).toBe('2021')
+  })
+  it('neither view computes a figure: both read the model\'s fields and import no builder', () => {
+    for (const f of ['FamilyTreeRollup.tsx', 'FamilyTreeDiagram.tsx']) {
+      const code = readFileSync(resolvePath('src/components/familyTree', f), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trimStart().startsWith('//')).join('\n')
+      expect(code.length, f).toBeGreaterThan(2000)
+      for (const banned of ['buildFamilyModel', 'deriveScope', 'worldCounts', 'deriveYearColumns', 'deriveFirstSightings', '.reduce(']) {
+        expect(code.includes(banned), `${f} holds ${banned}`).toBe(false)
+      }
+    }
+  })
+})
+
+describe('a superseded load writes nothing (QA-15)', () => {
+  afterEach(() => { H.hold = null })
+  it('a files-epoch bump mid-load: the first run never derives, and the tab shows the second file', async () => {
+    const A = [obs('Snow Goose', '2019-05-02', 'S1')]
+    let release: () => void = () => {}
+    H.hold = new Promise<void>(r => { release = r })
+    H.observations = A
+    render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
+    await waitFor(() => expect(vi.mocked(loadEbirdObservations)).toHaveBeenCalledTimes(1))
+    H.hold = null
+    H.observations = BASE
+    act(() => notifyFilesChanged())
+    await waitFor(() => expect(document.querySelector('.sr-ft-glance')).not.toBeNull())
+    expect(tileValue(0)).toBe('5')
+    await act(async () => { release(); await new Promise(r => setTimeout(r, 20)) })
+    expect(tileValue(0)).toBe('5')
+    expect(vi.mocked(deriveFirstSightings).mock.calls.some(c => c[0] === A)).toBe(false)
+    expect(vi.mocked(deriveFirstSightings).mock.calls.some(c => c[0] === BASE)).toBe(true)
+  })
+  it('an unmount mid-load: the run never derives and posts nothing', async () => {
+    let release: () => void = () => {}
+    H.hold = new Promise<void>(r => { release = r })
+    const r = render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
+    await waitFor(() => expect(vi.mocked(loadEbirdObservations)).toHaveBeenCalledTimes(1))
+    r.unmount()
+    await act(async () => { release(); await new Promise(res => setTimeout(res, 20)) })
+    expect(vi.mocked(deriveFirstSightings)).not.toHaveBeenCalled()
+    expect(H.post).not.toHaveBeenCalled()
+  })
+})
 
 describe('the phase gate (QA-13 to QA-15)', () => {
   it('shows the setup panel with no backup, and no controls or table (QA-13)', async () => {
@@ -250,9 +342,18 @@ describe('the controls (QA-28 to QA-31, QA-35)', () => {
     await ready()
     const sw = screen.getByRole('switch', { name: 'Include Escapees' })
     expect(sw.getAttribute('aria-checked')).toBe('false')
-    const before = tileValue(0)
+    // Off: the reader's confirmed escapee is excluded; on: exactly it returns (QA-20).
+    expect(tileValue(0)).toBe('4')
     fireEvent.click(sw)
-    expect(Number(tileValue(0))).toBeGreaterThanOrEqual(Number(before))
+    expect(tileValue(0)).toBe('5')
+    expect(sw.getAttribute('aria-checked')).toBe('true')
+  })
+  it('a published escapee the reader cannot confirm (a carrier not consulted) is not excluded', async () => {
+    H.snapshot = snapshot({ excludedNames: ['Canada Goose'], checklists: new Set(['S1']) })
+    await ready()
+    expect(tileValue(0)).toBe('5')
+    fireEvent.click(screen.getByRole('switch', { name: 'Include Escapees' }))
+    expect(tileValue(0)).toBe('5')
   })
   it('without an ML export the pills are aria-disabled, the sentence is wired, and no media figure renders (QA-35)', async () => {
     await ready()
@@ -293,6 +394,29 @@ describe('the status sentence (QA-23)', () => {
     await ready()
     const line = screen.getByText(ESCAPEE_STATUS)
     expect(line.querySelector('button, a')).toBeNull()
+  })
+  it('with the check complete, though most checklists were never consulted, no sentence renders', async () => {
+    // Every coded species has an answer (Statistics' own completion test), and
+    // only S2 of three checklists was consulted (the Life Lists suite's shape).
+    const rec = (seen: string[]) => ({ seen, n: seen.length, at: 0 })
+    H.snapshot = snapshot({
+      checklists: new Set(['S2']),
+      species: new Map([['snogoo', rec(['|'])], ['rosgoo', rec(['|'])], ['cangoo', rec(['|'])], ['amerob', rec(['|'])]]),
+    })
+    await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByText(ESCAPEE_STATUS)).toBeNull())
+  })
+  it('with the codes batch failed, the sentence renders, the check being unknown', async () => {
+    const rec = (seen: string[]) => ({ seen, n: seen.length, at: 0 })
+    H.snapshot = snapshot({
+      checklists: new Set(['S2']),
+      species: new Map([['snogoo', rec(['|'])], ['rosgoo', rec(['|'])], ['cangoo', rec(['|'])], ['amerob', rec(['|'])]]),
+    })
+    H.post.mockImplementation(async () => { throw new Error('offline') })
+    await ready()
+    await waitFor(() => expect(H.post).toHaveBeenCalledTimes(1))
+    expect(screen.getByText(ESCAPEE_STATUS)).toBeTruthy()
   })
 })
 
@@ -788,5 +912,69 @@ describe('Find (FR-65 to FR-67)', () => {
       expect(id).not.toBeNull()
       expect(document.getElementById(id!)?.getAttribute('aria-label')).toMatch(/^Species, Canada Goose/)
     })
+  })
+})
+
+// -- QA-78's tab leg: a files-epoch change releases the previous file ---------
+// With the tree mounted (the lazy chunk and its layout included), a files-epoch
+// change to a second file must leave nothing holding the first file's arrays or
+// any model built from them. The data caches are mocked, so what is measured is
+// the tab's own modules; the real caches release a parse on clear and replace
+// (paletteLocationsLifetime.test.ts). The mocks' own call records are cleared
+// before the collection, since vi.fn keeps every argument and result.
+v8.setFlagsFromString('--expose-gc')
+const gc = vm.runInNewContext('gc') as (() => void) | undefined
+async function collect(): Promise<void> {
+  for (let i = 0; i < 4; i++) {
+    await act(async () => { await new Promise<void>(r => setTimeout(r, 0)) })
+    gc!()
+  }
+}
+function seedFirstFile(): { obs: WeakRef<object>; ml: WeakRef<object> } {
+  const first = [obs('Snow Goose', '2019-05-02', 'S1'), obs('American Robin', '2020-01-01', 'S3')]
+  const firstMl = [ml('Snow Goose', 'Photo', '2019-05-02', 'S1')]
+  H.observations = first
+  H.mlRows = firstMl
+  return { obs: new WeakRef(first), ml: new WeakRef(firstMl) }
+}
+
+describe('a files-epoch change releases the previous file and its models (QA-78, NFR-05)', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+  it('this process can force a collection (the suite fails rather than skips without it)', () => {
+    expect(typeof gc).toBe('function')
+  })
+  it('after the change, the first file\'s arrays and every model built from them are collected; the shown model is alive', async () => {
+    H.phone = false
+    H.models = []
+    layoutShims()
+    const first = seedFirstFile()
+    await ready()
+    const t = await screen.findByRole('tree')
+    await waitFor(() => expect(t.querySelectorAll('[role="treeitem"]').length).toBeGreaterThan(0))
+    expect(tileValue(0)).toBe('2')
+    const firstModels = H.models.slice()
+    expect(firstModels.length).toBeGreaterThan(0)
+
+    H.observations = BASE
+    H.mlRows = [ml('Canada Goose', 'Photo', '2021-03-09', 'S2')]
+    act(() => notifyFilesChanged())
+    await waitFor(() => expect(tileValue(0)).toBe('5'))
+    // Two more renders, so neither of React's fiber buffers keeps the first state.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Year' }), { target: { value: '2021' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Year' }), { target: { value: '' } })
+    expect(tileValue(0)).toBe('5')
+    // Past the tree's session flush pause, so no pending timer holds a closure.
+    await act(async () => { await new Promise<void>(r => setTimeout(r, 300)) })
+    vi.mocked(loadEbirdObservations).mockClear()
+    vi.mocked(loadMLExport).mockClear()
+    vi.mocked(deriveFirstSightings).mockClear()
+    await collect()
+
+    expect(first.obs.deref(), 'the first file\'s observations').toBeUndefined()
+    expect(first.ml.deref(), 'the first file\'s ML rows').toBeUndefined()
+    firstModels.forEach((r, i) => expect(r.deref(), `the first file\'s model ${i}`).toBeUndefined())
+    // CONTROL: the model on screen is held, so the collection is not blind.
+    expect(H.models.slice(firstModels.length).some(r => r.deref() !== undefined)).toBe(true)
+    expect(screen.getByRole('tree')).toBeTruthy()
   })
 })

@@ -15,6 +15,8 @@ import { deriveRegionAssets, deriveRegionIndex, regionAssets, regionFirsts, type
 import { deriveScope, deriveYearColumns, type ScopeBase } from './familyTreeScope'
 import { buildFamilyModel, worldCounts, type FamilyModel, type MediaConstraints } from './familyTreeModel'
 import { generateCorpus, readFamilyIndex, speciesNames } from '../test/familyTreeCorpus'
+import { lifeListsClassification } from './lifeListsProvenance'
+import type { ProvenanceSnapshot } from './exoticProvenance'
 
 const INDEX = readFamilyIndex()
 const { obs: OBS, ml: ML } = generateCorpus(11, speciesNames(INDEX))
@@ -26,9 +28,22 @@ const WORLD_ASSETS = deriveFirstAssets(ML)
 const REGION_ASSETS = deriveRegionAssets(ML, BASE.index.join)
 const REGIONS: (RegionRef | null)[] = [null, ...[...BASE.index.choices.countries, ...BASE.index.choices.states, ...BASE.index.choices.counties].map(c => c.region)]
 
-// Escapees, as the passive reader would return them: a few roster names.
+// Escapees through the REAL passive join (QA-20): a fixture snapshot publishes
+// four roster names, and every checklist of the first three has been consulted
+// while one checklist of the fourth has not, so `lifeListsClassification`
+// confirms three and leaves the fourth counted. The tab's exclusions are held
+// to that output, never to a hand-made set.
 const ROSTER = [...BASE.firsts.keys()].sort()
-const ESCAPEES = new Set([ROSTER[3], ROSTER[17], ROSTER[40]])
+const PUBLISHED = [ROSTER[3], ROSTER[17], ROSTER[40], ROSTER[60]]
+const carriers = (name: string) => OBS.filter(o => o.commonName === name).map(o => o.submissionId)
+const UNCONSULTED = carriers(ROSTER[60])[0]
+const FIXTURE_SNAPSHOT: ProvenanceSnapshot = {
+  checklists: new Set(PUBLISHED.flatMap(carriers).filter(id => id !== UNCONSULTED)),
+  species: new Map(),
+  excludedNames: PUBLISHED,
+  exoticNames: null,
+}
+const ESCAPEES = lifeListsClassification(FIXTURE_SNAPSHOT, OBS).escapees
 const CLASSIFICATION: LifeListClassification = { escapees: ESCAPEES, exotics: new Set([ROSTER[5]]) }
 
 const FORMATS: MediaFormat[] = ['Photo', 'Audio', 'Video']
@@ -91,6 +106,11 @@ describe('the passive escapee read (QA-20)', () => {
     const on = new Set(tabNames(null, true, []))
     const removed = [...on].filter(n => !off.has(n)).sort()
     expect(removed).toEqual([...ESCAPEES].filter(n => BASE.firsts.has(n)).sort())
+    // Non-vacuity: the join confirmed three of the four published names, and the
+    // one with an unconsulted checklist is counted.
+    expect(UNCONSULTED).toBeTruthy()
+    expect([...ESCAPEES].sort()).toEqual([ROSTER[3], ROSTER[17], ROSTER[40]].sort())
+    expect(off.has(ROSTER[60])).toBe(true)
   })
   it('an empty classification excludes none', () => {
     expect(tabNames(null, false, [], new Set())).toEqual(tabNames(null, true, [], new Set()))

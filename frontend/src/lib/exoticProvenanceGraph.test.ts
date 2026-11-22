@@ -151,6 +151,12 @@ describe('the passive provenance path can never reach the network (FR-35, QA-40)
     'lib/familyTreeSettings.ts',
     'lib/familyTreeCopy.ts',
     'lib/familyTreeLinks.ts',
+    // The tree view's lazy chunk and its layout, off the tab's static closure
+    // and so named here as roots of their own (QA-12, round 1).
+    'lib/familyTreeLayout.ts',
+    'lib/familyTreeFind.ts',
+    'components/familyTree/FamilyTreeDiagram.tsx',
+    'components/familyTree/FamilyTreeFind.tsx',
   ]) {
     it(`${root} statically reaches no network module`, () => {
       expect(networkReach(root)).toEqual([])
@@ -272,7 +278,8 @@ describe('Family Tree reads the rule passively (family-rollups-and-tree FR-20, Q
     'lib/familyTreeAsset.ts', 'lib/familyTreeScope.ts', 'lib/familyTreeModel.ts', 'lib/familyTreeNames.ts',
     'lib/familyTreeSettings.ts', 'lib/familyTreeCopy.ts', 'lib/familyTreeLinks.ts',
     'components/familyTree/FamilyTreeTab.tsx', 'components/familyTree/FamilyTreeControls.tsx',
-    'components/familyTree/FamilyTreeRollup.tsx',
+    'components/familyTree/FamilyTreeRollup.tsx', 'lib/familyTreeLayout.ts', 'lib/familyTreeFind.ts',
+    'components/familyTree/FamilyTreeDiagram.tsx', 'components/familyTree/FamilyTreeFind.tsx',
   ]
   it('the tab reads provenance through Life Lists\' reader, which reaches the store, and never reaches the controller', () => {
     const code = stripComments(readFileSync(resolve(SRC, 'components/familyTree/FamilyTreeTab.tsx'), 'utf8'))
