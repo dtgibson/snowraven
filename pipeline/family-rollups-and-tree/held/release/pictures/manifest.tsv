@@ -1,0 +1,30 @@
+# held path (under pictures/)	published path (repo root). Only frames retaken and judged publishable are listed.
+# Frames awaiting leave for outside requests (tiles, the weather lookup) are NOT listed; see ../README.md.
+website/breeding.webp	website/assets/shots/breeding.webp
+website/calendar.webp	website/assets/shots/calendar.webp
+website/family-tree.webp	website/assets/shots/family-tree.webp
+website/life-lists.webp	website/assets/shots/life-lists.webp
+website/multimedia.webp	website/assets/shots/multimedia.webp
+website/named-birds.webp	website/assets/shots/named-birds.webp
+website/species.webp	website/assets/shots/species.webp
+website/statistics-dark.webp	website/assets/shots/statistics-dark.webp
+website/statistics.webp	website/assets/shots/statistics.webp
+appstore/raw/ipad-13/02-statistics.png	appstore/screenshots/raw/ipad-13/02-statistics.png
+appstore/raw/ipad-13/04-calendar.png	appstore/screenshots/raw/ipad-13/04-calendar.png
+appstore/raw/ipad-13/05-species-detail.png	appstore/screenshots/raw/ipad-13/05-species-detail.png
+appstore/raw/ipad-13/06-breeding-codes.png	appstore/screenshots/raw/ipad-13/06-breeding-codes.png
+appstore/raw/iphone-duo/02-statistics.png	appstore/screenshots/raw/iphone-duo/02-statistics.png
+appstore/raw/iphone-duo/04-calendar.png	appstore/screenshots/raw/iphone-duo/04-calendar.png
+appstore/raw/iphone-duo/05-species-detail.png	appstore/screenshots/raw/iphone-duo/05-species-detail.png
+appstore/raw/iphone-duo/06-breeding-codes.png	appstore/screenshots/raw/iphone-duo/06-breeding-codes.png
+appstore/raw/iphone-duo/07-hotspot-reports.png	appstore/screenshots/raw/iphone-duo/07-hotspot-reports.png
+appstore/ipad-13/02-statistics.png	appstore/screenshots/ipad-13/02-statistics.png
+appstore/ipad-13/04-calendar.png	appstore/screenshots/ipad-13/04-calendar.png
+appstore/ipad-13/05-species-detail.png	appstore/screenshots/ipad-13/05-species-detail.png
+appstore/ipad-13/06-breeding-codes.png	appstore/screenshots/ipad-13/06-breeding-codes.png
+appstore/iphone-duo/02-statistics.png	appstore/screenshots/iphone-duo/02-statistics.png
+appstore/iphone-duo/04-calendar.png	appstore/screenshots/iphone-duo/04-calendar.png
+appstore/iphone-duo/05-species-detail.png	appstore/screenshots/iphone-duo/05-species-detail.png
+appstore/iphone-duo/06-breeding-codes.png	appstore/screenshots/iphone-duo/06-breeding-codes.png
+appstore/iphone-duo/07-hotspot-reports.png	appstore/screenshots/iphone-duo/07-hotspot-reports.png
+fdroid/tenInchScreenshots/3.png	fastlane/metadata/android/en-US/images/tenInchScreenshots/3.png
