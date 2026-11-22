@@ -132,7 +132,12 @@ vi.mock('../lib/storage', () => ({
       ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-01-01' },
       ml: { filename: 'ml.csv', uploadedAt: '2026-01-01' },
     })),
-    getSetting: vi.fn(async () => null),
+    // The Family Tree reads its saved view: the table, so a first load that
+    // reaches its ready phase before the reload never mounts the tree, whose
+    // box needs a ResizeObserver jsdom lacks. Whether it got there depended on
+    // how fast the tree's lazy chunk resolved, so the row raced on a loaded
+    // machine. Every other key reads as nothing saved.
+    getSetting: vi.fn(async (key: string) => (key === 'familyTreeView' ? 'rollup' : null)),
     setSetting: vi.fn(async () => {}),
     getApiKey: vi.fn(async () => null),
     // The Multimedia tab reads the ML file itself rather than through the cache,
@@ -160,6 +165,7 @@ import { Targets } from './targets/Targets'
 import { LifeListsTab } from './lifeLists/LifeListsTab'
 import { HotspotReportsTab } from './hotspotReports/HotspotReportsTab'
 import { FamilyTreeTab } from './familyTree/FamilyTreeTab'
+import { FAMILY_TREE_VIEW_SETTING } from '../lib/familyTreeSettings'
 import { notifyFilesChanged } from '../lib/filesChanged'
 import { loadEbirdObservations } from '../lib/observationsCache'
 
@@ -236,6 +242,9 @@ describe('the roster covers every tab that can fail to load', () => {
   it('has all twelve, and no duplicates', () => {
     expect(ROSTER).toHaveLength(12)
     expect(new Set(ROSTER.map(r => r.name)).size).toBe(12)
+  })
+  it('the Family Tree\'s saved-view key above is the tab\'s own', () => {
+    expect(FAMILY_TREE_VIEW_SETTING).toBe('familyTreeView')
   })
 })
 
