@@ -982,8 +982,11 @@ export default function App() {
       // render (and thus re-renders the un-memoized tab tree); formatDate() reads
       // the active pref from its module-var at render time.
       data-date-fmt-version={dateFormatVersion}
+      // `.sr-app-root` carries the root's min-height (100dvh, as it was inline),
+      // lifted to a class so each app class can subtract the top inset its body
+      // pads above the root (globals.css; map-scroll-on-phones D-34).
+      className="sr-app-root"
       style={{
-        minHeight: '100dvh',
         background: 'var(--sr-bg)',
         display: 'flex',
         flexDirection: 'column',

@@ -998,6 +998,21 @@ body {
   padding-right: var(--sr-inset-right, 0px);
 }
 
+/* THE APP ROOT FILLS THE WINDOW AND NO MORE (map-scroll-on-phones QA round 1,
+   D-34). The root is the column that holds the header, the shell and the
+   footer, lifted from App.tsx's inline `minHeight: '100dvh'` with the same base
+   value, so desktop, web and Pi render as before. In the apps the body above
+   pads the top inset OUTSIDE the root, so a 100dvh root made every document at
+   least 100dvh plus the inset tall: every short tab scrolled by the inset, and
+   the Map Explorer's page scrolled by it under a live map however exactly its
+   panel was sized (modelled: 32px with a 32px Android inset at every text
+   scale, 0px once this subtracts it). So each app class subtracts its own top
+   inset, the shape `.sr-nav-col`'s height takes below. A tab taller than the
+   window is unchanged: its content, not this floor, sets the height. */
+.sr-app-root { min-height: 100dvh; }
+.sr-ios-app .sr-app-root { min-height: calc(100dvh - env(safe-area-inset-top, 0px)); }
+.sr-android-app .sr-app-root { min-height: calc(100dvh - var(--sr-inset-top, 0px)); }
+
 /* App footer — padding lifted from the inline style (values identical to the
    pre-mobile-app inline '0 24px 20px', so desktop/web render byte-identically)
    so the iOS home-indicator inset can extend it below. The ≤640 .sr-pad-x-trim
