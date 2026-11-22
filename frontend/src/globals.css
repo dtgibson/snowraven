@@ -2370,6 +2370,19 @@ h1, h2, h3, h4, h5, h6 {
   padding-left: var(--sr-inset-left, 0px);
   padding-right: var(--sr-inset-right, 0px);
 }
+/* THE STAND-IN EXIT'S BOX (map-scroll-on-phones D-38, M-1). While a panel is
+   expanded and its map has not drawn, components/ui/MapExitStandIn.tsx draws
+   the corner row's exit as a sibling of the map inside this wrapper. The map's
+   own row is positioned against maplibre's container, which is `position:
+   relative` and fills this wrapper exactly (every host's map is 100% by 100%),
+   so making the wrapper the containing block puts the stand-in at the same
+   offsets as the row it stands in for, and its platform bottom insets with it.
+   Against the PANEL instead, its `right` would miss the panel's side padding
+   in the apps. Expanded only, so the page is HEAD's; and nothing else in the
+   wrapper is absolutely positioned (the map's overlays resolve against
+   maplibre's own container), it has no z-index, so it makes no stacking
+   context, and it paints nothing of its own, so a drawn map is unchanged. */
+.sr-map-fs-panel > .sr-map-still-body { position: relative; }
 
 /* Help overlay panel. Same lift as the fullscreen map panel above, for the same
    reason: the positioning used to be inline in HelpDocs.tsx, and an inline
@@ -3229,6 +3242,23 @@ h1, h2, h3, h4, h5, h6 {
 }
 .sr-map-fs-panel .sr-map-corner-row {
   animation: sr-map-corner-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* A row that arrives in a panel that is already open, replacing the stand-in
+   exit (D-38), is not an entrance: the exit was already there, so it takes its
+   place with no fade. MapCornerControls sets the class only for that mount and
+   drops it on collapse. Same weight as the rule above and after it. */
+.sr-map-fs-panel .sr-map-corner-row--in-place { animation: none; }
+/* The stand-in exit (D-38) sits beside the map, not in it, so it would inherit
+   the app's type where the map's own row inherits maplibre's container
+   (`.maplibregl-map` in maplibre-gl.css: its `font` shorthand and its tap
+   highlight are the two inherited declarations there; a button takes them
+   through preflight's `font: inherit`). Restated here so the word "Exit" is
+   drawn in the same face and line box before and after the map arrives, and a
+   tap draws no highlight on either. mapFullscreenPanelCss.test.ts compares
+   both against the vendor stylesheet. Every box property is the row's own. */
+.sr-map-corner-row--stand-in {
+  font: 12px/20px Helvetica Neue, Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* iOS, expanded only: the panel rule deliberately pads top/left/right and not

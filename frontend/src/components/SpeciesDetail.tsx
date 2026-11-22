@@ -79,6 +79,7 @@ import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { MapCornerControls } from './map/MapCornerControls'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
 import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 import { useExportWeather } from '../lib/useExportWeather'
 
@@ -1569,6 +1570,10 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
               >
                 <div className="sr-map-still-body" inert={mapFs.still}>
                 <MapFullscreenProvider value={mapFs}>
+                {/* The Exit while the map has not drawn (D-38, M-1): the opener
+                    opens the panel at once, before either branch's corner row
+                    exists. Around BOTH branches, so it covers either. */}
+                <MapExitStandIn compact={false}>
                 {/* Pins mode: the shared SightingsMap owns the markers + popup +
                     its own MapBoundsFitter. Heatmap mode keeps its inline SnowMap
                     with the HeatmapLayer and a top-level MapBoundsFitter, so the
@@ -1640,6 +1645,7 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                     <MapCornerControls compact={false} share fsOnly={false} sharePinResetKey={selectedSpecies} />
                   </SnowMap>
                 )}
+                </MapExitStandIn>
                 </MapFullscreenProvider>
                 </div>
               </div>

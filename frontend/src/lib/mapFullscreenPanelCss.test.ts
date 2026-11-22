@@ -28,6 +28,7 @@ import { findUngatedSafeAreaRules, parseTopLevelRules } from './cssTopLevelRules
 import { FS_OPEN_ATTR, MAP_FS_PANEL_CLASS, MAP_STILL_CLASS, mapFullscreenClass } from './useMapFullscreen'
 import { compoundsOf, specificity, splitList } from '../test/cssSpecificity'
 import { LIST_FIT_VAR } from './useListFit'
+import { IN_PLACE_ROW_CLASS, STAND_IN_ROW_CLASS } from './mapExitStandIn'
 
 const CSS = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const TOP = parseTopLevelRules(CSS)
@@ -797,5 +798,83 @@ describe('the five dropdown lists on the phone tier (D-15)', () => {
     // Above the tier the inner list keeps its own cap and the chooser none.
     expect(resolved('max-height', ['sr-tg-apop-list'], ['sr-tg-apop'], false)).toBe('11.5rem')
     expect(resolved('max-height', ['sr-tg-apop'], [], false)).toBeUndefined()
+  })
+})
+
+// The stand-in exit (map-scroll-on-phones D-38, the security review's M-1).
+// While a panel is expanded and its map has not drawn, MapExitStandIn draws the
+// corner row's exit as a sibling of the map inside the still body. It carries
+// the row's own classes plus a handle with no rule, so it resolves to whatever
+// the row resolves to; the still body becomes its containing block while
+// expanded, which is the box maplibre's container (the row's containing block)
+// fills exactly. A row that replaces it in an open panel arrives without its
+// entrance. jsdom has no layout, so the boxes coinciding is the real-engine
+// reading recorded in D-38.
+describe('the stand-in exit while a map has not drawn (D-38)', () => {
+  const PANEL = ['sr-map-container', MAP_FS_PANEL_CLASS]
+
+  it('the still body is the stand-in\'s containing block while expanded, and only then, at every width', () => {
+    for (const phone of [false, true]) {
+      expect(resolved('position', ['sr-map-still-body'], PANEL, phone)).toBe('relative')
+      expect(resolved('position', ['sr-map-still-body'], ['sr-map-container'], phone)).toBeUndefined()
+      expect(resolved('position', ['sr-map-still-body'], ['sr-map-container', MAP_STILL_CLASS], phone)).toBeUndefined()
+      // The Map Explorer's panel and still host are another mechanism.
+      expect(resolved('position', ['sr-map-still-body'], ['sr-map-fullscreen-panel'], phone)).toBeUndefined()
+      expect(resolved('position', ['sr-mx-still-host'], PANEL, phone)).toBeUndefined()
+    }
+    // That one property and nothing else, so a drawn map's wrapper changes in
+    // nothing a paint can see: no stacking context, no offset, no ground.
+    const body = TOP.get('.sr-map-fs-panel > .sr-map-still-body')
+    expect(body, 'the rule is at top level').toBeTruthy()
+    expect(body!.split(';').map(d => d.split(':')[0].trim()).filter(Boolean)).toEqual(['position'])
+    expect(FLAT.filter(r => r.selector.includes('.sr-map-still-body') && decl(`;${r.body}`, 'position') !== undefined)
+      .map(r => r.selector)).toEqual(['.sr-map-fs-panel > .sr-map-still-body'])
+  })
+
+  it('the stand-in\'s handle restates the type maplibre\'s container gives the map\'s own row, and nothing else', () => {
+    // The map's row inherits `.maplibregl-map`'s font and tap highlight (the two
+    // inherited declarations there); the stand-in sits beside the map, so
+    // without this the word "Exit" would change face as the map arrives
+    // (measured: 0.09px wider in Chromium at 390x844 before this rule).
+    const VENDOR = readFileSync(fileURLToPath(new URL('../../node_modules/maplibre-gl/dist/maplibre-gl.css', import.meta.url)), 'utf8')
+    const vendor = VENDOR.match(/\.maplibregl-map\{([^}]*)\}/)?.[1]
+    expect(vendor, 'maplibre-gl.css still has its container rule').toBeTruthy()
+    const norm = (v: string | undefined) => v?.replace(/\s*,\s*/g, ',').replace(/\s*\/\s*/g, '/').trim()
+    const own = FLAT.filter(r => r.selector.includes(STAND_IN_ROW_CLASS))
+    expect(own.map(r => `${r.tier} ${r.selector}`)).toEqual([`top .${STAND_IN_ROW_CLASS}`])
+    expect(own[0].body.split(';').map(d => d.split(':')[0].trim()).filter(Boolean).sort()).toEqual(['-webkit-tap-highlight-color', 'font'])
+    expect(norm(decl(`;${own[0].body}`, 'font'))).toBe(norm(decl(`;${vendor}`, 'font')))
+    // The vendor's highlight is fully transparent black; `transparent` is that
+    // colour by definition, and names no colour literal here.
+    expect(decl(`;${vendor}`, '-webkit-tap-highlight-color')).toMatch(/^rgb\(0 0 0\s*\/\s*0\)$|^rgba\(0,\s*0,\s*0,\s*0\)$/)
+    expect(decl(`;${own[0].body}`, '-webkit-tap-highlight-color')).toBe('transparent')
+  })
+
+  it('so it takes the corner row\'s box in every app, tier and density', () => {
+    for (const app of [[], ['sr-ios-app'], ['sr-android-app']]) {
+      for (const phone of [false, true]) {
+        for (const row of [['sr-map-corner-row'], ['sr-map-corner-row', 'sr-map-corner-row--compact']]) {
+          for (const prop of ['position', 'bottom', 'right', 'max-width', 'z-index', 'display', 'animation']) {
+            const own = resolved(prop, row, [...app, ...PANEL], phone)
+            expect(resolved(prop, [...row, STAND_IN_ROW_CLASS], [...app, ...PANEL], phone), `${app} ${phone} ${row} ${prop}`).toBe(own)
+          }
+        }
+      }
+    }
+    // Non-vacuity: those are the lifted, inset offsets, not undefined.
+    expect(resolved('bottom', ['sr-map-corner-row', STAND_IN_ROW_CLASS], ['sr-ios-app', ...PANEL], true))
+      .toBe('calc(20px + 3rem + env(safe-area-inset-bottom, 0px))')
+  })
+
+  it('a row that arrives in place replays no entrance; the stand-in and every other expanded row keep it', () => {
+    expect(resolved('animation', ['sr-map-corner-row', IN_PLACE_ROW_CLASS], PANEL, true)).toBe('none')
+    expect(resolved('animation', ['sr-map-corner-row', IN_PLACE_ROW_CLASS], PANEL, false)).toBe('none')
+    expect(resolved('animation', ['sr-map-corner-row'], PANEL, true)).toContain('sr-map-corner-in')
+    expect(resolved('animation', ['sr-map-corner-row', STAND_IN_ROW_CLASS], PANEL, true)).toContain('sr-map-corner-in')
+    // Outside the panel there is no entrance to cancel.
+    expect(resolved('animation', ['sr-map-corner-row', IN_PLACE_ROW_CLASS], ['sr-map-container'], true)).toBeUndefined()
+    // It sets the animation alone.
+    const body = TOP.get(`.sr-map-fs-panel .${IN_PLACE_ROW_CLASS}`)
+    expect(body!.split(';').map(d => d.split(':')[0].trim()).filter(Boolean)).toEqual(['animation'])
   })
 })

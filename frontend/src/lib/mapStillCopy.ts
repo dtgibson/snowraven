@@ -22,6 +22,11 @@ export const OPEN_PICKER_NOTE = 'Open the map to drop a pin, or type coordinates
  *  stays `Exit fullscreen`, which contains it (WCAG 2.5.3). */
 export const EXIT_WORD = 'Exit'
 
+/** The exit's accessible name, shared by the map's own toggle (while expanded)
+ *  and the stand-in exit drawn before the map has (D-38), so the two can never
+ *  name the one control differently. The string the toggle has always had. */
+export const EXIT_FULLSCREEN_LABEL = 'Exit fullscreen'
+
 /** The Weather picker's top-centre statement while expanded. */
 export const PICKER_NOTE_NO_PIN = 'Tap the map to drop a pin.'
 export const PICKER_NOTE_PIN = 'Drag the pin to fine-tune. Exit when it is in place.'

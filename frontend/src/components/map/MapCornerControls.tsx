@@ -18,13 +18,14 @@
 // `lazy(() => import('./SightingsMap'))`. entryChunk.test.ts is the live guard.
 
 import { Button } from '../ui/Button'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useMap } from 'react-map-gl/maplibre'
 import { SharePin } from './SharePin'
 import { StillCredits } from './StillCredits'
 import { useMapFullscreenContext } from '../../lib/useMapFullscreen'
-import { EXIT_WORD } from '../../lib/mapStillCopy'
+import { IN_PLACE_ROW_CLASS, useMapExitStandIn } from '../../lib/mapExitStandIn'
+import { EXIT_FULLSCREEN_LABEL, EXIT_WORD } from '../../lib/mapStillCopy'
 
 export function MapCornerControls({ compact, share, fsOnly, sharePinResetKey }: {
   /** Density, forwarded to SharePin and to the toggle's size modifier. REQUIRED,
@@ -57,6 +58,34 @@ export function MapCornerControls({ compact, share, fsOnly, sharePinResetKey }: 
   const registerToggle = fs?.registerToggle
   const onToggle = fs?.toggle
   const map = useMap().current
+
+  // THE STAND-IN (D-38, M-1). A host that can open its panel before this map
+  // has drawn wraps the map subtree in components/ui/MapExitStandIn, which draws
+  // this same exit until this row arrives. The toggle reports itself in a
+  // LAYOUT effect, after its ref has attached and before paint: the stand-in
+  // hands it the focus if it held it, then leaves in the render the report
+  // causes, so no frame shows two exits or none. The ref is a local callback
+  // that also registers with the hook exactly as `registerToggle` alone did.
+  const standIn = useMapExitStandIn()
+  const reportExit = standIn?.reportExit
+  const toggleRef = useRef<HTMLButtonElement | null>(null)
+  const attachToggle = useCallback((el: HTMLButtonElement | null) => {
+    toggleRef.current = el
+    registerToggle?.(el)
+  }, [registerToggle])
+  const hasToggle = onToggle !== undefined
+  useLayoutEffect(() => {
+    if (!reportExit || !hasToggle) return
+    reportExit(toggleRef.current)
+    return () => reportExit(null)
+  }, [reportExit, hasToggle])
+  // A row that mounts into a panel the stand-in is holding OPEN arrives in
+  // place: the 150 ms entrance would otherwise fade it in from nothing over the
+  // spot the stand-in just left, a visible blink of the one exit. Read once at
+  // mount and cleared on collapse (during render, React's alternative to an
+  // effect that sets state), so the next open animates as at HEAD.
+  const [inPlace, setInPlace] = useState(() => expanded && (standIn?.standing ?? false))
+  if (inPlace && !expanded) setInPlace(false)
 
   // The share button portals in here. `display: contents` erases the slot's own
   // box, so the button becomes the row's FIRST flex item: DOM order equals
@@ -117,9 +146,9 @@ export function MapCornerControls({ compact, share, fsOnly, sharePinResetKey }: 
     }
   }, [expanded, map])
 
-  const label = expanded ? 'Exit fullscreen' : 'Enter fullscreen'
+  const label = expanded ? EXIT_FULLSCREEN_LABEL : 'Enter fullscreen'
 
-  const rowClass = `sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}${fsOnly ? ' sr-map-corner-row--fs-only' : ''}`
+  const rowClass = `sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}${fsOnly ? ' sr-map-corner-row--fs-only' : ''}${inPlace ? ` ${IN_PLACE_ROW_CLASS}` : ''}`
 
   return (
     <>
@@ -128,7 +157,7 @@ export function MapCornerControls({ compact, share, fsOnly, sharePinResetKey }: 
         {onToggle && (
           <Button
             type="button"
-            ref={registerToggle}
+            ref={attachToggle}
             // Button's inherited tab stop is required here: WebKit's default
             // mode skips a plain unmarked button, and this control's whole job is
             // entering fullscreen on the shipped Mac and iOS apps.

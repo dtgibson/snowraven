@@ -141,6 +141,21 @@ describe('the two entry-safe lib modules', () => {
     expect([...copy.externals]).toEqual([])
   })
 
+  it('the stand-in exit and its signal are entry-safe: no map-side edge (D-38)', () => {
+    // NamedBirdRow.tsx and WeatherForecastPanel.tsx render MapExitStandIn and
+    // sit on App.tsx's static graph. MapCornerControls and SnowMap import the
+    // signal module from the other side, which is the direction that is free.
+    const standIn = closureFrom(resolve(SRC, 'components/ui/MapExitStandIn.tsx'))
+    expect([...standIn.files].map(rel).sort()).toEqual([
+      'components/ui/Button.tsx', 'components/ui/MapExitStandIn.tsx', 'lib/mapExitStandIn.ts',
+      'lib/mapStillCopy.ts', 'lib/useFocusTrap.ts', 'lib/useIsPhone.ts', 'lib/useMapFullscreen.ts',
+    ])
+    expect([...standIn.externals].sort()).toEqual(['lucide-react', 'react'])
+    const signal = closureFrom(resolve(SRC, 'lib/mapExitStandIn.ts'))
+    expect(signal.files.size).toBe(1)
+    expect([...signal.externals]).toEqual(['react'])
+  })
+
   it('lib/useListFit.ts, on the static graph through the lists, imports react and the phone-tier store only', () => {
     const { files, externals } = closureFrom(resolve(SRC, 'lib/useListFit.ts'))
     expect([...files].map(rel).sort()).toEqual(['lib/useIsPhone.ts', 'lib/useListFit.ts'])
@@ -159,6 +174,8 @@ describe('the two entry-safe lib modules', () => {
     expect(has('components/ui/FsOpenRow.tsx')).toBe(true)
     expect(has('components/WeatherForecastPanel.tsx')).toBe(true)
     expect(has('components/ui/ModalDialog.tsx')).toBe(true)
+    expect(has('components/ui/MapExitStandIn.tsx')).toBe(true)
+    expect(has('lib/mapExitStandIn.ts')).toBe(true)
     // ...and the entry graph is still map-free, which is the property the whole
     // split exists to preserve. entryChunk.test.ts owns this claim; it is
     // repeated here so a break in THIS feature localizes to THIS file.

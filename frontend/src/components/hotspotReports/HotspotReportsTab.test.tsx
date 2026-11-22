@@ -60,12 +60,25 @@ vi.mock('../../lib/useHotspotSet', () => ({
     () => H.resolution, () => H.resolution,
   ),
 }))
-// The map is its own lazy chunk (maplibre); a stub stands in for it here.
-vi.mock('./HotspotReportMap', () => ({
-  HotspotReportMap: ({ lat, lng }: { lat: number; lng: number }) => (
-    <div data-testid="map" data-at={`${lat},${lng}`} />
-  ),
-}))
+// The map is its own lazy chunk (maplibre); a stub stands in for it here. It
+// carries the REAL corner row the real map mounts (Exit only, and only while
+// expanded) inside the readiness gate (test/mapReadiness.tsx), which is 'ready'
+// unless a row says otherwise (map-scroll-on-phones D-38).
+vi.mock('./HotspotReportMap', async () => {
+  const { MapReadinessGate } = await import('../../test/MapReadinessGate')
+  const { MapCornerControls } = await import('../map/MapCornerControls')
+  return {
+    HotspotReportMap: ({ lat, lng }: { lat: number; lng: number }) => (
+      <MapReadinessGate>
+        <div data-testid="map" data-at={`${lat},${lng}`}>
+          <MapCornerControls compact={false} share={false} fsOnly />
+        </div>
+      </MapReadinessGate>
+    ),
+  }
+})
+// The corner row reads the map instance; there is none here, so its effects bail.
+vi.mock('react-map-gl/maplibre', () => ({ useMap: () => ({ current: undefined }) }))
 // The two file-scaled derivations, wrapped so QA-06 and QA-35 can count them.
 vi.mock('../../lib/hotspotReports', async importOriginal => {
   const m = await importOriginal<typeof import('../../lib/hotspotReports')>()
@@ -83,6 +96,11 @@ import { notifyFilesChanged } from '../../lib/filesChanged'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
 import { checklist, mlRow } from '../../test/hotspotReportsRows'
 import { RULE_SENTENCE } from '../../lib/hotspotReportsCopy'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../../test/matchMedia'
+import {
+  expectDrawnExitOnly, expectOneExitUntilAndAfterDrawn, expectRetryInFullscreen, resetMapReadiness, setMapReadiness,
+  type MapReadiness,
+} from '../../test/mapReadiness'
 
 function res(set: string[], byRegion: Record<string, 'pending' | 'answered' | 'unanswered'>): HotspotResolution {
   return { regions: Object.keys(byRegion), byRegion: new Map(Object.entries(byRegion)), set: new Set(set), pending: 0, answered: 0 } as unknown as HotspotResolution
@@ -524,5 +542,43 @@ describe('user-file text at the surface (QA-67)', () => {
       }
     }
     screen.getAllByText('<script>x</script> "q"')
+  })
+})
+
+// ── map-scroll-on-phones D-38 (the security review's M-1) ────────────────────
+//
+// On the phone tier the report's opener opens its map at once, so the map can
+// be open before it has drawn: its lazy chunk still loading (this host's
+// fallback is nothing at all), the style loading or failed, or maplibre not yet
+// built. The map's Exit is a map child, so each of those was a full-window
+// panel with no Exit and the bar hidden. The REAL tab and report and the REAL
+// corner row; only the map's own body is stubbed, through the readiness gate.
+describe('the report map opened on a phone before it has drawn (M-1, D-38)', () => {
+  let media: ExactMatchMediaStub
+  beforeEach(() => { media = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true }) })
+  afterEach(() => { media.restore(); resetMapReadiness(); document.documentElement.removeAttribute('data-sr-fs-open') })
+
+  const openReport = async (state: MapReadiness) => {
+    setMapReadiness(state)
+    const { container } = await ready()
+    await choose(container, 'Jamaica Bay')
+    return screen.findByRole('button', { name: 'Open the map' })
+  }
+
+  it.each(['chunk', 'loading', 'failed', 'constructing'] as const)(
+    '%s: exactly one Exit, it exits, and the map arriving leaves exactly one with the focus on it',
+    async state => {
+      const opener = await openReport(state)
+      if (state === 'chunk') expect(screen.queryByTestId('map')).toBeNull()   // the empty fallback
+      await expectOneExitUntilAndAfterDrawn(opener)
+    },
+  )
+
+  it('failed: Retry is reachable in fullscreen, and the map it brings keeps one Exit with the focus', async () => {
+    await expectRetryInFullscreen(await openReport('failed'))
+  })
+
+  it('a map that drew before it was opened shows its own Exit and no stand-in', async () => {
+    await expectDrawnExitOnly(await openReport('ready'))
   })
 })

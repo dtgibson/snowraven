@@ -4,10 +4,26 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 
 // Mock the map so maplibre never loads in jsdom. It keeps the last props it was
 // rendered with, so a row can read what the host hands the map.
+// It carries the REAL corner row the real map mounts (Exit only, and only while
+// expanded) inside the readiness gate (test/mapReadiness.tsx), which is 'ready'
+// unless a row says otherwise (map-scroll-on-phones D-38).
 const predictMap = vi.hoisted(() => ({ props: null as null | { openPress?: { current: unknown } } }))
-vi.mock('./PredictMap', () => ({
-  PredictMap: (p: { openPress?: { current: unknown } }) => { predictMap.props = p; return <div data-testid="predict-map" /> },
-}))
+vi.mock('./PredictMap', async () => {
+  const { MapReadinessGate } = await import('../test/MapReadinessGate')
+  const { MapCornerControls } = await import('./map/MapCornerControls')
+  return {
+    PredictMap: (p: { openPress?: { current: unknown } }) => {
+      predictMap.props = p
+      return (
+        <MapReadinessGate>
+          <div data-testid="predict-map"><MapCornerControls compact={false} share={false} fsOnly /></div>
+        </MapReadinessGate>
+      )
+    },
+  }
+})
+// The corner row reads the map instance; there is none here, so its effects bail.
+vi.mock('react-map-gl/maplibre', () => ({ useMap: () => ({ current: undefined }) }))
 vi.mock('../lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) }))
 
 const getMock = vi.fn()
@@ -49,6 +65,11 @@ vi.mock('../lib/platformGates', async (importOriginal) => ({
 }))
 
 import { WeatherForecastPanel } from './WeatherForecastPanel'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
+import {
+  expectDrawnExitOnly, expectOneExitUntilAndAfterDrawn, expectRetryInFullscreen, resetMapReadiness, setMapReadiness,
+  type MapReadiness,
+} from '../test/mapReadiness'
 import { PLAN_COPY } from '../lib/planCopy'
 
 const WEATHER_CURRENT = {
@@ -206,5 +227,44 @@ describe('WeatherForecastPanel', () => {
     const cue = screen.getByText(/showing the last loaded result/i)
     expect(cue).toBeTruthy()
     expect(cue.textContent).toContain('2026')
+  })
+})
+
+// ── map-scroll-on-phones D-38 (the security review's M-1) ────────────────────
+//
+// On the phone tier the picker's opener opens its map at once, so the map can
+// be open before it has drawn: its lazy chunk still loading (this host's
+// "Loading map…" fallback), the style loading or failed, or maplibre not yet
+// built. The map's Exit is a map child, so each of those was a full-window
+// panel with no Exit and the bar hidden. The REAL panel and the REAL corner
+// row; only the map's own body is stubbed, through the readiness gate.
+describe('the location picker opened on a phone before its map has drawn (M-1, D-38)', () => {
+  let media: ExactMatchMediaStub
+  beforeEach(() => { media = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true }) })
+  afterEach(() => { media.restore(); resetMapReadiness(); document.documentElement.removeAttribute('data-sr-fs-open') })
+
+  const openPicker = async (state: MapReadiness) => {
+    setMapReadiness(state)
+    getCurrentLocationMock.mockRejectedValue({ code: 'unavailable' })
+    render(<WeatherForecastPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
+    return waitFor(() => screen.getByRole('button', { name: 'Open the map' }))
+  }
+
+  it.each(['chunk', 'loading', 'failed', 'constructing'] as const)(
+    '%s: exactly one Exit, it exits, and the map arriving leaves exactly one with the focus on it',
+    async state => {
+      const opener = await openPicker(state)
+      if (state === 'chunk') expect(screen.getByText('Loading map…')).toBeTruthy()   // the picker's own fallback
+      await expectOneExitUntilAndAfterDrawn(opener)
+    },
+  )
+
+  it('failed: Retry is reachable in fullscreen, and the map it brings keeps one Exit with the focus', async () => {
+    await expectRetryInFullscreen(await openPicker('failed'))
+  })
+
+  it('a map that drew before it was opened shows its own Exit and no stand-in', async () => {
+    await expectDrawnExitOnly(await openPicker('ready'))
   })
 })

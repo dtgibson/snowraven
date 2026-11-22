@@ -31,6 +31,7 @@ import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 // arrives with SightingsMap through the lazy import below.
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
 import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 
 // SightingsMap (and the ~1 MB maplibre-gl it pulls) is lazy-loaded so it stays
@@ -319,6 +320,9 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
               >
                 <div className="sr-map-still-body" inert={cardMapFs.still}>
                 <MapFullscreenProvider value={cardMapFs}>
+                  {/* The Exit while the map has not drawn (D-38, M-1), the lazy
+                      chunk's fallback included. Compact, as this card's row is. */}
+                  <MapExitStandIn compact>
                   <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
                     {/* compact: this card map is 220px tall and often half the page
                         wide, so the share popup, its drop button and the fullscreen
@@ -330,6 +334,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                         opened the map is the opener, not this toggle.) */}
                     <SightingsMap markers={cardMarkers} switcher={false} compact />
                   </Suspense>
+                  </MapExitStandIn>
                 </MapFullscreenProvider>
                 </div>
               </div>

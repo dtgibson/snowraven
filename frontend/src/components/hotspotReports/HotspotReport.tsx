@@ -31,6 +31,7 @@ import {
 import { useMapFullscreen, MapFullscreenProvider } from '../../lib/useMapFullscreen'
 import { OPEN_MAP_LABEL, OPEN_MAP_NOTE } from '../../lib/mapStillCopy'
 import { FsOpenRow } from '../ui/FsOpenRow'
+import { MapExitStandIn } from '../ui/MapExitStandIn'
 import { HotspotReportHeader } from './HotspotReportHeader'
 import { HotspotReportLifeList } from './HotspotReportLifeList'
 import { GlanceBody, MostRecordedBody, ProtocolsBody, VisitsBody, WeatherBody, type MediaState } from './HotspotReportSections'
@@ -135,9 +136,13 @@ export function HotspotReport({
                 >
                   <div className="sr-map-still-body" inert={mapFs.still}>
                     <MapFullscreenProvider value={mapFs}>
-                      <Suspense fallback={null}>
-                        <HotspotReportMap lat={rec.lat} lng={rec.lng} />
-                      </Suspense>
+                      {/* The Exit while the map has not drawn (D-38, M-1), the
+                          lazy chunk's empty fallback included. */}
+                      <MapExitStandIn compact={false}>
+                        <Suspense fallback={null}>
+                          <HotspotReportMap lat={rec.lat} lng={rec.lng} />
+                        </Suspense>
+                      </MapExitStandIn>
                     </MapFullscreenProvider>
                   </div>
                 </div>

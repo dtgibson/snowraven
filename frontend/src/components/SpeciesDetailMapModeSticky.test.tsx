@@ -15,15 +15,32 @@
 // variable, and the branch it governs (`HeatmapLayer` vs `SightingsMap`) is
 // asserted alongside it — either alone certifies a half-fix.
 
-import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach, afterAll, beforeEach } from 'vitest'
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 
-vi.mock('./SnowMap', () => ({
-  SnowMap: ({ children }: { children?: React.ReactNode }) => <div data-testid="snowmap">{children}</div>,
-}))
-vi.mock('./SightingsMap', () => ({
-  SightingsMap: () => <div data-testid="pins-map" />,
-}))
+// Both map branches sit in the readiness gate (test/mapReadiness.tsx), which is
+// 'ready' unless a row says otherwise (map-scroll-on-phones D-38). The Pins stub
+// carries the REAL corner row the real SightingsMap mounts; the Heatmap branch's
+// is the tab's own, a SnowMap child.
+vi.mock('./SnowMap', async () => {
+  const { MapReadinessGate } = await import('../test/MapReadinessGate')
+  return {
+    SnowMap: ({ children }: { children?: React.ReactNode }) => (
+      <MapReadinessGate><div data-testid="snowmap">{children}</div></MapReadinessGate>
+    ),
+  }
+})
+vi.mock('./SightingsMap', async () => {
+  const { MapReadinessGate } = await import('../test/MapReadinessGate')
+  const { MapCornerControls } = await import('./map/MapCornerControls')
+  return {
+    SightingsMap: () => (
+      <MapReadinessGate>
+        <div data-testid="pins-map"><MapCornerControls compact={false} share={false} fsOnly={false} /></div>
+      </MapReadinessGate>
+    ),
+  }
+})
 vi.mock('./speciesDetail/HeatmapLayer', () => ({
   HeatmapLayer: () => <div data-testid="heat-layer" />,
 }))
@@ -77,6 +94,11 @@ vi.mock('../lib/transport', () => ({
 }))
 
 import { SpeciesDetail } from './SpeciesDetail'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
+import {
+  expectDrawnExitOnly, expectOneExitUntilAndAfterDrawn, expectRetryInFullscreen, resetMapReadiness, setMapReadiness,
+  type MapReadiness,
+} from '../test/mapReadiness'
 
 afterEach(cleanup)
 // Recharts mounts once a species is selected; drain toolkit's 100 ms autoBatch
@@ -143,5 +165,49 @@ describe('a species switch keeps the map mode (FR-11, QA-13)', () => {
     const fnBody = body.slice(0, body.indexOf('\n  }'))
     expect(fnBody).toContain('setSelectedSpecies(name)')     // non-vacuity
     expect(fnBody).not.toContain('setMapMode(')
+  })
+})
+
+// ── map-scroll-on-phones D-38 (the security review's M-1) ────────────────────
+//
+// On the phone tier the Sighting Locations opener opens its map at once, so the
+// map can be open before it has drawn, in either view: the style loading or
+// failed (SnowMap's placeholder), or maplibre not yet built (this tab has no map
+// Suspense: the map code arrives with the tab). The map's Exit is a map child
+// in BOTH branches, so each of those was a full-window panel with no Exit and
+// the bar hidden. The REAL tab; each branch's corner row is the real one.
+describe('the Sighting Locations map opened on a phone before it has drawn (M-1, D-38)', () => {
+  let media: ExactMatchMediaStub
+  beforeEach(() => { media = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true }) })
+  afterEach(() => { media.restore(); resetMapReadiness(); document.documentElement.removeAttribute('data-sr-fs-open') })
+
+  // The view is chosen while the map is drawn (its switch sits beside the map,
+  // behind the panel once open), then the map is put in the state under test.
+  const openSighting = async (view: 'Pins' | 'Heatmap', state: MapReadiness) => {
+    render(<SpeciesDetail {...props} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Toggle species list' })).toBeTruthy())
+    await pick('American Robin')
+    await waitFor(() => expect(modeButton(view)).toBeTruthy())
+    fireEvent.click(modeButton(view))
+    await waitFor(() => expect(modeButton(view).getAttribute('aria-pressed')).toBe('true'))
+    await act(async () => { setMapReadiness(state) })
+    return screen.getByRole('button', { name: 'Open the map' })
+  }
+
+  describe.each(['Pins', 'Heatmap'] as const)('%s view', view => {
+    it.each(['loading', 'failed', 'constructing'] as const)(
+      '%s: exactly one Exit, it exits, and the map arriving leaves exactly one with the focus on it',
+      async state => {
+        await expectOneExitUntilAndAfterDrawn(await openSighting(view, state))
+      },
+    )
+
+    it('failed: Retry is reachable in fullscreen, and the map it brings keeps one Exit with the focus', async () => {
+      await expectRetryInFullscreen(await openSighting(view, 'failed'))
+    })
+
+    it('a map that drew before it was opened shows its own Exit and no stand-in', async () => {
+      await expectDrawnExitOnly(await openSighting(view, 'ready'))
+    })
   })
 })

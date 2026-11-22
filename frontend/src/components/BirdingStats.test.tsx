@@ -4,6 +4,11 @@ import { act, render, screen, cleanup, waitFor, within } from '@testing-library/
 import type { ObservationEntry } from '../types'
 import { MILESTONE_THRESHOLDS } from '../lib/birdingStats'
 import { fmt } from '../lib/statsFormat'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
+import {
+  expectDrawnExitOnly, expectOneExitUntilAndAfterDrawn, expectRetryInFullscreen, resetMapReadiness, setMapReadiness,
+  type MapReadiness,
+} from '../test/mapReadiness'
 
 // ── Deterministic rAF / rIC control ───────────────────────────────────────────
 // The progressive-render gates schedule via a double requestAnimationFrame (the
@@ -30,11 +35,16 @@ function flushIdle() {
 // ── Module mocks ───────────────────────────────────────────────────────────────
 
 // SnowMap is heavy (MapLibre); stub it so we can assert mount timing without WebGL.
-vi.mock('./SnowMap', () => ({
-  SnowMap: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="snowmap-stub">{children}</div>
-  ),
-}))
+// It sits in the readiness gate (test/mapReadiness.tsx), which is 'ready' unless
+// a row says otherwise (map-scroll-on-phones D-38), so the stub is unchanged here.
+vi.mock('./SnowMap', async () => {
+  const { MapReadinessGate } = await import('../test/MapReadinessGate')
+  return {
+    SnowMap: ({ children }: { children?: React.ReactNode }) => (
+      <MapReadinessGate><div data-testid="snowmap-stub">{children}</div></MapReadinessGate>
+    ),
+  }
+})
 
 // Markers/Popups inside the (mocked) map — render children inertly.
 vi.mock('react-map-gl/maplibre', () => ({
@@ -386,5 +396,42 @@ describe('BirdingStats milestone badges (stats-badges-uniform)', () => {
     // An unreached threshold renders nothing at all.
     expect(within(list).queryByText('1,250')).toBeNull()
     expect(list.getAttribute('style')).toBeNull()
+  })
+})
+
+// ── map-scroll-on-phones D-38 (the security review's M-1) ────────────────────
+//
+// On the phone tier the Geographic Stats opener opens its map at once, so the
+// map can be open before it has drawn: the style loading or failed (SnowMap's
+// placeholder), or maplibre not yet built (this tab has no map Suspense: the
+// map code arrives with the tab). The map's Exit is a map child, so each of
+// those was a full-window panel with no Exit and the bar hidden. The REAL tab
+// and its REAL corner row (a SnowMap child here); only SnowMap is stubbed,
+// through the readiness gate.
+describe('the Geographic Stats map opened on a phone before it has drawn (M-1, D-38)', () => {
+  let media: ExactMatchMediaStub
+  beforeEach(() => { media = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true }) })
+  afterEach(() => { media.restore(); resetMapReadiness(); document.documentElement.removeAttribute('data-sr-fs-open') })
+
+  const openGeo = async (state: MapReadiness) => {
+    setMapReadiness(state)
+    await renderComputed()
+    await act(async () => { flushIdle() })
+    return screen.getByRole('button', { name: 'Open the map' })
+  }
+
+  it.each(['loading', 'failed', 'constructing'] as const)(
+    '%s: exactly one Exit, it exits, and the map arriving leaves exactly one with the focus on it',
+    async state => {
+      await expectOneExitUntilAndAfterDrawn(await openGeo(state))
+    },
+  )
+
+  it('failed: Retry is reachable in fullscreen, and the map it brings keeps one Exit with the focus', async () => {
+    await expectRetryInFullscreen(await openGeo('failed'))
+  })
+
+  it('a map that drew before it was opened shows its own Exit and no stand-in', async () => {
+    await expectDrawnExitOnly(await openGeo('ready'))
   })
 })

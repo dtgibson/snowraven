@@ -29,6 +29,7 @@ import type { GeoSearchResult } from '../lib/tauri/nominatimService'
 import type { LatLng } from './PredictMap'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
 import { OPEN_MAP_LABEL, OPEN_PICKER_NOTE, PICKER_PAGE_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 import { openingPressOf, type OpeningPress, type TapPoint } from '../lib/mapOpeningTap'
 
@@ -583,9 +584,13 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
           >
             <div className="sr-map-still-body" inert={pickFs.still}>
               <MapFullscreenProvider value={pickFs}>
+                {/* The Exit while the map has not drawn (D-38, M-1), the lazy
+                    chunk's fallback included. */}
+                <MapExitStandIn compact={false}>
                 <Suspense fallback={<div style={{ height: '100%', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
                   <PredictMap coord={coord} onPick={setCoord} openPress={pickerPress} />
                 </Suspense>
+                </MapExitStandIn>
               </MapFullscreenProvider>
             </div>
           </div>

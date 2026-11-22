@@ -66,6 +66,8 @@ vi.mock('../../lib/storage', () => ({
 
 import { MapCornerControls } from './MapCornerControls'
 import { useMapFullscreen, MapFullscreenProvider } from '../../lib/useMapFullscreen'
+import { MapExitStandIn } from '../ui/MapExitStandIn'
+import { IN_PLACE_ROW_CLASS, STAND_IN_ROW_CLASS } from '../../lib/mapExitStandIn'
 
 /** A host in the shape of the three real ones. `withProvider` false models a map
  *  mounted outside any provider, which must still get its share button. */
@@ -301,5 +303,124 @@ describe('the Exit-only row and the visible word (map-scroll-on-phones D-10, D-1
     // The class list is HEAD's in both states: the pill is the stylesheet's
     // phone-tier business, never a class the component adds.
     expect(toggle().className).toBe('sr-map-fab sr-map-fab--std sr-map-fullscreen-btn')
+  })
+})
+
+// ── The stand-in exit (map-scroll-on-phones D-38, the security review's M-1) ──
+//
+// A host that can open its panel before the map has drawn wraps the map subtree
+// in MapExitStandIn, which draws this row's exit until this row arrives. These
+// rows pin this row's half of that: it reports itself, it takes the focus the
+// stand-in held, and it arrives without replaying its entrance. `drawn` mounts
+// the row or a placeholder in its place, as SnowMap does.
+describe('the row and the stand-in exit (D-38)', () => {
+  function StandInHost({ drawn }: { drawn: boolean }) {
+    const ref = useRef<HTMLDivElement>(null)
+    const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-map-container' })
+    return (
+      <>
+        <button type="button" onClick={fs.open}>open the map</button>
+        <div ref={ref} className={fs.className} data-testid="container">
+          <MapFullscreenProvider value={fs}>
+            <button type="button">a control inside the map</button>
+            <MapExitStandIn compact={false}>
+              {drawn ? <MapCornerControls compact={false} share={false} fsOnly /> : <div role="status">Loading map…</div>}
+            </MapExitStandIn>
+          </MapFullscreenProvider>
+        </div>
+      </>
+    )
+  }
+  const exits = () => screen.queryAllByRole('button', { name: 'Exit fullscreen' })
+  const opener = () => screen.getByRole('button', { name: 'open the map' })
+  const standIn = () => document.querySelector(`.${STAND_IN_ROW_CLASS}`)
+  const row = () => document.querySelector(`.sr-map-corner-row:not(.${STAND_IN_ROW_CLASS})`)
+
+  it('the stand-in is drawn exactly while the panel is open and this row is absent, so there is always one exit', () => {
+    const { rerender } = render(<StandInHost drawn={false} />)
+    expect(exits()).toHaveLength(0)                      // collapsed: nothing to exit
+    fireEvent.click(opener())
+    expect(exits()).toHaveLength(1)
+    expect(standIn()).not.toBeNull()
+    rerender(<StandInHost drawn />)                      // the map arrives while open
+    expect(exits()).toHaveLength(1)
+    expect(standIn()).toBeNull()
+    expect(row()!.contains(exits()[0])).toBe(true)
+    rerender(<StandInHost drawn={false} />)              // and if it ever goes while open
+    expect(exits()).toHaveLength(1)
+    expect(standIn()).not.toBeNull()
+  })
+
+  it('takes the focus the stand-in held, and focus that had fallen to <body>, and leaves focus elsewhere alone', () => {
+    const { rerender } = render(<StandInHost drawn={false} />)
+    opener().focus()
+    fireEvent.click(opener())
+    expect(document.activeElement).toBe(exits()[0])      // focus on open lands on the stand-in
+    rerender(<StandInHost drawn />)
+    expect(document.activeElement).toBe(exits()[0])
+    expect(document.activeElement).not.toBe(document.body)
+
+    cleanup()
+    const second = render(<StandInHost drawn={false} />)
+    fireEvent.click(opener())
+    ;(document.activeElement as HTMLElement).blur()
+    expect(document.activeElement).toBe(document.body)
+    second.rerender(<StandInHost drawn />)
+    expect(document.activeElement).toBe(exits()[0])
+
+    cleanup()
+    const third = render(<StandInHost drawn={false} />)
+    fireEvent.click(opener())
+    const other = screen.getByRole('button', { name: 'a control inside the map' })
+    other.focus()
+    third.rerender(<StandInHost drawn />)
+    expect(document.activeElement).toBe(other)
+  })
+
+  it('arrives in place in a panel the stand-in holds open, and animates again on the next open', () => {
+    const { rerender } = render(<StandInHost drawn={false} />)
+    fireEvent.click(opener())
+    rerender(<StandInHost drawn />)
+    expect(row()!.classList.contains(IN_PLACE_ROW_CLASS)).toBe(true)
+    fireEvent.click(exits()[0])
+    expect(row()!.classList.contains(IN_PLACE_ROW_CLASS)).toBe(false)
+    fireEvent.click(opener())
+    expect(row()!.classList.contains(IN_PLACE_ROW_CLASS)).toBe(false)
+  })
+
+  it('the stand-in registers itself as the panel\'s toggle, so focus on open never rests on the fallback selector', () => {
+    // Two mechanisms put focus on the stand-in at open: `registerToggle`, and
+    // the hook's `.sr-map-fullscreen-btn` fallback, which the stand-in's class
+    // list also matches. The contract keeps the selector an optional last
+    // resort, so the registration is pinned on its own: with it removed the
+    // behaviour above stays green through the fallback alone (mutation M8).
+    const seen: (HTMLButtonElement | null)[] = []
+    function SpyHost() {
+      const ref = useRef<HTMLDivElement>(null)
+      const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-map-container' })
+      const { registerToggle } = fs
+      const spied = { ...fs, registerToggle: (el: HTMLButtonElement | null) => { seen.push(el); registerToggle(el) } }
+      return (
+        <>
+          <button type="button" onClick={fs.open}>open the map</button>
+          <div ref={ref} className={fs.className}>
+            <MapFullscreenProvider value={spied}>
+              <MapExitStandIn compact={false}><div role="status">Loading map…</div></MapExitStandIn>
+            </MapFullscreenProvider>
+          </div>
+        </>
+      )
+    }
+    render(<SpyHost />)
+    fireEvent.click(opener())
+    expect(seen).toContain(exits()[0])
+  })
+
+  it('a row that drew before the panel opened never takes the class and never meets a stand-in', () => {
+    render(<StandInHost drawn />)
+    fireEvent.click(opener())
+    expect(exits()).toHaveLength(1)
+    expect(standIn()).toBeNull()
+    expect(row()!.className).toBe('sr-map-corner-row sr-map-corner-row--fs-only')
   })
 })

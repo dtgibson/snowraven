@@ -14,6 +14,7 @@ import { SnowMap } from './SnowMap'
 import { MapCornerControls } from './map/MapCornerControls'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
 import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 // STATIC imports, deliberately (FR-21): entryChunk.test.ts's walker follows
 // STATIC edges only, so its guard-the-guard ("this host's subtree reaches
@@ -1290,6 +1291,10 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                 >
                   <div className="sr-map-still-body" inert={geoFs.still}>
                   <MapFullscreenProvider value={geoFs}>
+                  {/* The Exit while the map has not drawn (D-38, M-1): a press
+                      held through the idle deferral opens the panel as this
+                      branch mounts, before the style or the map exists. */}
+                  <MapExitStandIn compact={false}>
                   <SnowMap
                     initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
                     style={{ width: '100%', height: '100%' }}
@@ -1372,6 +1377,7 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                         under a mounted map. */}
                     <MapCornerControls compact={false} share fsOnly={false} />
                   </SnowMap>
+                  </MapExitStandIn>
                   </MapFullscreenProvider>
                   </div>
                 </div>

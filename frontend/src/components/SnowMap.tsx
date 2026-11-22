@@ -25,6 +25,7 @@ import {
   type VectorVariant, type BaseKey,
 } from '../lib/mapStyle'
 import { readPersistedStyle, persistStyle, revalidateStyleOnce } from '../lib/persistedStyle'
+import { useMapExitStandIn } from '../lib/mapExitStandIn'
 
 // MapLibre v6 is ESM-only. Let Vite emit its module worker as a separate lazy
 // asset and give MapLibre the final hashed URL before any map can be created.
@@ -120,7 +121,17 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
 
   // Re-attempt the style fetch (offline / provider down). Clearing the error
   // flips back to the loading state immediately, then `attempt` re-runs the effect.
-  const retryStyle = () => { setLoadError(false); setAttempt(n => n + 1) }
+  //
+  // In an expanded panel (map-scroll-on-phones D-38) the stand-in exit is the
+  // panel's one exit while this placeholder shows, and the loading line that
+  // replaces Retry takes no focus, so a Retry that holds the focus hands it to
+  // the stand-in first rather than dropping it to <body> inside a modal panel.
+  // No stand-in (the page, the Map Explorer, above the tier): HEAD's behaviour.
+  const standIn = useMapExitStandIn()
+  const retryStyle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (standIn?.standing && document.activeElement === e.currentTarget) standIn.focusStandIn()
+    setLoadError(false); setAttempt(n => n + 1)
+  }
 
   useEffect(() => {
     if (!switcher) return

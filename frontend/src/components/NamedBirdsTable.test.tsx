@@ -1,16 +1,25 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
+import {
+  expectDrawnExitOnly, expectOneExitUntilAndAfterDrawn, expectRetryInFullscreen, resetMapReadiness, setMapReadiness,
+  type MapReadiness,
+} from '../test/mapReadiness'
 
 // SnowMap is heavy (MapLibre/WebGL); stub it so we can assert mount/teardown
 // without a real GL context. The stub exposes a testid so map presence is
-// observable.
-vi.mock('./SnowMap', () => ({
-  SnowMap: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="snowmap-stub">{children}</div>
-  ),
-}))
+// observable. It sits in the readiness gate (test/mapReadiness.tsx), which is
+// 'ready' unless a row says otherwise, so every other row sees the plain stub.
+vi.mock('./SnowMap', async () => {
+  const { MapReadinessGate } = await import('../test/MapReadinessGate')
+  return {
+    SnowMap: ({ children }: { children?: React.ReactNode }) => (
+      <MapReadinessGate><div data-testid="snowmap-stub">{children}</div></MapReadinessGate>
+    ),
+  }
+})
 // Markers/Popups inside the (mocked) map — render children inertly.
 vi.mock('react-map-gl/maplibre', () => ({
   Marker: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -472,5 +481,44 @@ describe('the card header stays inside the card at 320px (QA-56)', () => {
     // ...and it is the endpoint phrase that made the wrap necessary, so the
     // phrase really is inside the line this rule governs.
     expect(durLine().textContent).toContain('first sighting to today')
+  })
+})
+
+// ── map-scroll-on-phones D-38 (the security review's M-1) ────────────────────
+//
+// On the phone tier the card's opener opens its map at once, so the map can be
+// open before it has drawn: the lazy SightingsMap chunk still loading (this
+// row's own Suspense fallback), the style loading or failed (SnowMap's
+// placeholder), or maplibre not yet built. The map's Exit is a map child, so
+// each of those was a full-window panel with no Exit and the bar hidden. The
+// REAL row, the REAL lazy SightingsMap and its REAL corner row; only SnowMap is
+// stubbed, through the readiness gate.
+describe('the card map opened on a phone before it has drawn (M-1, D-38)', () => {
+  let media: ExactMatchMediaStub
+  beforeEach(() => { media = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true }) })
+  afterEach(() => { media.restore(); resetMapReadiness(); document.documentElement.removeAttribute('data-sr-fs-open') })
+
+  const openCard = async (state: MapReadiness) => {
+    setMapReadiness(state)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies singleOpen today={TODAY} orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
+    fireEvent.click(cardHeader('Pete'))
+    return screen.findByRole('button', { name: 'Open the map' })
+  }
+
+  it.each(['chunk', 'loading', 'failed', 'constructing'] as const)(
+    '%s: exactly one Exit, it exits, and the map arriving leaves exactly one with the focus on it',
+    async state => {
+      const opener = await openCard(state)
+      if (state === 'chunk') expect(screen.getByText('Loading map…')).toBeTruthy()   // the row's own fallback
+      await expectOneExitUntilAndAfterDrawn(opener)
+    },
+  )
+
+  it('failed: Retry is reachable in fullscreen, and the map it brings keeps one Exit with the focus', async () => {
+    await expectRetryInFullscreen(await openCard('failed'))
+  })
+
+  it('a map that drew before it was opened shows its own Exit and no stand-in', async () => {
+    await expectDrawnExitOnly(await openCard('ready'))
   })
 })
