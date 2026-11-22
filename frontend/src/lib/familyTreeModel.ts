@@ -300,24 +300,37 @@ export function sortFamilies(model: FamilyModel, index: FamilyIndex, key: SortKe
 
 // -- Expand all in the table (FR-84, schema 9.2) -----------------------------
 
-/** One commit of the table's Expand all mounts about this many species rows. */
-export const EXPAND_CHUNK_SPECIES = 150
+/** One commit of the table's Expand all mounts exactly this many species rows
+ *  (the last commit fewer; schema 9.2 as amended, D-43). */
+export const EXPAND_CHUNK_SPECIES = 75
+
+/** One key's place after a step: [family key, rows mounted after it, its rows in all]. */
+export type ExpandEntry = readonly [key: number, mountedAfter: number, total: number]
 
 /**
- * The chunks the table's Expand all commits, in taxonomic order: families are
- * added until a chunk has reached `size` species rows, and a family is never
- * split, so no commit mounts more than `size` rows plus the rest of the family
- * that crossed the line. The Not placed group (key -1) is one more group, last.
- * A pure plan; the tab commits one chunk per macrotask (schema 9.2, D-32).
+ * The steps the table's Expand all commits, in taxonomic order with the Not
+ * placed group (key -1) last: each step adds exactly `size` species rows (the
+ * last step fewer), and a family or the group is split across steps when it
+ * does not fit what is left of one, so no commit mounts more than `size` rows
+ * on any roster. `skip` leaves out keys already open in full when the run
+ * starts. A pure plan; the tab commits one step per macrotask (schema 9.2).
  */
-export function expandChunks(model: FamilyModel, size: number = EXPAND_CHUNK_SPECIES, unplacedKey = -1): number[][] {
-  const out: number[][] = []
-  let cur: number[] = []
-  let rows = 0
-  const add = (key: number, n: number) => {
-    cur.push(key)
-    rows += n
-    if (rows >= size) { out.push(cur); cur = []; rows = 0 }
+export function expandSteps(
+  model: FamilyModel, size: number = EXPAND_CHUNK_SPECIES, unplacedKey = -1, skip: ReadonlySet<number> = new Set(),
+): ExpandEntry[][] {
+  const out: ExpandEntry[][] = []
+  let cur: ExpandEntry[] = []
+  let room = size
+  const add = (key: number, total: number) => {
+    if (skip.has(key) || total <= 0) return
+    let mounted = 0
+    while (mounted < total) {
+      const take = Math.min(room, total - mounted)
+      mounted += take
+      room -= take
+      cur.push([key, mounted, total])
+      if (room === 0) { out.push(cur); cur = []; room = size }
+    }
   }
   for (const o of model.orders) for (const f of o.families) add(f.family, f.seen)
   if (model.unplaced.length > 0) add(unplacedKey, model.unplaced.length)

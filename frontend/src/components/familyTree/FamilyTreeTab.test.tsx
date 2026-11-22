@@ -410,7 +410,8 @@ describe('Expand all and Collapse all (QA-94)', () => {
     const { readFamilyIndex, speciesNames } = await import('../../test/familyTreeCorpus')
     const index = readFamilyIndex()
     const all = speciesNames(index)
-    H.observations = all.slice(0, EXPAND_CHUNK_SPECIES * 3).map((n, i) => obs(n, '2020-01-01', `S${i}`))
+    // Every 20th species, so the roster spans many families and the plan many steps.
+    H.observations = all.filter((_, i) => i % 20 === 0).slice(0, EXPAND_CHUNK_SPECIES * 3).map((n, i) => obs(n, '2020-01-01', `S${i}`))
     render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
     await vi.waitFor(() => expect(document.querySelector('.sr-ft-glance')).not.toBeNull())
     fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
@@ -422,6 +423,59 @@ describe('Expand all and Collapse all (QA-94)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }))
     await act(async () => { vi.runAllTimers() })
     expect(openCount()).toBe(0)
+  })
+})
+
+describe('Expand all in exact steps (schema 9.2 as amended, D-43)', () => {
+  /** Every open family's mounted rows against its own seen figure. */
+  const halfMounted = () => [...document.querySelectorAll('.sr-ft-fblock')].filter(b => {
+    const open = b.querySelector('.sr-ft-open')
+    const seen = b.querySelector('.sr-ft-seen-figs b')
+    return open !== null && seen !== null && open.querySelectorAll('.sr-ft-sp').length !== Number(seen.textContent!.replace(/,/g, ''))
+  }).length
+  async function bigRoster() {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    const { readFamilyIndex, speciesNames } = await import('../../test/familyTreeCorpus')
+    const all = speciesNames(readFamilyIndex())
+    // Whole families at the head of the asset (a split family on the first step)
+    // and a spread after them (many families, many steps).
+    H.observations = [...all.slice(0, EXPAND_CHUNK_SPECIES * 2), ...all.filter((_, i) => i % 25 === 0).slice(0, EXPAND_CHUNK_SPECIES * 2)]
+      .filter((n, i, a) => a.indexOf(n) === i).map((n, i) => obs(n, '2020-01-01', `S${i}`))
+    render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
+    await vi.waitFor(() => expect(document.querySelector('.sr-ft-glance')).not.toBeNull())
+  }
+  it('rows Expand all mounts arrive without the entrance, and a single press keeps it', async () => {
+    await bigRoster()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
+    await act(async () => { vi.runAllTimers() })
+    expect(document.querySelectorAll('.sr-ft-open').length).toBeGreaterThan(3)
+    expect(document.querySelector('.sr-ft-open.is-new')).toBeNull()
+    expect(halfMounted()).toBe(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }))
+    fireEvent.click(document.querySelectorAll<HTMLElement>('.sr-ft-frow')[0])
+    expect(document.querySelector('.sr-ft-open.is-new')).not.toBeNull()
+  })
+  it('the first step mounts part of a split family; a toggle mid-run ends the run with no family half mounted', async () => {
+    await bigRoster()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
+    const mounted = document.querySelectorAll('.sr-ft-sp').length
+    expect(mounted).toBeLessThanOrEqual(EXPAND_CHUNK_SPECIES)
+    expect(mounted).toBeGreaterThan(0)
+    const closed = [...document.querySelectorAll<HTMLElement>('.sr-ft-frow')].find(r => r.getAttribute('aria-expanded') === 'false')!
+    fireEvent.click(closed)
+    await act(async () => { vi.runAllTimers() })
+    expect(halfMounted()).toBe(0)
+    expect([...document.querySelectorAll('.sr-ft-frow')].some(r => r.getAttribute('aria-expanded') === 'false')).toBe(true)
+  })
+  it('a find reveal mid-run ends the run with no family half mounted', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    await bigRoster()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
+    const input = screen.getByRole('combobox', { name: 'Find a species, genus, family, or order' })
+    fireEvent.change(input, { target: { value: 'tinamou' } })
+    fireEvent.mouseDown(within(screen.getByRole('listbox')).getAllByRole('option')[0])
+    await act(async () => { vi.runAllTimers() })
+    expect(halfMounted()).toBe(0)
   })
 })
 
@@ -548,6 +602,18 @@ describe('the tree (FR-55 to FR-70)', () => {
     expect((within(tools).getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(within(tools).getByRole('button', { name: 'Collapse all' }))
     await waitFor(() => expect([...t.querySelectorAll('[role="treeitem"]')].every(e => e.getAttribute('aria-level') === '1')).toBe(true))
+  })
+  it('a change made inside the save pause survives switching to the table and back', async () => {
+    const t = await tree()
+    fireEvent.click(within(screen.getByRole('toolbar', { name: 'View tools' })).getByRole('button', { name: 'Collapse all' }))
+    await waitFor(() => expect([...t.querySelectorAll('[role="treeitem"]')].every(e => e.getAttribute('aria-level') === '1')).toBe(true))
+    // At once, well inside the 250 ms pause before the session is handed over.
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+    expect(screen.queryByRole('tree')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Tree' }))
+    const back = await screen.findByRole('tree')
+    await waitFor(() => expect(back.querySelectorAll('[role="treeitem"]').length).toBeGreaterThan(0))
+    expect([...back.querySelectorAll('[role="treeitem"]')].every(e => e.getAttribute('aria-level') === '1')).toBe(true)
   })
 })
 

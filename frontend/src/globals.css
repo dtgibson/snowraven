@@ -6845,7 +6845,12 @@ select:focus-visible {
 }
 /* An opened family: genera, each over its species. Rows a press adds fade in
    from 4px above over 180ms (the Life Lists rule); a re-sort is instant. */
-.sr-ft-open { padding: 0 18px 12px calc(18px + 1rem + 16px); background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle); }
+/* `contain: layout paint` keeps each open family's layout and paint from growing
+   with everything mounted before it during Expand all (schema 9.2 as amended,
+   D-43). Paint containment clips at the padding box, so it stands only because
+   a focus ring on the first and the last species link was measured whole inside
+   it in both engines at 100% and 200% text (D-44). */
+.sr-ft-open { padding: 0 18px 12px calc(18px + 1rem + 16px); background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle); contain: layout paint; }
 .sr-ft-open.is-new { animation: sr-ft-row-in 180ms cubic-bezier(0.2, 0, 0, 1) both; }
 @keyframes sr-ft-row-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .sr-ft-genus { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; margin: 0; padding: 11px 0 4px; font-size: 0.75rem; color: var(--sr-text-muted); }

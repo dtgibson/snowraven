@@ -10,11 +10,11 @@ import { deriveFirstSightings } from './lifeLists'
 import { deriveRegionIndex, type RegionRef } from './lifeListsRegion'
 import { deriveScope, deriveYearColumns, type ScopeBase } from './familyTreeScope'
 import {
-  NO_MEDIA_CONSTRAINTS, SORT_KEYS, buildFamilyModel, modelWork, sortFamilies, worldCounts,
+  EXPAND_CHUNK_SPECIES, NO_MEDIA_CONSTRAINTS, SORT_KEYS, buildFamilyModel, expandSteps, modelWork, sortFamilies, worldCounts,
   type FamilyModel, type KindState, type MediaConstraints, type ModelInput,
 } from './familyTreeModel'
 import { placeSequence } from './familyTreeAsset'
-import { generateCorpus, obsRow, readFamilyIndex, speciesNames, mlRow } from '../test/familyTreeCorpus'
+import { fullRosterModel, generateCorpus, obsRow, readFamilyIndex, speciesNames, mlRow } from '../test/familyTreeCorpus'
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
 
@@ -277,5 +277,49 @@ describe('one build per change (QA-33, the model half)', () => {
     const before = modelWork.builds
     model(BASE)
     expect(modelWork.builds - before).toBe(1)
+  })
+})
+
+describe('the table\'s Expand all plan (schema 9.2 as amended, D-43)', () => {
+  const FULL = fullRosterModel(INDEX)
+  const leaves = Array.from({ length: 160 }, (_, i) => ({ name: `Unplaced bird ${i}`, sci: '', seq: -1, kinds: null }))
+  const WITH_UNPLACED: FamilyModel = { ...FULL, unplaced: leaves }
+  it('over every species: exactly EXPAND_CHUNK_SPECIES rows a step but the last, counts never falling, taxonomic order, Not placed last', () => {
+    const steps = expandSteps(WITH_UNPLACED)
+    const total = WITH_UNPLACED.seen.species + leaves.length
+    expect(EXPAND_CHUNK_SPECIES).toBe(75)
+    expect(steps.length).toBe(Math.ceil(total / EXPAND_CHUNK_SPECIES))
+    const famOrder = WITH_UNPLACED.orders.flatMap(o => o.families.map(f => f.family))
+    const seen = new Map<number, number>()
+    const order: number[] = []
+    let rows = 0
+    steps.forEach((step, si) => {
+      let added = 0
+      for (const [k, mounted, all] of step) {
+        const before = seen.get(k) ?? 0
+        expect(mounted).toBeGreaterThan(before)
+        expect(mounted).toBeLessThanOrEqual(all)
+        added += mounted - before
+        seen.set(k, mounted)
+        if (order.at(-1) !== k) order.push(k)
+      }
+      if (si < steps.length - 1) expect(added).toBe(EXPAND_CHUNK_SPECIES)
+      else expect(added).toBeLessThanOrEqual(EXPAND_CHUNK_SPECIES)
+      rows += added
+    })
+    expect(rows).toBe(total)
+    expect(order).toEqual([...famOrder, -1])
+    for (const o of WITH_UNPLACED.orders) for (const f of o.families) {
+      expect(f.genera.reduce((t, g) => t + g.species.length, 0)).toBe(f.seen)
+      expect(seen.get(f.family)).toBe(f.seen)
+    }
+    expect(seen.get(-1)).toBe(leaves.length)
+    // A family larger than a step is split across steps.
+    expect(steps.some(st => st.some(([, m, a]) => m < a))).toBe(true)
+  })
+  it('a key already open in full when the run starts is left out', () => {
+    const first = FULL.orders[0].families[0].family
+    const steps = expandSteps(FULL, EXPAND_CHUNK_SPECIES, -1, new Set([first]))
+    expect(steps.flat().some(([k]) => k === first)).toBe(false)
   })
 })

@@ -29,7 +29,7 @@
 // The tree tools render into the tab's toolbar through a portal, so the tools
 // and their disabled states belong to the component that knows the zoom.
 
-import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useEffectEvent, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronRight, ChevronsDownUp, ChevronsUpDown, ExternalLink, Focus, RotateCcw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '../ui/Button'
@@ -78,6 +78,8 @@ export interface FamilyTreeDiagramProps {
   stillTier: boolean
   initial: TreeSession
   onSession: (s: TreeSession) => void
+  /** The tab is the active tab; the session is handed over at once when it stops being. */
+  showing: boolean
   /** The tab toolbar's tools group, where the tree tools render. */
   toolsEl: HTMLElement | null
   apiRef: RefObject<DiagramApi | null>
@@ -121,7 +123,7 @@ interface Live {
 }
 
 export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
-  const { model, index, names, stillTier, initial, onSession, toolsEl, apiRef, codeFor, onOpenSpecies } = props
+  const { model, index, names, stillTier, initial, onSession, showing, toolsEl, apiRef, codeFor, onOpenSpecies } = props
   const uid = useId()
   const descId = `${uid}-desc`
   // The box as state, for the effects that attach to it, and as a ref, for the
@@ -206,11 +208,16 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
     live.current = { tree, slots, exp: effExp, m, k, top, view, active: activeNode, dirty: false }
   })
 
-  // The session reaches the tab a moment after it settles (it outlives the view).
+  // The session reaches the tab a moment after it settles (it outlives the
+  // view), and at once when the view switches away from the tree (the diagram
+  // unmounts) or the tab stops showing, so no change inside the pause is lost.
   useEffect(() => {
     const t = setTimeout(() => onSession({ exp, active, view }), 250)
     return () => clearTimeout(t)
   }, [exp, active, view, onSession])
+  const flushSession = useEffectEvent(() => onSession({ exp, active, view }))
+  useEffect(() => () => flushSession(), [])
+  useEffect(() => { if (!showing) flushSession() }, [showing])
 
   // -- Moves ---------------------------------------------------------------------------
   const curTop = () => {
@@ -411,8 +418,12 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
   const lastPointer = useRef('mouse')
 
   if (m === null || slots === null || culled === null) {
+    // The same skeleton as the measured render, child for child, so the box
+    // element React mounts here is the one it keeps (its listeners, focus and
+    // scroll survive the first measurement).
     return (
       <div className="sr-ft-treeview">
+        {null}
         <div className="sr-ft-boxwrap">
           <span ref={setProbe} className="sr-ft-remprobe" aria-hidden="true" />
           <div ref={attachBox} className="sr-ft-box" role="tree" aria-label={TREE_LABEL} tabIndex={0} />

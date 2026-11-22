@@ -89,6 +89,16 @@ describe('the table flows with the page on every tier (FR-86, QA-96 static half)
   })
 })
 
+describe('each open family is contained (schema 9.2 as amended, D-43)', () => {
+  it('.sr-ft-open declares contain with both layout and paint', () => {
+    const open = ft.find(r => r.selector.trim() === '.sr-ft-open' && r.atRules.length === 0)
+    expect(open, 'the base .sr-ft-open rule').toBeTruthy()
+    const v = (decl(open!.body, 'contain') ?? '').split(/\s+/)
+    expect(v).toContain('layout')
+    expect(v).toContain('paint')
+  })
+})
+
 describe('nothing is scaled or snapped (QA-57\'s scan, QA-60)', () => {
   it('no zoom, transform scale, scale property or scroll-snap in the tab\'s rules', () => {
     for (const r of ft) {

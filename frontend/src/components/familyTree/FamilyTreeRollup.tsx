@@ -14,13 +14,13 @@
 // No DOM id or IDREF is minted from file content (FR-45): a row carries its
 // family's ASSET index in a data attribute, which the tab's Find reads.
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { Camera, ChevronRight, Mic, Video } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { BirdName } from '../BirdName'
 import { MediaPresenceCell } from '../MediaPresenceCell'
 import type { FamilyIndex } from '../../lib/familyTreeAsset'
-import type { FamilyModel, FamilyNode, OrderNode, SortKey, SpeciesLeaf } from '../../lib/familyTreeModel'
+import type { FamilyModel, FamilyNode, GenusNode, OrderNode, SortKey, SpeciesLeaf } from '../../lib/familyTreeModel'
 import { sortFamilies } from '../../lib/familyTreeModel'
 import { familyNames, genusNames, nameOf, namingWords, orderNames, type NamesState } from '../../lib/familyTreeNames'
 import {
@@ -43,6 +43,9 @@ export interface FamilyTreeRollupProps {
   open: ReadonlySet<number>
   /** Keys a press just opened: their contents enter with the 180ms fade. */
   fresh: ReadonlySet<number>
+  /** A running Expand all's rows mounted so far, per key; a key absent here is
+   *  mounted in full (schema 9.2 as amended, D-43). */
+  partial: ReadonlyMap<number, number>
   onToggle: (key: number) => void
   codeFor: (name: string) => string | undefined
   onOpenSpecies?: (commonName: string) => void
@@ -65,7 +68,9 @@ function presence(kinds: number | null) {
   return { photo: (k & 1) !== 0, audio: (k & 2) !== 0, video: (k & 4) !== 0 }
 }
 
-function SpeciesRow({ leaf, spKey, names, codeFor, onOpenSpecies, mediaShown }: {
+// Memoized, so a commit that adds rows to a family renders only the new rows
+// (schema 9.2 as amended, D-43; the work-count row in FamilyTreeRollup.test.tsx).
+const SpeciesRow = memo(function SpeciesRow({ leaf, spKey, names, codeFor, onOpenSpecies, mediaShown }: {
   leaf: SpeciesLeaf; spKey: string; names: NamesState; codeFor: (n: string) => string | undefined
   onOpenSpecies?: (n: string) => void; mediaShown: boolean
 }) {
@@ -86,19 +91,38 @@ function SpeciesRow({ leaf, spKey, names, codeFor, onOpenSpecies, mediaShown }: 
       {mediaShown && <MediaPresenceCell media={presence(leaf.kinds)} />}
     </div>
   )
-}
+})
 
-// FamilyOpen and FamilyRow are memoized so an Expand all chunk re-renders only
-// the families it opens, never every family opened before it: the built table
-// measured a longest block of 664 ms in WebKit at every species without it
-// (family-rollups-and-tree decisions D-41).
-const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onOpenSpecies, mediaShown, isNew }: {
+interface FamilyOpenProps {
   family: FamilyNode; index: FamilyIndex; names: NamesState; codeFor: (n: string) => string | undefined
   onOpenSpecies?: (n: string) => void; mediaShown: boolean; isNew: boolean
-}) {
+  /** Species rows to mount, in genus order (Infinity: all of them). */
+  limit: number
+}
+
+/** The open block's memo leaves `isNew` out: the entrance is latched at mount,
+ *  so a later change of the entrance set re-renders nothing (D-43). */
+function sameOpenBlock(a: FamilyOpenProps, b: FamilyOpenProps): boolean {
+  return a.family === b.family && a.index === b.index && a.names === b.names && a.codeFor === b.codeFor
+    && a.onOpenSpecies === b.onOpenSpecies && a.mediaShown === b.mediaShown && a.limit === b.limit
+}
+
+// FamilyOpen and FamilyRow are memoized so an Expand all step re-renders only
+// the family it adds rows to, never every family opened before it (D-41, D-43).
+const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onOpenSpecies, mediaShown, isNew, limit }: FamilyOpenProps) {
+  // A single press plays the entrance; rows Expand all mounts arrive without it.
+  const [entering] = useState(isNew)
+  const blocks: { g: GenusNode; shown: readonly SpeciesLeaf[] }[] = []
+  let left = limit
+  for (const g of family.genera) {
+    if (left <= 0) break
+    const shown = left >= g.species.length ? g.species : g.species.slice(0, left)
+    left -= shown.length
+    blocks.push({ g, shown })
+  }
   return (
-    <div className={isNew ? 'sr-ft-open is-new' : 'sr-ft-open'}>
-      {family.genera.map(g => {
+    <div className={entering ? 'sr-ft-open is-new' : 'sr-ft-open'}>
+      {blocks.map(({ g, shown }) => {
         const n = genusNames(index, g.genus)
         const nm = nameOf('genus', n.common, n.scientific, names)
         return (
@@ -108,7 +132,7 @@ const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onO
               {nm.alt !== null && <span className={nm.altItalic ? 'alt is-sci' : 'alt'}>{nm.alt}</span>}
               <span>{genusSpecies(g.seen)}</span>
             </p>
-            {g.species.map(s => (
+            {shown.map(s => (
               <SpeciesRow key={s.name} leaf={s} spKey={`s${s.seq}`} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} />
             ))}
           </div>
@@ -116,7 +140,7 @@ const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onO
       })}
     </div>
   )
-})
+}, sameOpenBlock)
 
 const FamilyRow = memo(function FamilyRow({ order, family, index, names, flat, isOpen, onToggle, mediaShown }: {
   order: OrderNode; family: FamilyNode; index: FamilyIndex; names: NamesState; flat: boolean
@@ -173,7 +197,7 @@ const FamilyRow = memo(function FamilyRow({ order, family, index, names, flat, i
 })
 
 export const FamilyTreeRollup = memo(function FamilyTreeRollup({
-  model, index, names, sort, open, fresh, onToggle, codeFor, onOpenSpecies,
+  model, index, names, sort, open, fresh, partial, onToggle, codeFor, onOpenSpecies,
 }: FamilyTreeRollupProps) {
   const mediaShown = model.mediaShown
   const family = (order: OrderNode, f: FamilyNode, flat: boolean) => {
@@ -181,7 +205,7 @@ export const FamilyTreeRollup = memo(function FamilyTreeRollup({
     return (
       <div key={f.family} className="sr-ft-fblock">
         <FamilyRow order={order} family={f} index={index} names={names} flat={flat} isOpen={isOpen} onToggle={onToggle} mediaShown={mediaShown} />
-        {isOpen && <FamilyOpen family={f} index={index} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} isNew={fresh.has(f.family)} />}
+        {isOpen && <FamilyOpen family={f} index={index} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} isNew={fresh.has(f.family)} limit={partial.get(f.family) ?? Infinity} />}
       </div>
     )
   }
@@ -239,7 +263,7 @@ export const FamilyTreeRollup = memo(function FamilyTreeRollup({
             {unplacedOpen && (
               <div className={fresh.has(NOT_PLACED_KEY) ? 'sr-ft-open is-new' : 'sr-ft-open'}>
                 <p className="sr-ft-reason">{notPlacedReason(model.unplaced.length)}</p>
-                {model.unplaced.map((s, i) => (
+                {(partial.has(NOT_PLACED_KEY) ? model.unplaced.slice(0, partial.get(NOT_PLACED_KEY)) : model.unplaced).map((s, i) => (
                   <SpeciesRow key={s.name} leaf={s} spKey={`u${i}`} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} />
                 ))}
               </div>

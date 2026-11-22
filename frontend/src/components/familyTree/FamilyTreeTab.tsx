@@ -40,8 +40,8 @@ import { useLifeListsProvenance } from '../../lib/lifeListsProvenance'
 import { loadFamilyIndex, type FamilyIndex } from '../../lib/familyTreeAsset'
 import { deriveScope, deriveYearColumns, newYearCache, type ScopeBase, type YearCache } from '../../lib/familyTreeScope'
 import {
-  EXPAND_CHUNK_SPECIES, NO_MEDIA_CONSTRAINTS, SORT_KEYS, buildFamilyModel, expandChunks, nextKindState, worldCounts,
-  type MediaConstraints, type SortKey, type WorldCounts,
+  EXPAND_CHUNK_SPECIES, NO_MEDIA_CONSTRAINTS, SORT_KEYS, buildFamilyModel, expandSteps, nextKindState, worldCounts,
+  type FamilyModel, type MediaConstraints, type SortKey, type WorldCounts,
 } from '../../lib/familyTreeModel'
 import {
   FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING, defaultViewFor, parseStoredNames,
@@ -94,6 +94,10 @@ interface CodeRequest {
 
 const EMPTY_OBS: readonly ObservationEntry[] = []
 const EMPTY_OPEN: ReadonlySet<number> = new Set()
+const EMPTY_PARTIAL: ReadonlyMap<number, number> = new Map()
+/** A running Expand all's rows mounted so far, per key, for the model it was planned on. */
+interface PartialState { readonly model: FamilyModel | null; readonly map: ReadonlyMap<number, number> }
+const NO_PARTIAL: PartialState = { model: null, map: EMPTY_PARTIAL }
 
 /** How long the load waits for a saved choice before reading the default. */
 const SAVED_READ_MS = 10_000
@@ -146,6 +150,10 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const [sort, setSort] = useState<SortKey>('taxonomic')
   const [open, setOpen] = useState<ReadonlySet<number>>(EMPTY_OPEN)
   const [fresh, setFresh] = useState<ReadonlySet<number>>(EMPTY_OPEN)
+  // Expand all's families still being mounted (schema 9.2 as amended, D-43).
+  // Every change that advances expandRun clears it; a model change makes it
+  // read as empty by identity, so no effect has to clear it.
+  const [partialState, setPartialState] = useState<PartialState>(NO_PARTIAL)
   const [announceSeq, setAnnounceSeq] = useState(0)
   // FR-53, D-35: with nothing stored, the first view follows the window when
   // the tab opens and does not switch if the window later crosses the tier.
@@ -202,6 +210,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
         const species = withNormalizedParents(names.map(n => [n, firsts.get(n)!.scientificName] as const))
         if (cancelled) return
         expandRun.current += 1
+        setPartialState(NO_PARTIAL)
         setPhase({
           tag: 'ready',
           base: { observations: obs, mlRows, firsts, index, columns },
@@ -323,6 +332,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
 
   const toggleOpen = useCallback((key: number) => {
     expandRun.current += 1
+    setPartialState(NO_PARTIAL)
     setOpen(prev => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -332,32 +342,46 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
     setFresh(new Set([key]))
   }, [])
 
-  /** Expand all in chunks of about EXPAND_CHUNK_SPECIES rows with a yield
-   *  between (schema 9.2): a timer chain started by the press, ended by any
-   *  change that supersedes it. */
+  /** Expand all in steps of exactly EXPAND_CHUNK_SPECIES rows, a family split
+   *  across steps, with a yield between (schema 9.2 as amended, D-43): a timer
+   *  chain started by the press, ended by any change that supersedes it. The
+   *  entrance set is emptied once, at the start, never per step, so a family
+   *  mounted earlier in the run never re-renders for a later one. */
   const expandAll = () => {
     if (model === null) return
     const token = ++expandRun.current
-    const chunks = expandChunks(model, EXPAND_CHUNK_SPECIES)
+    const planned = model
+    const steps = expandSteps(planned, EXPAND_CHUNK_SPECIES, NOT_PLACED_KEY, open)
+    setFresh(EMPTY_OPEN)
+    setPartialState(NO_PARTIAL)
     let i = 0
     const step = () => {
-      if (expandRun.current !== token || i >= chunks.length) return
-      const chunk = chunks[i++]
+      if (expandRun.current !== token || i >= steps.length) return
+      const entries = steps[i++]
       setOpen(prev => {
         const next = new Set(prev)
-        for (const k of chunk) next.add(k)
+        for (const [k] of entries) next.add(k)
         return next
       })
-      setFresh(new Set(chunk))
-      if (i < chunks.length) setTimeout(step, 0)
+      setPartialState(prev => {
+        const map = new Map(prev.model === planned ? prev.map : EMPTY_PARTIAL)
+        for (const [k, mounted, total] of entries) {
+          if (mounted >= total) map.delete(k)
+          else map.set(k, mounted)
+        }
+        return { model: planned, map }
+      })
+      if (i < steps.length) setTimeout(step, 0)
     }
     step()
   }
   const collapseAll = () => {
     expandRun.current += 1
+    setPartialState(NO_PARTIAL)
     setOpen(EMPTY_OPEN)
     setFresh(EMPTY_OPEN)
   }
+  const partial = model !== null && partialState.model === model ? partialState.map : EMPTY_PARTIAL
 
   // The table half of a find reveal (design-spec 8): after the commit that
   // opened its family, the row scrolls to the middle and takes focus; an
@@ -384,6 +408,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
         : row.level === 'genus' ? ready.index.genera[row.ref].family
           : ready.index.speciesFamily[row.ref]
     expandRun.current += 1
+    setPartialState(NO_PARTIAL)
     setOpen(prev => (prev.has(family) ? prev : new Set([...prev, family])))
     const selector = row.level === 'species' ? `[data-ft-sp="${row.unplaced ? 'u' : 's'}${row.ref}"]` : `[data-ft-family="${family}"]`
     setTableReveal({ seq, selector, order: false })
@@ -400,6 +425,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const showUnplaced = () => {
     selectView('rollup')
     expandRun.current += 1
+    setPartialState(NO_PARTIAL)
     setOpen(prev => (prev.has(NOT_PLACED_KEY) ? prev : new Set([...prev, NOT_PLACED_KEY])))
     setTableReveal(r => ({ seq: (r?.seq ?? 0) + 1, selector: `[data-ft-family="${NOT_PLACED_KEY}"]`, order: false }))
   }
@@ -573,6 +599,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
                 stillTier={stillTier}
                 initial={treeSession}
                 onSession={setTreeSession}
+                showing={showing}
                 toolsEl={toolsEl}
                 apiRef={diagramApi}
                 codeFor={codeFor}
@@ -586,6 +613,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
               names={rowNames}
               sort={sort}
               open={open}
+              partial={partial}
               fresh={fresh}
               onToggle={toggleOpen}
               codeFor={codeFor}
