@@ -20,7 +20,10 @@
 // Year, Media, Include Escapees, the sort and every open state are
 // session-only. The tab's own code installs no document or window listener.
 
-import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  Suspense, lazy, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState,
+  type CSSProperties, type Dispatch, type SetStateAction,
+} from 'react'
 import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2, Maximize2, Minimize2, Network, Rows3 } from 'lucide-react'
 import type { ObservationEntry } from '../../types'
 import { SetupRequired } from '../SetupRequired'
@@ -130,6 +133,80 @@ function yieldTask(): Promise<void> {
 /** The asset's own failure settles as a tagged value, never as a backup failure. */
 type AssetResult = { ok: true; index: FamilyIndex } | { ok: false }
 
+/**
+ * The load (FR-13 to FR-17), re-run on every files-epoch bump. It is a hook of
+ * its own, outside the tab's render scope, for memory (QA-78, NFR-05): a
+ * closure created in a render keeps that render's whole scope alive, and the
+ * effect a files-epoch bump re-runs is created in the render that still shows
+ * the previous file, so its cleanup kept the previous parse and every pass over
+ * it until the next change. Here its closures see only these arguments, all
+ * stable (state setters and a callback made in the first render).
+ */
+function useFamilyTreeLoad(
+  filesEpoch: number,
+  retrySeq: number,
+  setPhase: Dispatch<SetStateAction<Phase>>,
+  /** Advances the Expand all run and clears its partial state (stable). */
+  onLoaded: () => void,
+  setCodeRequest: Dispatch<SetStateAction<CodeRequest | null>>,
+  setYear: Dispatch<SetStateAction<number | null>>,
+): void {
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setPhase({ tag: 'loading' })
+      try {
+        const status = await storage.getFilesStatus()
+        if (cancelled) return
+        if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
+        const assetLoad: Promise<AssetResult> = loadFamilyIndex().then(index => ({ ok: true as const, index }), () => ({ ok: false as const }))
+        const [ebird, ml, savedRegion, savedNames, savedView, asset] = await Promise.all([
+          loadEbirdObservations(), loadMLExport().catch(() => null),
+          readSaved(FAMILY_TREE_REGION_SETTING), readSaved(FAMILY_TREE_NAMES_SETTING), readSaved(FAMILY_TREE_VIEW_SETTING), assetLoad,
+        ])
+        if (cancelled) return
+        if (!ebird) { setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); return }
+        if (!asset.ok) { setPhase({ tag: 'error', message: FAMILY_DATA_ERROR }); return }
+        const obs = ebird.observations
+        const mlRows = status.ml && ml ? ml.rows : null
+        await yieldTask()
+        if (cancelled) return
+        const firsts = deriveFirstSightings(obs)
+        await yieldTask()
+        if (cancelled) return
+        const index = deriveRegionIndex(obs)
+        await yieldTask()
+        if (cancelled) return
+        const columns = deriveYearColumns(obs, mlRows)
+        const world = worldCounts(asset.index, firsts)
+        const mlState: MlState = !status.ml ? { tag: 'none' } : ml ? { tag: 'ready' } : { tag: 'unreadable' }
+        const names = [...firsts.keys()].sort()
+        const key = JSON.stringify(names)
+        const species = withNormalizedParents(names.map(n => [n, firsts.get(n)!.scientificName] as const))
+        if (cancelled) return
+        onLoaded()
+        setPhase({
+          tag: 'ready',
+          base: { observations: obs, mlRows, firsts, index, columns },
+          index: asset.index,
+          world,
+          ml: mlState,
+          rememberedRegion: parseStoredRegion(savedRegion),
+          rememberedNames: parseStoredNames(savedNames),
+          rememberedView: parseStoredView(savedView),
+        })
+        setCodeRequest(prev => (prev !== null && prev.key === key ? prev : { key, species }))
+        // FR-17: a year the new backup lacks falls back to all years.
+        setYear(y => (y !== null && !columns.years.includes(y) ? null : y))
+      } catch {
+        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [filesEpoch, retrySeq, setPhase, onLoaded, setCodeRequest, setYear])
+}
+
 export interface FamilyTreeTabProps {
   onGoToSettings: () => void
   onOpenSpecies?: (commonName: string) => void
@@ -181,61 +258,13 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const sortId = `${uid}-sort`
 
   // -- Load (FR-13 to FR-17): re-runs on every files-epoch bump ------------------
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setPhase({ tag: 'loading' })
-      try {
-        const status = await storage.getFilesStatus()
-        if (cancelled) return
-        if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
-        const assetLoad: Promise<AssetResult> = loadFamilyIndex().then(index => ({ ok: true as const, index }), () => ({ ok: false as const }))
-        const [ebird, ml, savedRegion, savedNames, savedView, asset] = await Promise.all([
-          loadEbirdObservations(), loadMLExport().catch(() => null),
-          readSaved(FAMILY_TREE_REGION_SETTING), readSaved(FAMILY_TREE_NAMES_SETTING), readSaved(FAMILY_TREE_VIEW_SETTING), assetLoad,
-        ])
-        if (cancelled) return
-        if (!ebird) { setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); return }
-        if (!asset.ok) { setPhase({ tag: 'error', message: FAMILY_DATA_ERROR }); return }
-        const obs = ebird.observations
-        const mlRows = status.ml && ml ? ml.rows : null
-        await yieldTask()
-        if (cancelled) return
-        const firsts = deriveFirstSightings(obs)
-        await yieldTask()
-        if (cancelled) return
-        const index = deriveRegionIndex(obs)
-        await yieldTask()
-        if (cancelled) return
-        const columns = deriveYearColumns(obs, mlRows)
-        const world = worldCounts(asset.index, firsts)
-        const mlState: MlState = !status.ml ? { tag: 'none' } : ml ? { tag: 'ready' } : { tag: 'unreadable' }
-        const names = [...firsts.keys()].sort()
-        const key = JSON.stringify(names)
-        const species = withNormalizedParents(names.map(n => [n, firsts.get(n)!.scientificName] as const))
-        if (cancelled) return
-        expandRun.current += 1
-        setPartialState(NO_PARTIAL)
-        setPhase({
-          tag: 'ready',
-          base: { observations: obs, mlRows, firsts, index, columns },
-          index: asset.index,
-          world,
-          ml: mlState,
-          rememberedRegion: parseStoredRegion(savedRegion),
-          rememberedNames: parseStoredNames(savedNames),
-          rememberedView: parseStoredView(savedView),
-        })
-        setCodeRequest(prev => (prev !== null && prev.key === key ? prev : { key, species }))
-        // FR-17: a year the new backup lacks falls back to all years.
-        setYear(y => (y !== null && !columns.years.includes(y) ? null : y))
-      } catch {
-        if (!cancelled) setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR })
-      }
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [filesEpoch, retrySeq])
+  // Made once, in the first render (no file loaded yet), so the load holds no
+  // later render's scope through it either.
+  const onLoaded = useCallback(() => {
+    expandRun.current += 1
+    setPartialState(NO_PARTIAL)
+  }, [])
+  useFamilyTreeLoad(filesEpoch, retrySeq, setPhase, onLoaded, setCodeRequest, setYear)
 
   // FR-14: a failed family asset is tried again the next time the tab is shown.
   const familyDataFailed = phase.tag === 'error' && phase.message === FAMILY_DATA_ERROR
