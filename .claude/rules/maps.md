@@ -14,6 +14,8 @@ paths:
   - "frontend/src/lib/heat*.ts"
   - "frontend/src/lib/hotspot*.ts"
   - "frontend/src/components/hotspotReports/HotspotReportMap*.tsx"
+  - "frontend/src/components/PredictMap*.tsx"
+  - "frontend/src/components/ui/FsOpenRow*.tsx"
   - "frontend/src/lib/fitBounds.ts"
   - "frontend/src/lib/sightingMarkers*.ts"
   - "frontend/src/lib/shadingExclusion*.ts"
