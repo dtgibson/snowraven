@@ -260,3 +260,53 @@ describe('the diagram\'s code scales nothing (QA-57, scan half)', () => {
     expect(vb[3]).toBe('${' + h + '}')
   })
 })
+
+// -- The tree's label size, as a resolved value at the surface (QA-57, D-55(b)) --
+// Round 1 shipped the labels a half pixel under the spec's body size and no
+// suite noticed; setting `.sr-ft-node` back to its old size left every test
+// green. This row resolves `font-size` at a family label's text and at its
+// second name, by the same cascade as the tools-row rows (inherited up the
+// chain when no rule there sets it), on the desktop and on the phone tier, and
+// holds each to the app's own body-name register, BirdName's md link and its
+// md second name, resolved the same way. Two declarations compared to each
+// other: no size is typed here.
+type Tier = 'desktop' | 'phone'
+function activeAt(tier: Tier, atRules: readonly string[]): boolean {
+  return atRules.every(a => /^@layer/.test(a) || (tier === 'phone' && /max-width:\s*640px/.test(a)))
+}
+function resolvedAt(chain: Chain, prop: string, tier: Tier): string | null {
+  for (let end = chain.length; end > 0; end--) {
+    const sub = chain.slice(0, end)
+    let best: { spec: [number, number, number]; order: number; value: string } | null = null
+    rules.forEach((r, order) => {
+      if (!activeAt(tier, r.atRules)) return
+      const value = decl(r.body, prop)
+      if (value === null) return
+      for (const sel of r.selector.split(',')) {
+        if (!matches(sel, sub)) continue
+        const spec = specificity(sel.trim())
+        if (best === null || cmpSpec(spec, best.spec) > 0 || (cmpSpec(spec, best.spec) === 0 && order >= best.order)) best = { spec, order, value }
+      }
+    })
+    if (best !== null) return (best as { value: string }).value
+  }
+  return null
+}
+const TREE_NODE: Chain = [['sr-ft-box'], ['sr-ft-plane'], ['sr-ft-node', 'sr-ft-node--f'], ['sr-ft-chip'], ['sr-ft-names']]
+const TREE_LABEL: Chain = [...TREE_NODE, ['sr-ft-nm']]
+const TREE_ALT: Chain = [...TREE_NODE, ['sr-ft-alt']]
+const BODY_NAME: Chain = [['sr-birdname', 'sr-birdname-md'], ['sr-birdname-row'], ['sr-birdname-link']]
+const BODY_SECOND: Chain = [['sr-birdname', 'sr-birdname-md'], ['sr-birdname-sci']]
+
+describe('the tree\'s labels are the app\'s body-name size (QA-57, D-55(b))', () => {
+  it('a family label and its second name resolve to BirdName\'s md name and second name, on both tiers', () => {
+    for (const tier of ['desktop', 'phone'] as const) {
+      const body = resolvedAt(BODY_NAME, 'font-size', tier)
+      const second = resolvedAt(BODY_SECOND, 'font-size', tier)
+      expect(body, `${tier}: the body-name register resolves`).not.toBeNull()
+      expect(second, `${tier}: the second-name register resolves`).not.toBeNull()
+      expect(resolvedAt(TREE_LABEL, 'font-size', tier), `${tier}: the tree's label`).toBe(body)
+      expect(resolvedAt(TREE_ALT, 'font-size', tier), `${tier}: the tree's second name`).toBe(second)
+    }
+  })
+})
