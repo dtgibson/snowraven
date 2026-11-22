@@ -16,6 +16,10 @@ import { fileURLToPath } from 'node:url'
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { buildFamilyIndex, type FamiliesAssetJson, type FamilyIndex } from '../lib/familyTreeAsset'
+import { deriveFirstSightings } from '../lib/lifeLists'
+import { deriveRegionIndex } from '../lib/lifeListsRegion'
+import { deriveScope, deriveYearColumns, type ScopeBase } from '../lib/familyTreeScope'
+import { NO_MEDIA_CONSTRAINTS, buildFamilyModel, worldCounts, type FamilyModel } from '../lib/familyTreeModel'
 
 /** A path beside this file, as a plain string, so a jsdom suite (whose global
  *  URL is jsdom's, not Node's) can read it as well as a node one. */
@@ -131,4 +135,19 @@ export function generateCorpus(seed: number, species: readonly string[], checkli
   ml.push(mlRow(pool[0], 'Photo', '2021-01-01', subs[0], 'MLX1', { format: 'Unknown' as MLExportRow['format'] }))
   ml.push(mlRow('', 'Photo', '2021-01-01', subs[0], 'MLX2'))
   return { obs, ml }
+}
+
+/**
+ * A model over EVERY species in the committed asset, one sighting each (the
+ * diagram's measured roster, schema 11.2): read when the test runs, so a
+ * regenerated asset moves it with no typed-in figure.
+ */
+export function fullRosterModel(index: FamilyIndex): FamilyModel {
+  const names = speciesNames(index).filter(n => typeof n === 'string')
+  const obs = names.map((n, i) => obsRow(n, '2024-05-01', `S${9000000000 + i}`))
+  const base: ScopeBase = { observations: obs, mlRows: null, firsts: deriveFirstSightings(obs), index: deriveRegionIndex(obs), columns: deriveYearColumns(obs, null) }
+  return buildFamilyModel({
+    index, world: worldCounts(index, base.firsts), scope: deriveScope(base, null, null, null), firsts: base.firsts,
+    escapees: new Set(), includeEscapees: true, media: NO_MEDIA_CONSTRAINTS, mediaReadable: false, scopeFiltered: false,
+  })
 }
