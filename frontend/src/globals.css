@@ -7461,6 +7461,18 @@ select:focus-visible {
      lifted, its credits run under its button cluster (D-30). */
   .sr-ios-app .sr-map-fs-panel .maplibregl-ctrl-bottom-left { bottom: env(safe-area-inset-bottom, 0px); }
   .sr-android-app .sr-map-fs-panel .maplibregl-ctrl-bottom-left { bottom: var(--sr-inset-bottom, 0px); }
+  /* THE SWITCHER STAYS CLEAR OF ZOOM while expanded (D-36). The switcher is
+     anchored 8px from the map's right edge (inline in SnowMap.tsx) and wraps as
+     text grows; maplibre draws zoom 10px from the left, 29px wide, with a 2px
+     ring, all in px, so they do not grow with text. At 320px and 200% the
+     switcher ran 304px wide and zoom covered a third of "Map" (measured, both
+     engines). The bound puts the switcher's box exactly at the ring's outer edge:
+     it binds only where the two would otherwise meet, so no configuration that
+     already cleared moves (the mockup's `100% - 57px` would re-wrap the switcher
+     at 375px and 200%, which cleared). `100%` is the map's width, so a side inset
+     in the apps is already out of it. `!important` because the competitor is
+     the inline `max-width` (1,0,0). */
+  .sr-map-fs-panel .sr-map-layers { max-width: calc(100% - 8px - 10px - 29px - 2px) !important; }
 
   /* THE MAP EXPLORER'S FLOOR on this tier is 300px on every platform (D-14;
      it was 340px outside the iPhone app). At 320 x 568 the window leaves 305px

@@ -680,6 +680,71 @@ describe('the exit and the corner row while expanded on the phone tier (D-10)', 
   })
 })
 
+// The base map switcher (top right) against the zoom control (top left) in an
+// expanded map on the phone tier (D-36). Measured in the built app at 320 x 568
+// and 200% text before the fix, Species Detail and Statistics, Chromium and
+// WebKit: the switcher ran 304px wide from x = 8 and the zoom group (x 10 to 39,
+// 29 x 58 at every text scale, maplibre sizes it in px) covered 31.0% of "Map"
+// and 11.9% of "Topo (US)". The bound keeps the switcher's box clear of the zoom
+// group's painted edge, its 2px ring included, and binds only where the two
+// would otherwise meet, so every configuration that already cleared is untouched.
+describe('the base map switcher while expanded on the phone tier (D-36)', () => {
+  const SNOWMAP = readFileSync(fileURLToPath(new URL('../components/SnowMap.tsx', import.meta.url)), 'utf8')
+  const VENDOR = readFileSync(fileURLToPath(new URL('../../node_modules/maplibre-gl/dist/maplibre-gl.css', import.meta.url)), 'utf8')
+  const INLINE = SNOWMAP.match(/className="sr-map-layers"\s+style=\{\{([^}]*)\}\}/)?.[1]
+  const SW = ['sr-map-layers']
+  const BOUND = 'calc(100% - 8px - 10px - 29px - 2px) !important'
+  /** A declaration in maplibre-gl.css (minified), by the rule's EXACT selector. */
+  const vendor = (selector: string, prop: string) => {
+    const at = VENDOR.match(new RegExp(`(?:^|\\})${selector.replace(/[.()]/g, '\\$&')}\\{([^}]*)\\}`))
+    expect(at, `maplibre-gl.css has no rule ${selector}`).toBeTruthy()
+    return decl(`;${at![1]}`, prop)
+  }
+
+  it('is bounded clear of the zoom control in every expanded host, out-ranking its inline max-width', () => {
+    // The competitor is an INLINE declaration (specificity 1,0,0) in SnowMap.tsx,
+    // which only an `!important` author declaration out-ranks. Were the inline
+    // style lifted to the class, this row says so rather than passing on a rule
+    // that no longer needs the flag.
+    expect(INLINE, 'the switcher\'s inline style in SnowMap.tsx').toBeTruthy()
+    expect(INLINE).toMatch(/\bmaxWidth:/)
+    for (const host of ['sr-map-container', 'sr-geo-map']) {
+      const value = resolved('max-width', SW, [host, MAP_FS_PANEL_CLASS], true)
+      expect(value, host).toBe(BOUND)
+      expect(value!.endsWith('!important'), `${host}: beats the inline max-width`).toBe(true)
+    }
+  })
+
+  it('its bound is the switcher\'s own right offset plus maplibre\'s zoom geometry, read from both sources', () => {
+    const terms = resolved('max-width', SW, ['sr-map-container', MAP_FS_PANEL_CLASS], true)
+      ?.match(/^calc\(100% - (\d+)px - (\d+)px - (\d+)px - (\d+)px\)/)?.slice(1).map(Number)
+    const right = Number(INLINE?.match(/\bright:\s*(\d+)\b/)?.[1])
+    const margin = vendor('.maplibregl-ctrl-top-left .maplibregl-ctrl', 'margin')?.split(/\s+/)
+    const buttonWidth = vendor('.maplibregl-ctrl-group button', 'width')
+    const ring = vendor('.maplibregl-ctrl-group:not(:empty)', 'box-shadow')?.match(/^0 0 0 (\d+)px\b/)?.[1]
+    // margin: top right bottom left; the zoom group's left edge is the 4th term.
+    expect(margin?.[3]).toMatch(/^\d+px$/)
+    expect(buttonWidth).toMatch(/^\d+px$/)
+    expect(terms).toEqual([right, parseFloat(margin![3]), parseFloat(buttonWidth!), Number(ring)])
+  })
+
+  it('binds nowhere else: not above the tier, not in the page, not in the Map Explorer\'s own panel', () => {
+    expect(resolved('max-width', SW, ['sr-map-container', MAP_FS_PANEL_CLASS], false)).toBeUndefined()
+    expect(resolved('max-width', SW, ['sr-map-container'], true)).toBeUndefined()
+    expect(resolved('max-width', SW, ['sr-geo-map', MAP_STILL_CLASS], true)).toBeUndefined()
+    expect(resolved('max-width', SW, ['sr-map-fullscreen-panel'], true)).toBeUndefined()
+  })
+
+  it('bounds the width only, so no switcher control is resized by the tier', () => {
+    // `\b` admits `.sr-map-layers-seg` and `-trails` too, deliberately: a phone
+    // rule that resized a button or the checkbox would join this list.
+    const touching = FLAT.filter(r => r.tier === 'phone' && /\.sr-map-layers\b/.test(r.selector))
+    expect(touching.map(r => r.selector).sort()).toEqual(['.sr-map-fs-panel .sr-map-layers', '.sr-map-still .sr-map-layers'])
+    const mine = touching.find(r => r.selector === '.sr-map-fs-panel .sr-map-layers')!
+    expect([...mine.body.matchAll(/([-\w]+)\s*:/g)].map(m => m[1])).toEqual(['max-width'])
+  })
+})
+
 describe('the two new hosts\' boxes can be sized by the panel (D-12, D-13)', () => {
   it('.sr-wx-pick-map carries the lifted inline size, and sits ABOVE the panel rule', () => {
     const pick = rule('.sr-wx-pick-map')
