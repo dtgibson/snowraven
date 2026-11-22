@@ -112,7 +112,7 @@ D-20 to D-28 in `decisions.md`:
 
 - Not measured here (the Tester's, per the spec): page movement under a real touch in WebKit (the iOS simulator), the on-screen keyboard and `visualViewport` for the lists, safe-area insets in the apps (D-27), the Android back gesture, 200% text and dark theme on every state.
 - A pinch on a still zooms the page (the browser's own page zoom, which the app leaves enabled); the map does not move.
-- A map that fails to load shows its "Map couldn't load" alert and Retry inside the inert body, so on the phone tier the Retry is reached by opening the map.
+- A map that fails to load shows its "Map couldn't load" alert and Retry inside the inert body, so on the phone tier the Retry is reached by opening the map. The map opens with its Exit at the bottom right whether or not it has drawn (D-38, the M-1 fix below), so there the user can retry or leave.
 - Map Explorer: the still holds a little longer on the way out than on the way in (D-28's floor), in the safe direction.
 - The list fit re-measures on `visualViewport` changes only, as designed; a list's content shrinking while open is fine, a page scroll moves it with its field as at HEAD.
 
@@ -197,3 +197,118 @@ The orchestrator routed one item from the Tester's round 2 (D-35): in an expande
 
 - A stylesheet rule that must beat a React inline style on a map control carries `!important`, and its guard reads the inline competitor from the component source, so lifting the inline style turns the guard red rather than leaving a needless flag (D-36).
 - A bound computed from a vendor's control geometry is guarded by reading that geometry from the vendor's own stylesheet in node_modules, so a maplibre upgrade that resizes the control turns the row red (maps.md v1.0.5's rule, made mechanical).
+
+## M-1 fix (2026-11-22, hands-off)
+
+The security review's Medium finding M-1 (`security-report.md`), routed by D-37. On the phone tier a map opened before it had drawn was a window-filling panel with no Exit and the bar hidden. Decision D-38 has the mechanism, the alternatives, the measurements and what would reverse it. Probe scripts and readings are in the session scratchpad's `m1/`:
+- `probe.mjs` is the not-drawn matrix and `summ.py` its summary; `out/` holds the first pass and `out2/` the fixed build's re-run with the wholeness checks.
+- `drawn.mjs` and `pxcmp.mjs` are the drawn-state comparison (frames in `drawn/`).
+- `inert.mjs` is the still check.
+- `mut/` is the mutation harness, and `red-first.log` the HEAD run of every new row.
+- `pics/side-by-side-failed-390-webkit.png` is the before and after.
+
+### What changed
+
+- **`frontend/src/components/ui/MapExitStandIn.tsx`** (new, entry-safe). Wraps a host's map subtree. While the panel is expanded and the map's own row has not reported itself, it draws the corner row's exit:
+  - the same classes, `Minimize2` glyph, `Exit` word, `Exit fullscreen` name and `aria-pressed`;
+  - activated through `collapse`;
+  - registered through `registerToggle`.
+- **`frontend/src/lib/mapExitStandIn.ts`** (new, `react` only). The context the map's row reports through, `STAND_IN_ROW_CLASS` and `IN_PLACE_ROW_CLASS`.
+- **`frontend/src/components/map/MapCornerControls.tsx`.**
+  - Lines 69 to 80: the toggle's ref is a local callback that also registers, and a layout effect reports the toggle and un-reports it on unmount.
+  - Lines 87 and 88: a row that mounts into a panel the stand-in holds open carries the in-place class until collapse.
+  - Line 149: the name comes from `EXIT_FULLSCREEN_LABEL`.
+- **`frontend/src/components/SnowMap.tsx` lines 130 to 134.** A Retry that holds the focus in an open panel hands it to the stand-in before the loading line replaces it.
+- **The five hosts** wrap the map subtree inside the provider in `.sr-map-still-body`:
+  - `SpeciesDetail.tsx` lines 1576 to 1648, both branches;
+  - `BirdingStats.tsx` lines 1297 to 1380;
+  - `NamedBirdRow.tsx` lines 325 to 337, compact, around the Suspense;
+  - `WeatherForecastPanel.tsx` lines 589 to 593, around the Suspense;
+  - `hotspotReports/HotspotReport.tsx` lines 141 to 145, around the Suspense.
+- **`frontend/src/lib/mapStillCopy.ts` line 28:** `EXIT_FULLSCREEN_LABEL`, the toggle's existing string.
+- **`frontend/src/globals.css`**, three rules:
+  - line 2385, `.sr-map-fs-panel > .sr-map-still-body { position: relative }`;
+  - line 3250, `.sr-map-fs-panel .sr-map-corner-row--in-place { animation: none }`;
+  - lines 3259 to 3262, the stand-in handle's `font` and tap highlight, the two declarations a button inherits from maplibre's `.maplibregl-map`.
+- **`.claude/rules/maps.md`:** `frontend/src/components/ui/MapExitStandIn*.tsx` joins its `paths`, per CLAUDE.md's rule that a new file a rule governs extends the rule's gate in the same change. `lib/mapExitStandIn.ts` already matches `frontend/src/lib/map*.ts`.
+- **Tests: 50 new rows.**
+  - **Shared helpers.** `frontend/src/test/mapReadiness.ts` (the store, the states and the shared M-1 assertions) and `frontend/src/test/MapReadinessGate.tsx` (the gate each host suite's map stub now sits in; `'ready'` by default, so every older row is unchanged).
+  - **Per host, the REAL host component**, in each state its map can be opened in:
+    - `NamedBirdsTable.test.tsx`, 6 rows: chunk, loading, failed and constructing, Retry in fullscreen, and drawn first;
+    - `hotspotReports/HotspotReportsTab.test.tsx`, 6;
+    - `WeatherForecastPanel.test.tsx`, 6;
+    - `BirdingStats.test.tsx`, 5 (no chunk state);
+    - `SpeciesDetailMapModeSticky.test.tsx`, 10 (Pins and Heatmap, no chunk state).
+  - **`map/MapCornerControls.test.tsx`, 5:** the report, the hand-off from the stand-in and from `<body>` (and none from elsewhere), arriving in place, the registration on its own, and a row drawn first.
+  - **`SnowMapV6.test.tsx`, 2, the real SnowMap:** the Retry hand-off, and a control showing HEAD's behaviour with no stand-in.
+  - **`lib/mapFullscreenPanelCss.test.ts`, 4:** the containing block only while expanded; the handle's type equal to maplibre's container rule, read from the vendor sheet; the stand-in's box equal to the row's in every app, tier and density; arriving in place.
+  - **`lib/mapFullscreenEntrySafe.test.ts`, 1 new row and 1 extended:** the closures, and both modules on App's static graph.
+  - **`mapFullscreenWiring.test.tsx`, 5:** one roster row per host pinning the wrapper's place, density and contents.
+
+### Verification record
+
+- **Red first.**
+  - All 40 rows that existed at that point were run against HEAD's eight production files: the five hosts, `MapCornerControls.tsx`, `SnowMap.tsx` and `globals.css`, put back with `git show HEAD:<path>`. Kept were only the two new unwired modules and the additive copy constant, which the helpers import.
+  - **All 40 were red, each for its own reason:** `found 0` Exits; two Exits or focus on `<body>` at arrival; focus on `<body>` after Retry; no containing block and a live entrance in the stylesheet; no stand-in in the roster and the graph.
+  - The "drawn first" rows and the Retry control stayed green.
+  - The fixed files were restored from a snapshot and checked by hash (8 of 8 OK).
+- **Mutations, one arm at a time** (restored by hash after each):
+  - the row never reporting: 37 red;
+  - no focus hand-off: 29;
+  - the stand-in drawn whenever open: 36;
+  - a hand-off from the stand-in only, not from `<body>`: 7;
+  - no in-place class: 1;
+  - Retry handing nothing: 1;
+  - Named Birds at the wrong density: 1;
+  - the stand-in not registering: 0 at first. The hook's fallback selector also finds it, so a row now pins the registration, and it goes red on exactly that mutation.
+  - The three new CSS rules mutated (another face, scoped by descendant with a `z-index`, unscoped from the panel): 1 red each.
+- **Gates on the final tree.**
+  - Full `npx vitest run`, default parallelism, nothing else compiling: 527 files passed, 5 skipped; 11,738 tests passed, 9 skipped, 0 failed (round 2's 11,688 passed plus these 50).
+  - `npm run build`: exit 0; `vendor-maplibre` absent from `dist/index.html`.
+  - Built CSS against the pre-fix build, rule by rule: exactly the 3 intended rules added, none removed, the utilities layer identical (82 rules).
+  - The entry chunk grows by 195 bytes (103 gzipped).
+  - `npm run lint`: 0 problems.
+  - `weft-design-lint check src/`: no `warn`, and none of its 51 notes is in a file this fix touches.
+- **Built app, the not-drawn states.**
+  - Pre-fix (`96403e7a`) and fixed builds, each served by its own scratch backend on 18761 and 18762 against identical copies of the demo data (7,869 rows, asserted in the page). Playwright Chromium and WebKit, 390 x 844 and 320 x 568, a fresh context per configuration.
+  - **States.** The live style request aborted (failed), held open (loading), or the lazy map chunk held (chunk), each confirmed on the page (and the held request confirmed made) before a real tap on the opener.
+  - **No persisted style.** Every `/settings/map-style-*` read answered 404 in the browser and every write answered there, so no configuration read or wrote one.
+  - **Before: 60 of 60 configurations** (Species Detail Pins and Heatmap and Statistics failed and loading; Hotspot Reports, Named Birds and Weather failed, loading and chunk):
+    - the panel opened with 0 Exits and the bar hidden;
+    - in loading and chunk a Tab press left the panel for the opener;
+    - in failed, Retry pressed in fullscreen left focus on `<body>`;
+    - only Escape got out;
+    - the corner row faded in from opacity 0 when the map came.
+  - **After, the same 60:** every check held in 60 of 60. A real tap at its centre exits and so does the map's own Exit after arrival. Line by line:
+    - **One Exit.** By DOM count and accessible role.
+    - **Its box.** The stand-in, 80.14 x 44 px, whole inside the window, hit-tested at its centre.
+    - **Focus on open.** On the Exit.
+    - **The bar.** Its band: 0 differing px against a frame with the bar forced transparent.
+    - **Tab.** Stays in the panel (Retry and Exit in failed: 24 of 24).
+    - **What it paints.** Covers its box out to its shadow on the left, right and bottom. The top edge falls short by up to 1.02 px over the placeholder, whose ground is within the comparison threshold of the disc's 1 px border at the top of its ellipse.
+    - **Exiting.** Collapses, clears the attribute, restores the scroll offset exactly, and focus lands on the opener.
+    - **Arrival, every animation frame** from the release to 30 frames after the map's own row drew: exactly one Exit at opacity 1, focus never on `<body>`.
+    - **Arrival, the map's own Exit.** At the stand-in's place to 0 px, with the same label box and face, and the same pixels inside its ellipse (0 of 932,085 device px across the 60).
+- **Built app, unchanged.**
+  - The drawn map opened by a tap: 12 of 12 frames pixel-identical to the pre-fix build at 390 x 844 in both engines.
+  - Above the tier, at 900 x 800: 20 of 20 frames, in the page and expanded by the corner toggle.
+  - A second pre-fix run read 0 against the first in every frame.
+  - On the still, a failed map's Retry is inside the inert body in both builds (3 hosts, both engines), and 120 Tab presses never reach it.
+- **Requests and cleanup.**
+  - Every eBird-backed path was answered in the browser and counted: 480 in the not-drawn matrix, 204 in the drawn runs, 14 for the pictures, and 0 reached a backend in any run, the still check's included. The two backends served 13,632 and 18,037 requests, none on an eBird-backed path and none to the style setting. The OpenFreeMap style and tiles were fetched from the provider, as the app does.
+  - Both data copies hold what they started with; no key was written or read.
+  - Both servers are stopped and no Playwright browser is left running.
+  - Page errors in the not-drawn matrix: only WebKit's ResizeObserver loop message of D-34 and D-35 (12 across 184 configurations); the drawn runs recorded no probe error.
+
+### Not changed
+
+- **`lib/useMapFullscreen.ts`**, every hook name and member, and `registerToggle`'s contract.
+- **`docs/HELP.md`.** Its "Exit, at the bottom right, brings you back" is now true in every state.
+- **`ACCESSIBILITY.md`.** Its "focus moves to Exit when the map opens and returns to the button when it closes" was untrue for a map opened before it drew and is now true.
+- **The construction gap in a real engine.** The gap between SnowMap's style arriving and maplibre being built cannot be held open from the network. It is pinned in jsdom (the `constructing` state, red at HEAD), and in the engines the frame sampler saw no frame without an Exit across all 60 arrivals.
+
+### Convention Flags
+
+- A control that opens a full-screen surface from outside it is safe only while the surface carries its own exit in every state it can open in. Where the surface's exit is a child that mounts only once loaded (a `<SnowMap>` child), the host wraps the surface in a stand-in that draws the same exit until the child reports itself. The child reports in a layout effect and takes the focus across before the stand-in leaves (D-38).
+- A stand-in for a control drawn inside a third-party container restates the declarations that control inherits from the container (here the `font` and tap highlight of `.maplibregl-map`), guarded against the vendor's stylesheet, or the "same" control changes face when the real one arrives.
+- A host suite drives its map through `src/test/MapReadinessGate.tsx`, so every host meets the same not-drawn states (chunk, loading, failed, constructing) through its own real component.

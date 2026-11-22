@@ -141,3 +141,49 @@ The Tester's round 1 (`qa-report.md`) returned F-1 to F-4 and three items for th
 - **D-37. The Guide's calls on The Auditor's findings (2026-11-22; security review PASSED WITH NOTES at `d87c52a1`, nothing Critical or High).**
   - **M-1 (Medium) is fixed in this build before the user's live look, not deferred.** On the phone tier a map opened before it has drawn (the map chunk still loading, the style still loading, or the map failed) is a fullscreen panel with no Exit and the bar hidden, because Exit is drawn by `MapCornerControls`, a child `<SnowMap>` renders only once the map is ready, while the opener sits outside the map and `open()` does not wait. A touch-only phone with a failed map would be held there until the app restarts. This build introduced it (at HEAD only the toggle inside a drawn map could expand it). The fix is the Engineer's D-38.
   - **I-1 (Informational) is closed: the mockup's data is invented and now says so.** Checked by count against the stored backup: 11 of the 12 place names in `design.html` do not occur in it, the counts and positions are hand-typed, and the coast is the one earlier mockups in this repo already draw (`pipeline/calendar-overlays/design.html`, `pipeline/county-shading-and-project-stats/design.html`); the one date that matches a real fact (the backup's first report date) is already in `DECISIONS.md`. A comment in `design.html` now states that the data is invented. Nothing moves to the gitignored set.
+
+## The Engineer's M-1 errand (2026-11-22, hands-off)
+
+- **D-38. M-1 is fixed with a STAND-IN EXIT: each host wraps its map subtree in `MapExitStandIn`, which draws the corner row's own Exit while the panel is open and the map's row has not reported itself, and the map's row takes over in place, with the focus, when it arrives.**
+  - **The defect, reproduced in the built app first** (the tip `96403e7a`, Playwright Chromium and WebKit, 390 x 844 and 320 x 568, opened by a real tap on the opener). The states were the style request aborted (failed), the style request held open (loading), and the lazy map chunk held (the Suspense state, which exists only where a host has a map Suspense: Named Birds, Weather and Hotspot Reports). Species Detail and Statistics import their map inside their own lazy tab chunk.
+    - **60 of 60 configurations** (15 host-and-state pairs, both engines, both sizes) opened to a window-filling panel with **0 Exits and the bar hidden**.
+    - In the loading and chunk states the panel held nothing focusable, so Tab left it for the opener behind it.
+    - In the failed state Retry was the only control, and pressing it dropped focus to `<body>`.
+    - Escape was the only way out. When the map arrived the corner row faded in from opacity 0.
+  - **Why the Exit could not come from the map alone.** `@vis.gl/react-maplibre` (react-map-gl 8.1.3) renders a map's children only after a passive effect has resolved `import('maplibre-gl')` and constructed the map. So even once SnowMap's style is ready there is at least one commit with the map's box and no corner row, and none at all if the constructor throws (no WebGL).
+  - **What changed.**
+    - `frontend/src/components/ui/MapExitStandIn.tsx` (new, entry-safe). It wraps the map subtree inside the provider in `.sr-map-still-body`. It draws the corner row's exit with the same classes, glyph, word, accessible name and `aria-pressed`, using `collapse` from the context. It registers through `registerToggle`, so focus on open lands on it as on any exit.
+    - `frontend/src/lib/mapExitStandIn.ts` (new, `react` only). The context through which the map's row reports its toggle, and two class handles.
+    - `MapCornerControls` reports its toggle in a layout effect, after its ref attaches and before paint. If the stand-in holds the focus, or focus has fallen to `<body>`, the report moves focus straight to the arriving toggle, and the stand-in then leaves in the render the report causes. So no frame has two exits or none, and focus never passes through `<body>`. A row that mounts into a panel the stand-in holds open takes `sr-map-corner-row--in-place` (no entrance animation) until the panel collapses.
+    - `SnowMap`'s Retry, when it holds the focus in an open panel, hands it to the stand-in before the loading line replaces it.
+    - `globals.css`, three rules:
+      - `.sr-map-fs-panel > .sr-map-still-body { position: relative }`: the stand-in's containing block, the box maplibre's container fills exactly, so the stand-in takes the row's offsets and both apps' bottom insets by class.
+      - `.sr-map-fs-panel .sr-map-corner-row--in-place { animation: none }`.
+      - The stand-in's handle restating the two declarations a button inherits from `.maplibregl-map`: its `font` and its tap highlight. Without it the word "Exit" was 0.09 px wider in Chromium, in another face.
+    - Each host wraps its subtree in `<MapExitStandIn>`, compact only on the Named Birds card. `EXIT_FULLSCREEN_LABEL` moved the toggle's existing `'Exit fullscreen'` into `lib/mapStillCopy.ts`, so the two exits cannot be named differently.
+  - **Why this and not the alternatives.**
+    - **The review's suggestion (the placeholder and the three Suspense fallbacks draw the Exit).** It leaves the construction gap above and the constructor-failure case with no Exit. It also swaps the element up to three times (fallback, placeholder, row), each a focus hand-off.
+    - **The host drawing the Exit outside the map in every state, with the row's toggle hidden while open.** That changes the drawn state, whose share pin shares the toggle's row and whose toggle holds the focus above the tier, and another build consumes that toggle.
+    - **`open()` waiting for readiness.** Excluded by the brief: Retry must be reachable, and a slow load must not make the opener look dead.
+    - The stand-in is one element from the press to the map's arrival and needs no change to `lib/useMapFullscreen.ts`.
+  - **Constraints held.**
+    - `useMapFullscreen.ts` is untouched: every hook name, member and contract is HEAD's. `registerToggle` still decides focus on open, and the `.sr-map-fullscreen-btn` selector stays a last resort; a row pins the stand-in's registration on its own, because the fallback selector alone would also land on it.
+    - The entry graph stays map-free: `MapExitStandIn`'s closure is Button, the hook and its two imports, the signal module and the copy module (`mapFullscreenEntrySafe.test.ts`).
+    - The Button primitive; classes, not inline styles; no new token, string or hover rule. No `.sr-ios-app` rule was added: the stand-in takes the row's app rules by class, so no Android twin is owed.
+  - **Measured after** (the fixed build, the same probe and states). **60 of 60 configurations:**
+    - **On open.** Exactly one Exit, by DOM count and by accessible role: the stand-in, 80.14 x 44 px, inside the window and hit-tested at its centre, with focus on it. Nothing is drawn in the bar's band.
+    - **Tab.** Stays in the panel, visiting Retry and Exit in the failed state.
+    - **A real tap on Exit.** Collapses the panel, clears `data-sr-fs-open`, puts the page back at its scroll offset and returns focus to the opener.
+    - **Opened again, the map arriving while open** (Retry tapped in fullscreen with the style released, the held style request released, or the held chunk released):
+      - In every animation frame sampled from the release until the map's own row had been drawn for 30 frames: exactly one Exit at opacity 1.
+      - The map's own Exit then sits at the stand-in's position to 0 px, with the same label box and face. Its pixels inside its ellipse equal the stand-in's (0 of 932,085 device px differ).
+      - Focus is on it, never on `<body>`, and it exits.
+  - **Unchanged.**
+    - The drawn map is pixel-identical to the pre-fix build: 12 of 12 frames opened by a tap at 390 x 844 in both engines, 0 px. Above the tier, at 900 x 800, 20 of 20 frames in the page and expanded by the corner toggle. The same-build control read 0 throughout.
+    - On the still, the failed placeholder stays inert in both builds: Retry is inside the inert body, which takes no pointer, and 120 Tab presses never reach it.
+  - **Above 640 px.** Nothing changes. Every caller of `open` is gated on `still` (the phone tier), and `FsOpenRow` renders only on the tier, so above it only a drawn map's corner toggle expands a panel, at HEAD and now. The stand-in appears there only for a map opened on the tier and widened before it drew, as HEAD's icon disc.
+  - **What would reverse it.**
+    - react-map-gl rendering a map's children before construction, together with SnowMap drawing its row in its own placeholder. Then the map's row would exist from the press and the stand-in could go.
+    - A host moving its map out of `.sr-map-still-body`. The containing block would no longer be maplibre's box; the wiring roster's row goes red.
+    - maplibre changing its container's inherited type: the type row goes red.
+  - **Shared code (D-04).** `useMapFullscreen.ts` is not edited. The panel's styles gain the still body's `position`, scoped to `.sr-map-fs-panel > .sr-map-still-body`, which only map hosts carry. The Family Tree consumes the hook, the panel class and `registerToggle`, all unchanged, and draws its own exit, so it needs nothing from this. Its session should be told.
