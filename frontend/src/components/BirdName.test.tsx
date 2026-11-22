@@ -97,3 +97,38 @@ describe('BirdName', () => {
     expect(noSlash).toBe(render(<BirdName commonName="Redpoll" />).container.innerHTML)
   })
 })
+
+// The `lead` prop (family-rollups-and-tree D-30; QA-91). Every existing call
+// is held byte-identical by familyTreeShared.golden.test.tsx, captured before
+// the prop was added.
+describe('BirdName lead="scientific"', () => {
+  it('the link reads the scientific name, italic by its class, with no second line', () => {
+    const onOpen = vi.fn()
+    const { container } = render(
+      <BirdName commonName="Snow Goose" scientificName="Anser caerulescens" taxonCode="snogoo" hasEntry onOpenSpecies={onOpen} showSci lead="scientific" />,
+    )
+    const btn = screen.getByRole('button', { name: 'Anser caerulescens' })
+    expect(btn.className).toBe('sr-birdname-link sr-birdname-lead-sci')
+    expect(container.querySelector('.sr-birdname-sci')).toBeNull()
+    fireEvent.click(btn)
+    expect(onOpen).toHaveBeenCalledWith('Snow Goose')
+  })
+  it('both marks keep the common name\'s hrefs and accessible names', () => {
+    const marks = (lead?: 'scientific') => {
+      const { container } = render(<BirdName commonName="Snow Goose" scientificName="Anser caerulescens" taxonCode="snogoo" lead={lead} />)
+      const out = [...container.querySelectorAll('a[href]')].map(a => [a.getAttribute('href'), a.getAttribute('aria-label')])
+      cleanup()
+      return out
+    }
+    expect(marks('scientific')).toEqual(marks())
+    expect(marks().length).toBe(2)
+  })
+  it('without a link the plain text leads with the scientific name too', () => {
+    render(<BirdName commonName="Snow Goose" scientificName="Anser caerulescens" lead="scientific" />)
+    expect(screen.getByText('Anser caerulescens').className).toBe('sr-birdname-text sr-birdname-lead-sci')
+  })
+  it('with an empty scientific name the prop does nothing and the common name shows', () => {
+    render(<BirdName commonName="Imaginary Warbler" scientificName="" hasEntry onOpenSpecies={() => {}} lead="scientific" />)
+    expect(screen.getByRole('button', { name: 'Imaginary Warbler' }).className).toBe('sr-birdname-link')
+  })
+})

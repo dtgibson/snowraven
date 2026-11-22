@@ -7,13 +7,13 @@
 // key) so a re-sort keeps each row's element and only a row a control ADDED
 // mounts fresh with the entrance class. No DOM id or IDREF is minted here.
 
-import { Camera, Mic, Video } from 'lucide-react'
 import { BirdName } from '../BirdName'
+import { MediaPresenceCell } from '../MediaPresenceCell'
 import { ChecklistLink } from '../ChecklistLink'
 import { formatDate } from '../../lib/formatDate'
 import { isValidChecklistId } from '../../lib/checklistId'
-import { dayToIso, type LifeListRow, type MediaPresence } from '../../lib/lifeLists'
-import { NO_CHECKLIST_LABEL, mediaLabel, positionPrefix } from '../../lib/lifeListsCopy'
+import { dayToIso, type LifeListRow } from '../../lib/lifeLists'
+import { NO_CHECKLIST_LABEL, positionPrefix } from '../../lib/lifeListsCopy'
 
 export interface LifeListsRowsProps {
   rows: readonly LifeListRow[]
@@ -25,17 +25,6 @@ export interface LifeListsRowsProps {
   addedFrom: ReadonlySet<string> | null
   codeFor: (name: string) => string | undefined
   onOpenSpecies?: (commonName: string) => void
-}
-
-function MediaCell({ media }: { media: MediaPresence }) {
-  const slot = (has: boolean) => `sr-lfl-media-glyph ${has ? 'is-has' : 'is-lacks'}`
-  return (
-    <span className="sr-lfl-media" role="img" aria-label={mediaLabel(media)}>
-      <Camera size={12} strokeWidth={2.2} className={slot(media.photo)} aria-hidden="true" />
-      <Mic size={12} strokeWidth={2.2} className={slot(media.audio)} aria-hidden="true" />
-      <Video size={12} strokeWidth={2.2} className={slot(media.video)} aria-hidden="true" />
-    </span>
-  )
 }
 
 export function LifeListsRows({ rows, total, showMedia, addedFrom, codeFor, onOpenSpecies }: LifeListsRowsProps) {
@@ -77,7 +66,7 @@ export function LifeListsRows({ rows, total, showMedia, addedFrom, codeFor, onOp
             {row.location && <span className="sr-lfl-locname">{row.location}</span>}
             {row.place && <span className="sr-lfl-county">{row.place}</span>}
           </div>
-          {showMedia && <MediaCell media={row.media} />}
+          {showMedia && <MediaPresenceCell media={row.media} />}
         </li>
       ))}
     </ol>

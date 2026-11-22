@@ -873,6 +873,10 @@
 .sr-birdname-sm .sr-birdname-sci { font-size: 0.6875rem; }
 .sr-birdname-lg .sr-birdname-link, .sr-birdname-lg .sr-birdname-text { font-size: 0.9375rem; font-weight: 700; }
 .sr-birdname-lg .sr-birdname-sci { font-size: 0.75rem; }
+/* A name that leads with its scientific name (BirdName's `lead`, the Family
+   Tree's Scientific state, family-rollups-and-tree D-30): the link or plain
+   text itself is the binomial, so it takes the italic a scientific name has. */
+.sr-birdname-lead-sci { font-style: italic; }
 
 /* ── shadcn/ui tokens ───────────────────────────────────────────────────── */
 

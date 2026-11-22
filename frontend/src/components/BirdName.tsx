@@ -35,6 +35,14 @@ export interface BirdNameProps {
    *  first space: the words after it stay outside, where they wrap. Default
    *  none: every other surface renders byte-identically. */
   trailing?: string
+  /** Which name leads (family-rollups-and-tree D-30): 'common' (the default)
+   *  or 'scientific', where the name's text (the link when `hasEntry`) is the
+   *  scientific name in italic and no second line shows. Nothing else moves:
+   *  the open-species key, `hasEntry`, the taxon code and both marks, with
+   *  their hrefs and accessible names, still follow the common name. With an
+   *  empty `scientificName` it does nothing and the common name shows. Absent
+   *  or 'common': every other surface renders byte-identically. */
+  lead?: 'common' | 'scientific'
 }
 
 /** The common name with a `<wbr>` after each "/". Keys are segment indexes. */
@@ -58,10 +66,14 @@ export const BirdName = memo(function BirdName({
   size = 'md',
   breakAfterSlash = false,
   trailing,
+  lead = 'common',
 }: BirdNameProps) {
   const linkable = hasEntry && !!onOpenSpecies
-  const shown = breakAfterSlash && commonName.includes('/') ? withSlashBreaks(commonName) : commonName
-  const sci = showSci && scientificName ? scientificName : null
+  const sciLead = lead === 'scientific' && !!scientificName
+  const shown = sciLead
+    ? scientificName
+    : breakAfterSlash && commonName.includes('/') ? withSlashBreaks(commonName) : commonName
+  const sci = !sciLead && showSci && scientificName ? scientificName : null
   const cls = `sr-birdname sr-birdname-${size}${sci ? '' : ' sr-birdname-inline'}`
 
   return (
@@ -70,13 +82,13 @@ export const BirdName = memo(function BirdName({
         {linkable ? (
           <Button
             type="button"
-            className="sr-birdname-link"
+            className={sciLead ? 'sr-birdname-link sr-birdname-lead-sci' : 'sr-birdname-link'}
             onClick={() => onOpenSpecies!(commonName)}
           >
             {shown}
           </Button>
         ) : (
-          <span className="sr-birdname-text">{shown}</span>
+          <span className={sciLead ? 'sr-birdname-text sr-birdname-lead-sci' : 'sr-birdname-text'}>{shown}</span>
         )}
         <SpeciesLinks speciesCode={taxonCode} commonName={commonName} />
         {trailing && <span className="sr-birdname-trail">{trailing}</span>}
