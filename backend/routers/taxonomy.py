@@ -24,7 +24,8 @@ _report_as: dict[str, str] = {} # sub-form code -> parent species code (eBird re
 # The `version` of the loaded maps: the bundled snapshot's version, or the one a
 # live fetch was saved under (below). It is a cache counter kept in lockstep with
 # CACHE_KEY in frontend/src/lib/tauri/taxonomyService.ts, not a taxonomy year:
-# "2028" holds eBird's 2026 taxonomy ("2027" held the 2025 one).
+# "2029" holds eBird's 2026 taxonomy as revised mid-year ("2028" held it as
+# first published, "2027" the 2025 one).
 _version: str = ""
 _loaded = False
 

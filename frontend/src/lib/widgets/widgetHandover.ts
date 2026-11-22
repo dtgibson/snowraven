@@ -45,7 +45,7 @@ export const MAX_SET_ENTRIES = 20_000
 /** Per name, in UTF-16 code units: well above the longest eBird common name. */
 export const MAX_NAME_UNITS = 200
 /** Entries per countability exception list (ios-alerts, schema.md 3.6). The
- *  asset's lists are 88 and 81 names and its generator fails closed on a short
+ *  asset's lists are 66 and 82 names and its generator fails closed on a short
  *  or overlapping list, so this is a shape bound, not a forecast. */
 export const MAX_EXCEPTION_ENTRIES = 1_000
 /** The eBird key: `^[A-Za-z0-9]{1,128}$`, a class that cannot express a

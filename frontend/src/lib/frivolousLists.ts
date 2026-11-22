@@ -148,7 +148,7 @@ export interface FrivolousListsData {
  *  NO TEST CAN CURRENTLY REJECT normalizing the argument here, recorded rather
  *  than left for someone to rediscover. Mutating this to
  *  `isNonCountableForm(normalizeSpeciesName(name))` leaves the whole suite green,
- *  because the only names the two forms disagree about are the 81 eBird publishes
+ *  because the only names the two forms disagree about are the 82 eBird publishes
  *  and does not count, and none of their base names appears on any themed list
  *  (swept against the shipped lists: zero overlap). The mutation therefore admits
  *  a name into `recorded` that no list ever reads, so it is behaviour-neutral

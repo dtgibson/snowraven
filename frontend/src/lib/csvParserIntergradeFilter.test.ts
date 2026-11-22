@@ -31,7 +31,9 @@ const commonNames = [...new Set(Object.values(snapshot.byCode))]
 // taxonomy; on the 2025 taxonomy, which the record quotes, they were 124 = 36 + 88.
 //
 // `newlyExcluded` moved from 0 to 81, and that is a real behaviour change rather than
-// drift: those are names eBird does not count and the old string rule did.
+// drift: those are names eBird does not count and the old string rule did. It is 82
+// on snapshot "2029" (the mid-year refresh of 2026-11-21), where eBird stopped
+// reporting Great Nicobar White-eye (undescribed form) as Indian White-eye.
 const rawNamePredicate = (name: string): boolean =>
   name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 
@@ -120,11 +122,11 @@ describe('CSV parser countable-intergrade filter', () => {
     expect(deriveBreedingData(breeding.observations, breeding.csv)).toEqual(direct)
   })
 
-  it('pins 104 rescued rows, 81 newly excluded names, and 68 parser entries', () => {
+  it('pins 104 rescued rows, 82 newly excluded names, and 68 parser entries', () => {
     expect(commonNames).toHaveLength(18_631)
     expect(rescuedIntergrades).toHaveLength(104)
     expect(v0586Intergrades).toHaveLength(38)
-    expect(newlyExcluded).toHaveLength(81)
+    expect(newlyExcluded).toHaveLength(82)
     expect(rescuedBaseNames.size).toBe(68)
 
     const ebird = [

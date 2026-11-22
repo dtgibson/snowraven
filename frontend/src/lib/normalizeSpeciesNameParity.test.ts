@@ -275,7 +275,8 @@ describe('the countable-name asymmetry is unmoved', () => {
     expect(split(normalizeSpeciesName)).toEqual(split(shippedRegexNormalize))
   })
 
-  // Deliberately pins today's figures, measured on eBird's 2026 taxonomy (snapshot "2028");
+  // Deliberately pins today's figures, measured on eBird's 2026 taxonomy (snapshot "2028",
+  // and re-derived unchanged on its mid-year refresh, snapshot "2029");
   // DECISIONS.md and .claude/rules/bird-names.md also quote the 2025 taxonomy's 818 / 782 /
   // 36. A failure here means the bundled taxonomy snapshot moved, not that this code broke:
   // re-measure, then update the current figures in .claude/rules/bird-names.md.

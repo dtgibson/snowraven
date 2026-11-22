@@ -1,10 +1,11 @@
 // THE PROOF FOR report-as-countability.
 //
 // `isNonCountableForm` ships eBird's countability verdict in a COMPRESSED form:
-// eBird's own naming convention (`isNonCountableNameShape`) plus 147 corrections
+// eBird's own naming convention (`isNonCountableNameShape`) plus 148 corrections
 // in `assets/ebird-countability.json`. Shipping all 18,631 verdicts would cost
 // ~108 KB gzipped on the entry chunk; the compression costs 2.3 KB (both measured
-// on eBird's 2026 taxonomy, snapshot "2028").
+// on eBird's 2026 taxonomy, snapshot "2028", and the corrections re-measured at
+// 2,315 bytes gzipped on snapshot "2029", the mid-year refresh of 2026-11-21).
 //
 // A compression is only safe if it is verified rather than argued, so this file
 // re-derives eBird's verdict INDEPENDENTLY from the taxonomy snapshot (it does not
@@ -81,10 +82,13 @@ describe('the inversion the whole design rests on', () => {
     expect(lowered.size).toBe(18_631)   // no case-only collisions either
   })
 
-  it('splits the published names into 15,919 countable and 2,712 not', () => {
+  it('splits the published names into 15,918 countable and 2,713 not', () => {
+    // Snapshot "2029": eBird stopped reporting Great Nicobar White-eye
+    // (undescribed form) as Indian White-eye (2026-11-21), so it moved from the
+    // countable side (15,919 and 2,712 on snapshot "2028") to this one.
     const nonCountable = publishedNames.filter(n => !eBirdCounts(nameToCode.get(n)!))
-    expect(nonCountable).toHaveLength(2_712)
-    expect(publishedNames.length - nonCountable.length).toBe(15_919)
+    expect(nonCountable).toHaveLength(2_713)
+    expect(publishedNames.length - nonCountable.length).toBe(15_918)
   })
 })
 
@@ -189,11 +193,13 @@ describe('direction A: 66 names eBird counts that the shape rule rejected', () =
   })
 })
 
-describe('direction B: 81 names the shape rule counted that eBird does not', () => {
+describe('direction B: 82 names the shape rule counted that eBird does not', () => {
   const rejected = artifact.nonCountable
 
-  it('rejects 81 names: 3 named hybrids, 25 spuhs, 53 undescribed forms', () => {
-    expect(rejected).toHaveLength(81)
+  it('rejects 82 names: 3 named hybrids, 25 spuhs, 54 undescribed forms', () => {
+    // 81 and 53 on snapshot "2028"; the mid-year refresh added Great Nicobar
+    // White-eye (undescribed form), whose reportAs eBird dropped.
+    expect(rejected).toHaveLength(82)
     const hybrids = rejected.filter(n => /\(hybrid\)$/.test(n))
     const spuhs = rejected.filter(n => !/\(hybrid\)$/.test(n) && n.includes(' sp.'))
     const undescribed = rejected.filter(
@@ -201,7 +207,7 @@ describe('direction B: 81 names the shape rule counted that eBird does not', () 
     )
     expect(hybrids).toHaveLength(3)
     expect(spuhs).toHaveLength(25)
-    expect(undescribed).toHaveLength(53)
+    expect(undescribed).toHaveLength(54)
     // The three partitions account for every name, so none is silently uncategorized.
     expect(hybrids.length + spuhs.length + undescribed.length).toBe(rejected.length)
   })

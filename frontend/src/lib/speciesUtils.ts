@@ -358,18 +358,19 @@ export const __MEMO_LIMITS_FOR_TESTS = {
 // This replaced three string-shape predicates (`isSpuhOrSlash`,
 // `isNonCountableSpecies`, `isNonCountableObservedName`) that inferred the answer
 // from the name and were wrong in BOTH directions against eBird's own data
-// (figures for eBird's 2026 taxonomy; the 2025 taxonomy this build was measured on
-// had 88 in 59 parents in the first group, and the same 81 in the second):
+// (figures for eBird's 2026 taxonomy as refreshed mid-year, snapshot "2029"; the
+// 2025 taxonomy this build was measured on had 88 in 59 parents in the first
+// group and 81 in the second, and snapshot "2028" had 66 in 47 and 81):
 //
 //   66 names eBird counts and shape rejected, folding into 47 parent species.
 //      Subspecies-group slashes inside a trailing parenthetical, and ordinary for
 //      a North American birder: "Red-tailed Hawk (Western/Northern)", "Redpoll
 //      (Common/Hoary)", "Iceland Gull (Thayer's/Kumlien's)".
-//   81 names eBird rejects and shape counted. 3 named hybrids carrying no " x "
+//   82 names eBird rejects and shape counted. 3 named hybrids carrying no " x "
 //      ("Brewster's Warbler (hybrid)", "Lawrence's Warbler (hybrid)", "Bogota
 //      Sunangel (hybrid)"), 25 spuhs with a parenthetical after the " sp.", and
-//      53 undescribed or unrecognized forms. That last group is not two tidy
-//      suffixes: 47 "(undescribed form)", 4 "(unrecognized species)", one
+//      54 undescribed or unrecognized forms. That last group is not two tidy
+//      suffixes: 48 "(undescribed form)", 4 "(unrecognized species)", one
 //      "(undescribed Panay form)" and one "(undescribed Buru form)".
 //
 // The second direction had not been recorded anywhere before this build: a birder
@@ -379,8 +380,8 @@ export const __MEMO_LIMITS_FOR_TESTS = {
 // inference; it is eBird's own naming convention, and it is the FALLBACK for a
 // name eBird does not publish. Shipping a verdict for all 18,631 published names
 // costs ~108 KB gzipped, and this module is statically reachable from `App.tsx`,
-// so that rides first paint. The convention reproduces eBird's verdict on 18,484
-// of those names, so we ship the convention plus the 147 corrections (2.3 KB
+// so that rides first paint. The convention reproduces eBird's verdict on 18,483
+// of those names, so we ship the convention plus the 148 corrections (2.3 KB
 // gzipped) instead. `countableForms.test.ts` asserts the pair equals the full
 // `reportAs` lookup NAME BY NAME over the whole snapshot, so the compression is
 // verified rather than argued. Listing the other 2,631 non-countable names would

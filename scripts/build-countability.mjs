@@ -16,22 +16,24 @@
 // so this rides first paint). It does not have to. eBird's own NAMING CONVENTION
 // already encodes the verdict: a form whose name leaves the species in doubt
 // carries " sp.", a "/", or an " x ". Measured against the snapshot, that
-// convention reproduces eBird's verdict on 18,484 of the 18,631 published names
-// (eBird's 2026 taxonomy, snapshot "2028"; every figure below is that taxonomy's).
+// convention reproduces eBird's verdict on 18,483 of the 18,631 published names
+// (eBird's 2026 taxonomy as refreshed mid-year, snapshot "2029"; every figure
+// below is that snapshot's, and snapshot "2028" differed only by the one
+// undescribed form eBird stopped reporting as a species on 2026-11-21).
 //
 // So we ship the convention (`isNonCountableNameShape`, in speciesUtils.ts) plus
-// the 147 names where eBird disagrees with it. The pair is EXACTLY eBird's verdict
+// the 148 names where eBird disagrees with it. The pair is EXACTLY eBird's verdict
 // over every name eBird publishes, and `countableForms.test.ts` asserts that
 // equivalence name by name rather than leaving it as reasoning.
 //
 //   countable    66 names eBird counts that the convention would reject
 //                (subspecies-group slashes inside a trailing parenthetical:
 //                "Red-tailed Hawk (Western/Northern)", "Redpoll (Common/Hoary)")
-//   nonCountable 81 names eBird rejects that the convention would count
+//   nonCountable 82 names eBird rejects that the convention would count
 //                (3 named hybrids carrying no " x " such as "Brewster's Warbler
 //                (hybrid)", 25 spuhs with a parenthetical after the " sp.", and
-//                53 undescribed or unrecognized forms, which are not two tidy
-//                suffixes but 47 "(undescribed form)", 4 "(unrecognized
+//                54 undescribed or unrecognized forms, which are not two tidy
+//                suffixes but 48 "(undescribed form)", 4 "(unrecognized
 //                species)", one "(undescribed Panay form)" and one
 //                "(undescribed Buru form)")
 //
@@ -134,8 +136,8 @@ export function deriveCountability(bundle) {
 // Plausibility floors. A snapshot that lost its `reportAs` map would derive an
 // empty `countable` list and silently ship today's behaviour under a new name, so
 // an empty or near-empty derivation must HARD-FAIL rather than write the file.
-// Sized well below the real 66 / 81 (eBird's 2026 taxonomy; 88 / 81 on the 2025
-// one) so an ordinary annual revision never trips them.
+// Sized well below the real 66 / 82 (eBird's 2026 taxonomy, snapshot "2029";
+// 88 / 81 on the 2025 one) so an ordinary annual revision never trips them.
 const MIN_COUNTABLE = 20
 const MIN_NON_COUNTABLE = 20
 
