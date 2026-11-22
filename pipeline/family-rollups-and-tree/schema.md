@@ -574,6 +574,61 @@ Declined, each with its measurement or its reason:
 
 **Reversal:** a live report that Expand all is slow or unsteady on a real backup, or the Engineer's reading of the built table at the roster of the saved backup above 150 ms for the longest block in WebKit; then `content-visibility` with a measured intrinsic size; then paging inside a family, which is a PRD change.
 
+**As built, and the ruling (2026-11-21; `decisions.md` D-41 for the Engineer's readings, D-43 for the ruling). The paragraphs above this one are superseded where they say a family is never split, where they give 150, and where the bound adds the largest family.**
+
+The Engineer's longest frame gap in the built app: 99 to 109 ms in WebKit at a 149-species roster, and **421 to 436 ms in WebKit** (202 to 209 ms in Chromium) at every species, against this section's 126 ms. The built table was then profiled here per commit, alone in a scratch page with the app's own stylesheet and the tab's own runner, with each suspected cause removed in turn (WebKit 26.5 and Chromium 151; 11,201 species unless a row says otherwise; a frame gap is the Engineer's metric, and includes paint).
+
+| Reading, WebKit / Chromium | Longest frame gap | Median gap | Total |
+|---|---|---|---|
+| As built: chunks of "150", the `fresh` flip, `setTimeout(0)` | 341 ms / 163 ms | 210 ms / 61 ms | 9.1 s / 6.0 s |
+| The same without the `fresh` flip | 321 / 161 | 169 / 57 | 7.6 s / 5.6 s |
+| The same with a frame yield (`requestAnimationFrame`, then a timer) | 337 / 190 | 160 / 105 | 8.9 s / 5.0 s |
+| Exactly 150 rows a commit, families split, no flip | 252 / 180 | 151 / 49 | 9.9 s / 7.9 s |
+| Exactly 100 | 196 / 161 | 116 / 42 | 12.3 s / 10.9 s |
+| Exactly 75 | 194 / 166 | 116 / 42 | 14.7 s / 13.3 s |
+| Exactly 50 | 184 / 161 | 88 / 37 | 19.4 s / 17.9 s |
+| Exactly 75, and `contain: layout paint` on each open family | **169 / 72** | 92 / 24 | 12.5 s / 6.6 s |
+| Exactly 75, and `content-visibility: auto` on each open family | 115 / 37 | 37 / 10 | 5.2 s / 2.5 s |
+
+**Why the built block is three times the scratch figure. Four causes, in order of size:**
+
+1. **A chunk is not 150 rows.** A chunk closes only once it has reached 150 and a family is never split, so over every species the 47 commits average 238 rows, nine of them hold 300 or more, and the largest holds 456. The 421 to 436 ms block is one of those nine.
+2. **Three quarters of each block is the browser's layout and paint after the commit, and the built row is heavier than the scratch row.** React's commit is 40 to 60 ms of the 210 ms median gap. The built table mounts 278,674 elements at every species where the scratch rows mounted 194,260, in real grids, and the scratch figure was a commit plus a forced layout with no paint.
+3. **That layout and paint grows with what is already mounted.** With exactly 50 rows a commit, React's share stayed at 11 to 13 ms while the gap rose from 52 ms over the first third of the run to 140 ms over the last third in WebKit (17 to 38 ms in Chromium). So a smaller chunk alone does not bring the longest block down in proportion (184 ms at 50), and it makes the whole run longer. The list being a query container is not the cause (72 to 144 ms without it, at 75 rows). Containment on each open family reduces the growth (62 to 115 ms) and `content-visibility` removes it (41 to 41 ms).
+4. **The `fresh` flip.** Each commit sets `fresh` to its own chunk, so the previous chunk's families lose `isNew`, their memo fails, and every one of their rows renders again while the entrance animation replays: about a fifth of the median block in WebKit and 1.5 s of the run.
+
+Not a cause: several commits between two frames. Every long gap in WebKit held exactly one commit, so the yield is left as it is.
+
+**As built, the line is crossed almost at once, so "outside what a life list reaches" is not available as an answer.** In the same page a first commit of 150 fresh rows read 152 ms in WebKit, and the longest gap read 187 ms at 281 species, 204 ms at 1,019, 237 ms at 2,801 and 292 ms at 5,601 (55 to 90 ms in Chromium). The Engineer's built-app reading at 149 species is lower, 99 to 109 ms; by either, a commit of about 200 rows is over 150 ms in WebKit, and the plan as built makes commits that size on any roster of a few hundred species.
+
+**Ruling: exact row-bounded commits of 75, memoized rows, no flip, and containment on each open family. No cap, no change of yield, and `content-visibility` stays the next lever.** Measured for that combination in the scratch page, longest frame gap, WebKit / Chromium:
+
+| Roster | As built | The ruling (75 rows a commit, with `contain: layout paint`) |
+|---|---|---|
+| 281 species (the saved backup's size) | 187 ms / 68 ms | 111 ms / 56 ms |
+| 1,019 | 204 / 80 | 113 / 44 |
+| 2,801 | 237 / 87 | 124 / 44 |
+| 5,601 | 292 / 90 | 129 / 42 |
+| Every species, 11,201 | 341 / 163 | 169 / 72 |
+
+**Where the block crosses the line after the fix: at about 8,500 species in WebKit** (interpolated between 129 ms at 5,601 and 169 ms at 11,201); it does not cross it in Chromium at any roster. A life list above that is held by a handful of people. The 169 ms at every species is accepted, as a decision: the evidence is the table above; what would reverse it is a live report from a list that size, or a built-app reading over 150 ms in WebKit at 5,000 species; the fix then is the `content-visibility` rule below.
+
+**The exact fix, with its locations and rows, for The Engineer's next pass:**
+
+1. **`frontend/src/lib/familyTreeModel.ts`, lines 298 to 326.** `EXPAND_CHUNK_SPECIES` becomes 75. `expandChunks` is replaced by `expandSteps(model, size, unplacedKey)`, a pure plan whose steps are lists of `[key, mountedAfter, total]`: families in taxonomic order, then the Not placed group, each step adding exactly `size` rows (the last step fewer), and a family or the group split across steps when it does not fit what is left of one.
+2. **`frontend/src/components/familyTree/FamilyTreeTab.tsx`, lines 335 to 356.** A `partial` state, a `ReadonlyMap` of key to rows mounted so far, beside `open`. Each step of a run adds its keys to `open` and sets or deletes their `partial` entry. A run sets `fresh` to the empty set once, at its start, and never per step. Every change that advances `expandRun` (a toggle, Collapse all, a find reveal, a new load, a second Expand all) also clears `partial`, so a superseded run never leaves a family half mounted. The timer yield is unchanged.
+3. **`frontend/src/components/familyTree/FamilyTreeRollup.tsx`.** `SpeciesRow` (line 68) is wrapped in `memo`. `FamilyOpen` (line 95) takes `limit` and renders species in genus order until it is spent; it latches its entrance class at mount (`useState(() => isNew)`); and its `memo` takes a comparator that leaves `isNew` out, so a later change of `fresh` re-renders nothing. The Not placed block (line 232) takes the same limit. `FamilyTreeRollup` takes `partial` and passes `limit={partial.get(key) ?? Infinity}`.
+4. **`frontend/src/globals.css`, line 6848.** `.sr-ft-open` gains `contain: layout paint`. Layout containment makes the block the containing block for the visually hidden spans in its rows; paint containment clips at its padding box, which a focus ring on a row at the block's edge must not reach.
+5. **Rows.**
+   - `familyTreeModel.test.ts`, over a roster of every species in the asset, read when the test runs: every step of `expandSteps` adds at most `EXPAND_CHUNK_SPECIES` rows and every step but the last adds exactly that; a key's mounted count never falls and ends at its total; keys run in taxonomic order with the Not placed group last; the steps number the species over the size, rounded up.
+   - `FamilyTreeRollup.test.tsx`, the work count QA-94 asks for, with `BirdName` counted through a module mock that passes through: across a whole Expand all at every species each species row renders exactly once, and no commit renders more rows than `EXPAND_CHUNK_SPECIES`. A leg with the `fresh` flip restored, and a leg with `SpeciesRow`'s `memo` removed, must each go red, so the row rejects the two defects it is written for.
+   - The same suite: a family at a `limit` of `k` mounts exactly its first `k` rows in genus order; raising the limit mounts the rest; a toggle, a Collapse all and a find reveal in the middle of a run each end it with no key left in `partial`.
+   - `familyTreeCss.test.ts`: `.sr-ft-open` declares `contain` with both values. The real-engine probe: a species link focused by a real Tab at the first and the last row of an open family, 100% and 200% text, both engines, shows its whole ring; if it does not, `paint` is dropped and the line above becomes about 7,600 species.
+   - The Engineer's built-app readings again, WebKit and Chromium: the longest frame gap and the total at the saved backup's roster, at about 3,000 and 5,000 species and at every species.
+6. **A single press keeps its entrance; Expand all has none.** The 180 ms entrance of an opened family (design spec 15) plays when one family is toggled. Rows mounted by Expand all arrive without it, which is a note for the design spec, not a change to it.
+
+**The next lever, measured and still not adopted: `content-visibility: auto` on `.sr-ft-open`** with an intrinsic size taken from the block's own row count, not a constant, so the page's height stays close to true. It reads 115 ms / 37 ms and 5.2 s / 2.5 s at every species with 75-row commits. It is not in WebKit before 18, which is why the row bound has to stand without it.
+
 ### 9.3 Species rows and the media cell
 
 Each species renders `<BirdName commonName={leaf.name} scientificName={leaf.sci} hasEntry taxonCode={codeFor(leaf.name)} onOpenSpecies={onOpenSpecies} />` in every Names state, with two props set by the state (FR-81):
@@ -992,7 +1047,7 @@ None is a regex. No loop is driven by a number read from a cell. Passes reused u
 | The selected year's key sets and tiers | that year's species and regions | one year at a time |
 | `tallies` | distinct ML names in scope | at most the ML rows; 12 bytes of counts each |
 | `nameAt`, the model | the asset's species | fixed by the asset |
-| Rendered rows | orders, families, opened families' species | the asset's counts; `DIAGRAM_MOUNTED_MAX`; `FIND_OPTIONS_MAX`. After the table's Expand all the species rows mounted are the roster's (9.2): bounded per commit by `EXPAND_CHUNK_SPECIES` plus one family, and in total by the distinct countable species in the file |
+| Rendered rows | orders, families, opened families' species | the asset's counts; `DIAGRAM_MOUNTED_MAX`; `FIND_OPTIONS_MAX`. After the table's Expand all the species rows mounted are the roster's (9.2): bounded per commit by `EXPAND_CHUNK_SPECIES` exactly (75, families split across commits, by the ruling in 9.2), and in total by the distinct countable species in the file |
 
 **The amendment adds no scan over user-file text.** Order and genus names are bundled data read by index. `nameOf` (6.5) reads a roster name and names from the asset and compares nothing. The Names control, full screen, the still and Expand all read no file field. The one read that changed is T7, restated above: its rows gained a level and a second name from the asset, and the only file-derived strings in it are still the roster's species names, bounded as before. So no `security.md` glob is added beyond section 18's, and `familyTreeNames.ts` falls under the existing `frontend/src/lib/familyTree*.ts` entry.
 
@@ -1025,6 +1080,31 @@ The load runs about 120 to 140 ms of passes at the cap in V8, about 110 ms of it
 Declined: the held-input stats worker (`createStatsSession`). Its results here would be `Map`s of tiers keyed by file strings, cloned back across the boundary, where a structured clone does not keep string sharing (CLAUDE.md v1.0.57), for passes two shipped tabs already run in place.
 
 **Reversal, in order:** (1) a single pass over 200 ms in WebKit at the cap in the built app, or a live report of a frozen open; then (2) share one memo of P1 and P1R per observation array between this tab and Life Lists (a `WeakMap` on the array, Life Lists' output byte-identical), which halves the work when both are mounted; then (3) a one-shot worker of the `parseOffThread` shape returning packed columns.
+
+**As built, and the ruling (2026-11-21; `decisions.md` D-41 for the Engineer's readings, D-42 for the ruling).** The caps are larger than the 150,000 rows this section was first measured at: 64 MB on the Mac and iOS apps is 205,860 rows of realistic length, and 100 MB on the web and Windows is 321,657. The Engineer's longest frame gap on opening the tab in the built app: 111 ms in WebKit and 108 ms in Chromium at 64 MB; **211 ms in WebKit** and 150 ms in Chromium at 100 MB. The block is pass 1R (`deriveRegionIndex`), Life Lists' shared pass, run in place.
+
+Re-measured here for the spread, the shipped passes bundled unmodified, a generated corpus of every asset species, WebKit 26.5 and Chromium 151:
+
+| Rows | Engine | P1R alone, first call in a fresh page (4 pages) | P1R alone, warm (7 calls) | Life Lists' own load block: its four passes in one stretch, as `LifeListsTab.tsx` runs them, first call (3 pages) | the same, warm (7 calls) |
+|---|---|---|---|---|---|
+| 205,860 (the Mac and iOS cap) | WebKit | 126 to 140 ms | 111 to 132 ms | **235 to 270 ms** | 183 to 196 ms |
+| 205,860 | Chromium | 110 to 117 ms | 88 to 103 ms | 197 to 200 ms | 159 to 173 ms |
+| 321,657 (the web and Windows cap) | WebKit | **203 to 221 ms** | 169 to 213 ms | **377 to 392 ms** | 315 to 350 ms |
+| 321,657 | Chromium | 172 to 175 ms | 140 to 164 ms | 331 to 346 ms | 265 to 286 ms |
+
+- **211 ms is the trigger by this section's letter, and no more than that.** The pass straddles the line: over 200 ms on every cold call at 321,657 rows in WebKit, under it on most warm ones. The one shipped configuration that pairs WebKit with the 100 MB cap is the self-hosted web version opened in Safari. In the WebKit apps (Mac, iPhone, iPad) the cap is 64 MB and the same pass is 126 to 140 ms.
+- **It is a standing property of the shared pass, not something this tab adds.** On the same input Life Lists blocks for 377 to 392 ms in one stretch today, because its load runs its passes with no yield between them, and it is already over 200 ms at the cap of the shipped WebKit apps (235 to 270 ms). This tab's longest block is that pass alone, about 55% of Life Lists' block, because it yields between passes.
+- **The ladder above was in the wrong order for this trigger, and is corrected here.** A shared memo removes DUPLICATE work when both tabs are mounted; it cannot shorten a single pass. The step that answers a single pass over the line is slicing the pass. The corrected order: (1) the trigger; (2) pass 1R made resumable and run in slices with a yield between; (3) the shared memo, for the duplicate; (4) a worker.
+- **Decision: not acted on in this build.** The remedy is a change to Life Lists' shared module that should reach every caller in one change, with Life Lists' own larger block as its first beneficiary; made here for this tab's call alone it would leave the larger freeze where it is and add a second way to run the pass. Life Lists' speed rows are local-only (`SR_SKIP_LOCAL_ONLY_TIMING`), so a change to its passes runs the local full suite before it lands, which belongs to a run that owns that module.
+- **What would reverse it:** a live report of a frozen open of this tab or of Life Lists; pass 1R alone over 200 ms on a first call at the cap of a shipped WebKit app (126 to 140 ms today); or either cap raised.
+
+**The exact fix, with its locations, for the run that takes it:**
+
+1. **Slices.** In `frontend/src/lib/lifeListsRegion.ts`, beside `deriveRegionIndex` (line 168): `createRegionIndexBuilder()` returning `{ add(obs, from, to): void; finish(): RegionIndex }`, holding the `firsts` tiers, the `join` and the `parts` map that the function holds today as locals. `add` is the existing loop body over `[from, to)` and refuses a second array (the slots index into one). `finish` calls `buildRegionChoices`. `deriveRegionIndex(obs)` becomes one `add` over the whole array and `finish`, so its output is unchanged. The two callers, `components/lifeLists/LifeListsTab.tsx` (lines 180 to 181) and `components/familyTree/FamilyTreeTab.tsx` (lines 191 to 194), call `add` in slices of `REGION_SLICE_ROWS = 50_000` (about 33 ms a slice at the measured WebKit rate) with a macrotask yield and their own `cancelled` check between, and Life Lists gains a yield between its other passes. The per-year calls in `lib/familyTreeScope.ts` (lines 190 and 193) stay whole: a year's rows are a fraction of the file.
+2. **The memo.** A new `frontend/src/lib/lifeListsShared.ts` holding ONE slot, the house form of `lib/speciesIndex.ts`: a `WeakRef` on the cache's own observations array beside the two results. `sharedFirstSightings(obs)` and the sliced region index are computed once per array and handed to both tabs; a different array (a new files epoch) replaces the slot, and the slot's results die with it when the parse cache lets the array go. It is an in-memory derivation and takes no `clearDerived.ts` row. A caller that is cancelled does not cancel the shared work; it only stops reading it. Both tabs read the shared maps and neither writes to them.
+3. **Rows owed.** Equality: the builder in `k` slices equals `deriveRegionIndex` over a generated corpus, with a leg where two rows tied on day and time and separated by the submission id sit either side of a slice boundary, and a leg that hands `add` a second array. The memo: the same objects on a second call with the same array, fresh ones for another array, a lifetime row of the `paletteLocationsLifetime.test.ts` shape (the array collects once its last holder lets go), and a source scan that neither tab's files call `.set(`, `.delete(` or `.clear(` on what the memo returns. Work counts for CI: one visit per row per array with both tabs loaded, where today it is two; no slice longer than `REGION_SLICE_ROWS`. Life Lists' existing suites unmodified; its CPU-quotient rows and this tab's, in the local full suite, before the change lands. A real-engine reading of the longest frame gap on opening each tab at both caps, both engines.
+
+One line of this section's first paragraph is corrected: Hotspot Reports does not run these two passes. The callers are Life Lists and this tab.
 
 ---
 
@@ -1185,6 +1265,8 @@ Still open and not this document's to close: the snapshot route of 3.4 (D-03), f
 21. **Find ranks in buckets without a sort and matches both names in every Names state** (section 12).
 22. **The first-use view is derived from the still tier and latched for the session** (8.3; D-35 gives the rule, D-36 the latch). Declined: following the tier live until the first choice. Reversal: stated there.
 23. **After the design spec: Fit is the true fit and the one-line-per-order floor is the still's alone; the readout's forms and the tools row's captions are container queries on the expanded host and on the row; an explicit move resolves after the readout has its height; the Exit toggle leads by DOM order** (11.3, 11.9, 11.10; D-37). Declined for the readout's forms: a script that measures the panel and re-renders (a second observer for something a container query answers, since the question is how tall the panel is) and a media query (its `rem` does not follow the in-app text scale, measured). Reversal: an engine at the floor that mis-sizes the expanded host under size containment, which moves the forms to a measured render branch.
+24. **The load's 211 ms block in WebKit at the 100 MB cap is the trigger by 16.4's letter and is not acted on in this build** (16.4, D-42). It is Life Lists' shared pass, which blocks Life Lists itself for longer on the same input today. The reversal ladder is corrected: slicing the pass comes before the shared memo. Reversal and the exact fix: stated there.
+25. **The table's Expand all commits exactly 75 rows at a time, families split, with memoized rows, no `fresh` flip and containment on each open family** (9.2, D-43), superseding entry 17's 150 and its family-sized commits. The 169 ms at every species in WebKit is accepted, with the crossing at about 8,500 species. Reversal: stated there.
 
 ---
 
@@ -1220,6 +1302,7 @@ Still open and not this document's to close: the snapshot route of 3.4 (D-03), f
 | The genus-name read-through (FR-91) | a person's or the builder's reading of the generator's report; its record in `decisions.md` before the tag |
 | The phone legs of QA-98 and QA-99, and the More sheet | on the tree that holds both builds (FR-90) |
 | The readout's three forms and the tools row on the BUILT panel | 390 by 844 and 320 by 568 at 100%, 125%, 150% and 200% text, both engines: the form against the design spec's table, the tab stops against its section 9.9, the box the only element with a scroll range, the readout not cut with a family active, the captions dropped under 19.5rem of row |
+| Expand all on the built table after the fix of 9.2 | the longest frame gap and the total, WebKit and Chromium, at the saved backup's roster, at about 3,000 and 5,000 species and at every species; the focus ring at the edges of an open family under `contain: layout paint` |
 | Fit with the orders folded into counts | a roster across 40 or more orders in both forms, which the mockup showed only by shrinking its box (design spec 18): every drawn node inside the box after Fit, and the mounted marks against the clamp |
 
 ---
@@ -1280,5 +1363,13 @@ Nothing in the mockup needs a renderer, a library or an engine feature this stru
 | 17 | The stylesheet guard's scope for `scale`, the container rules, `order` and inline geometry |
 
 **One thing in the spec this structure does not build as drawn:** its `order: -1` on the Exit toggle (spec 10.3). `order` moves a box without moving its place in the tab order, which the house rule forbids (`ui.md`, v0.5.80). The toggle is rendered first in the toolbar's DOM on the still tier instead, which draws the same row (11.9).
+
+**After the build's first three slices (2026-11-21).** The Engineer's WebKit readings crossed two lines this document drew (`decisions.md` D-41); the rulings are D-42 and D-43.
+
+| Section | What changed |
+|---|---|
+| 16.4 | The built app's load readings at both caps; the re-measured spread of pass 1R and of Life Lists' own load block; the ruling not to act in this build; the reversal ladder corrected (slices before the memo); the exact fix with its locations and rows |
+| 9.2 | The built table profiled per commit; the four causes of the larger block; the ruling (exactly 75 rows a commit with families split, memoized rows, no `fresh` flip, containment on each open family); the roster at which the block crosses the line; the exact fix with its locations and rows |
+| 16.2, 21, 22 | The per-commit bound restated as exact; entries 24 and 25; the readings owed again after the fix |
 
 **Two notes for the spec that are not structure:** its disabled tool buttons (Zoom out and Fit at the fit, Zoom in at full zoom) should be `aria-disabled` and stay focusable, or the press that reaches the limit drops focus from the button it disabled (NFR-08); and its inline positions need QA-81's inline-width scan to exempt the plane and its marks, which 11.3 states.
