@@ -41,7 +41,7 @@ import type { FamilyModel, FamilyNode, OrderNode } from '../../lib/familyTreeMod
 import { familyNames, genusNames, nameOf, orderNames, namingWords, type Level, type NamesState, type Naming } from '../../lib/familyTreeNames'
 import { bowFamilyHref } from '../../lib/familyTreeLinks'
 import {
-  NO_EXPANSION, ZOOM_STEP,
+  NO_EXPANSION, ZOOM_STEP, stillView,
   anchorScrollTop, arrivalExpansion, assignSlots, buildDrawnTree, centeredScroll, childrenOf, cullTree, edgePaths,
   focusK, fullExpansion, isOpen, kFit, kOf, keyAction, metricsFor, nodeKey, planeHeight, selectionScroll, setSizeOf, toggled,
   viewOf, widthOf, withAncestorsOpen, xOf, zoomTo,
@@ -80,6 +80,13 @@ export interface FamilyTreeDiagramProps {
   onSession: (s: TreeSession) => void
   /** The tab is the active tab; the session is handed over at once when it stops being. */
   showing: boolean
+  /** The still tier's still (`fs.still`, schema 11.10): the tree drawn once from
+   *  its top at the still's own view, inert, a named image that opens on a press. */
+  still: boolean
+  /** `fs.open`. */
+  onOpen: () => void
+  /** The still's accessible name, from the copy module. */
+  stillLabel: string
   /** The tab toolbar's tools group, where the tree tools render. */
   toolsEl: HTMLElement | null
   apiRef: RefObject<DiagramApi | null>
@@ -120,10 +127,13 @@ interface Live {
   active: number
   /** A handler wrote a placement the box has not taken yet. */
   dirty: boolean
+  both: boolean
+  stillTier: boolean
+  still: boolean
 }
 
 export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
-  const { model, index, names, stillTier, initial, onSession, showing, toolsEl, apiRef, codeFor, onOpenSpecies } = props
+  const { model, index, names, stillTier, initial, onSession, showing, still, onOpen, stillLabel, toolsEl, apiRef, codeFor, onOpenSpecies } = props
   const uid = useId()
   const descId = `${uid}-desc`
   // The box as state, for the effects that attach to it, and as a ref, for the
@@ -140,6 +150,8 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
   const [fresh, setFresh] = useState<ReadonlySet<number>>(() => new Set())
   const [dragging, setDragging] = useState(false)
   const live = useRef<Live | null>(null)
+  // A reveal asked for while the tree is a still waits for the panel's box.
+  const pendingCenter = useRef<number | null>(null)
 
   const tree = useMemo(() => buildDrawnTree(model), [model])
   const famOf = useMemo(() => {
@@ -166,8 +178,10 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
   const effExp = useMemo(() => exp ?? (form !== null ? arrivalExpansion(tree, form) : NO_EXPANSION), [exp, form, tree])
   const slots = useMemo(() => (m === null ? null : assignSlots(tree, effExp, m.form)), [tree, effExp, m])
   const activeNode = active !== null ? tree.byKey.get(active) ?? -1 : -1
-  const k = m !== null && slots !== null ? kOf(view, m, slots.total) : 0
-  const top = m !== null && slots !== null ? anchorScrollTop(tree, slots, index, view.anchor, k, m) : 0
+  // The still's view is derived and never written to the view (schema 11.10).
+  const stillV = still && m !== null && slots !== null ? stillView(tree, slots, m) : null
+  const k = stillV !== null ? stillV.k : m !== null && slots !== null ? kOf(view, m, slots.total) : 0
+  const top = stillV !== null ? 0 : m !== null && slots !== null ? anchorScrollTop(tree, slots, index, view.anchor, k, m) : 0
 
   const hasAlt = useCallback((i: number) => {
     const n = namesOfNode(tree, index, i)
@@ -185,6 +199,21 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
       if (w <= 0 || h <= 0) return
       const rem = readRem()
       setSize(s => (s !== null && s.w === w && s.h === h && s.rem === rem ? s : { w, h, rem }))
+      // A find result chosen on the still is centered once the panel's box has
+      // its size (schema 12: choosing a result on the still opens full screen).
+      const L = live.current
+      const pend = pendingCenter.current
+      if (pend === null || L === null || L.still) return
+      pendingCenter.current = null
+      const i = L.tree.byKey.get(pend)
+      if (i === undefined) return
+      const m2 = metricsFor({ rem, boxW: w, boxH: h, both: L.both, stillTier: L.stillTier })
+      const s2 = assignSlots(L.tree, L.exp, m2.form)
+      if (s2.first[i] < 0) return
+      const lo2 = kFit(m2, s2.total)
+      const k2 = Math.min(m2.kMax, Math.max(lo2, kOf(L.view, m2, s2.total), m2.line))
+      setView(viewOf(L.tree, s2, { k: k2, scrollTop: centeredScroll(s2.first[i], s2.count[i], k2, m2, s2.total), atFit: k2 === lo2 }, m2))
+      boxRef.current?.focus({ preventScroll: true })
     }
     const ro = new ResizeObserver(measure)
     ro.observe(box)
@@ -205,7 +234,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
     const el = boxRef.current
     if (el === null || m === null || slots === null) return
     if (Math.abs(el.scrollTop - top) > 0.5) el.scrollTop = top
-    live.current = { tree, slots, exp: effExp, m, k, top, view, active: activeNode, dirty: false }
+    live.current = { tree, slots, exp: effExp, m, k, top, view, active: activeNode, dirty: false, both, stillTier, still }
   })
 
   // The session reaches the tab a moment after it settles (it outlives the
@@ -307,12 +336,13 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
     const i = L.tree.byKey.get(nodeKey(level, ref))
     if (i === undefined) return
     const next = withAncestorsOpen(L.tree, L.exp, i)
-    const s2 = assignSlots(L.tree, next, L.m.form)
-    const lo2 = kFit(L.m, s2.total)
-    const k2 = Math.min(L.m.kMax, Math.max(lo2, L.k, L.m.line))
     L.exp = next
     setExp(next)
     setActive(nodeKey(level, ref))
+    if (L.still) { pendingCenter.current = nodeKey(level, ref); return }
+    const s2 = assignSlots(L.tree, next, L.m.form)
+    const lo2 = kFit(L.m, s2.total)
+    const k2 = Math.min(L.m.kMax, Math.max(lo2, L.k, L.m.line))
     place(s2, { k: k2, scrollTop: centeredScroll(s2.first[i], s2.count[i], k2, L.m, s2.total), atFit: k2 === lo2 })
     nudgeX(i)
     boxRef.current?.focus({ preventScroll: true })
@@ -343,7 +373,8 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
   // whole box brought into view on a press or focus (11.5).
   useEffect(() => {
     const el = boxRef.current
-    if (box === null || el === null) return
+    // The still takes no listener (schema 11.10): a swipe on it moves the page.
+    if (box === null || el === null || still) return
     let raf = 0
     const onScroll = () => {
       if (raf !== 0) return
@@ -412,7 +443,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
       el.removeEventListener('pointerdown', wholeIntoView, true)
       el.removeEventListener('focus', wholeIntoView)
     }
-  }, [box])
+  }, [box, still])
   // -- Pointer: a mouse drag pans one to one; a press that moved under 4px acts.
   const drag = useRef<{ x: number; y: number; sl: number; st: number; moved: number; target: EventTarget | null; id: number } | null>(null)
   const lastPointer = useRef('mouse')
@@ -426,7 +457,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
         {null}
         <div className="sr-ft-boxwrap">
           <span ref={setProbe} className="sr-ft-remprobe" aria-hidden="true" />
-          <div ref={attachBox} className="sr-ft-box" role="tree" aria-label={TREE_LABEL} tabIndex={0} />
+          <div ref={attachBox} className="sr-ft-box" role="tree" aria-label={TREE_LABEL} tabIndex={still ? undefined : 0} inert={still} />
         </div>
       </div>
     )
@@ -530,27 +561,42 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
         <Button type="button" className="sr-ft-tool sr-touch-target" aria-label={FIT_LABEL} disabled={atFitNow && top < 1} onClick={fit}>
           <Scan size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
           <span className="t">{FIT}</span>
+          <span className="cap">{FIT}</span>
         </Button>
       </span>
-      <Button type="button" className="sr-ft-tool sr-touch-target" onClick={() => setAll(fullExpansion(tree), true)}>
+      {/* Named explicitly: the visible word is the long label or the short
+          caption by tier, and the name stays the same at every width. */}
+      <Button type="button" className="sr-ft-tool sr-touch-target" aria-label={EXPAND_ALL} onClick={() => setAll(fullExpansion(tree), true)}>
         <ChevronsUpDown size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
         <span className="t">{EXPAND_ALL}</span>
+        <span className="cap">{EXPAND}</span>
       </Button>
-      <Button type="button" className="sr-ft-tool sr-touch-target" onClick={() => setAll(NO_EXPANSION, false)}>
+      <Button type="button" className="sr-ft-tool sr-touch-target" aria-label={COLLAPSE_ALL} onClick={() => setAll(NO_EXPANSION, false)}>
         <ChevronsDownUp size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
         <span className="t">{COLLAPSE_ALL}</span>
+        <span className="cap">{COLLAPSE}</span>
       </Button>
       <Button type="button" className="sr-ft-tool sr-touch-target" aria-label={RESET_LABEL} onClick={reset}>
         <RotateCcw size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
         <span className="t">{RESET}</span>
+        <span className="cap">{RESET}</span>
       </Button>
     </>
   )
 
   return (
     <div className="sr-ft-treeview" data-form={m.form}>
-      {toolsEl !== null ? createPortal(tools, toolsEl) : null}
-      <div className="sr-ft-boxwrap">
+      {toolsEl !== null && !still ? createPortal(tools, toolsEl) : null}
+      {/* The still (schema 11.10): the wrapper is a named image that opens on a
+          press anywhere; the box inside is inert, with no tab stop, no
+          active-descendant and no listener. The opener row after the host is
+          the keyboard and assistive path. */}
+      <div
+        className={still ? `sr-ft-boxwrap is-still${stillV !== null && stillV.cut ? ' is-cut' : ''}` : 'sr-ft-boxwrap'}
+        role={still ? 'img' : undefined}
+        aria-label={still ? stillLabel : undefined}
+        onClick={still ? onOpen : undefined}
+      >
         <span ref={setProbe} className="sr-ft-remprobe" aria-hidden="true" />
         <div
           ref={attachBox}
@@ -558,10 +604,11 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
           data-form={m.form}
           role="tree"
           aria-label={TREE_LABEL}
-          aria-describedby={descId}
-          aria-activedescendant={activeNode >= 0 && culled.marks.some(x => x.kind === 'node' && x.node === activeNode) ? `${uid}-n-${activeNode}` : undefined}
-          tabIndex={0}
-          onKeyDown={e => {
+          aria-describedby={still ? undefined : descId}
+          inert={still}
+          aria-activedescendant={!still && activeNode >= 0 && culled.marks.some(x => x.kind === 'node' && x.node === activeNode) ? `${uid}-n-${activeNode}` : undefined}
+          tabIndex={still ? undefined : 0}
+          onKeyDown={still ? undefined : e => {
             const L = live.current
             if (e.target !== e.currentTarget || L === null) return
             const a = keyAction(L.tree, L.slots, L.exp, L.active, e.key)
@@ -576,7 +623,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
               target?.focus()
             }
           }}
-          onPointerDown={e => {
+          onPointerDown={still ? undefined : e => {
             lastPointer.current = e.pointerType
             if (e.pointerType !== 'mouse' || e.button !== 0) return
             const b = e.currentTarget
@@ -585,7 +632,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
             drag.current = { x: e.clientX, y: e.clientY, sl: b.scrollLeft, st: b.scrollTop, moved: 0, target: e.target, id: e.pointerId }
             b.setPointerCapture?.(e.pointerId)
           }}
-          onPointerMove={e => {
+          onPointerMove={still ? undefined : e => {
             const d = drag.current
             if (d === null || e.pointerId !== d.id) return
             const dx = e.clientX - d.x, dy = e.clientY - d.y
@@ -594,16 +641,16 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
             e.currentTarget.scrollLeft = d.sl - dx
             e.currentTarget.scrollTop = d.st - dy
           }}
-          onPointerUp={e => {
+          onPointerUp={still ? undefined : e => {
             const d = drag.current
             drag.current = null
             setDragging(false)
             if (d !== null && d.moved < 4) act(d.target ?? e.target)
           }}
-          onPointerCancel={() => { drag.current = null; setDragging(false) }}
-          onLostPointerCapture={() => { drag.current = null; setDragging(false) }}
-          onClick={e => { if (lastPointer.current !== 'mouse') act(e.target) }}
-          onDoubleClick={e => {
+          onPointerCancel={still ? undefined : () => { drag.current = null; setDragging(false) }}
+          onLostPointerCapture={still ? undefined : () => { drag.current = null; setDragging(false) }}
+          onClick={still ? undefined : e => { if (lastPointer.current !== 'mouse') act(e.target) }}
+          onDoubleClick={still ? undefined : e => {
             if ((e.target as Element).closest('[data-n]') !== null) return
             zoomBy(ZOOM_STEP, e.clientY - e.currentTarget.getBoundingClientRect().top)
           }}
@@ -634,7 +681,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
         </div>
         <span id={descId} className="sr-only">{TREE_DESCRIPTION}</span>
       </div>
-      <Readout
+      {still ? null : <Readout
         refEl={readoutRef}
         tree={tree}
         index={index}
@@ -648,7 +695,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
         onSelect={i => { select(i, false); boxRef.current?.focus({ preventScroll: true }) }}
         onToggle={toggle}
         onFocusSpan={i => focusSpan(i, i)}
-      />
+      />}
     </div>
   )
 }
@@ -697,7 +744,7 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
     )
   }
   const actions = (i: number) => (
-    <div className="sr-ft-ro-actions">
+    <div className="sr-ft-ro-actions ro-actions">
       <Button type="button" className="sr-ft-tool sr-touch-target" onClick={() => onToggle(i)}>
         {open ? <ChevronsDownUp size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" /> : <ChevronsUpDown size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />}
         <span className="t">{open ? COLLAPSE : EXPAND}</span>
@@ -708,10 +755,10 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
       </Button>
     </div>
   )
-  const shareFig = (seen: number, world: number, unit: 'species' | 'families') => {
+  const shareFig = (seen: number, world: number, unit: 'species' | 'families', part: 'ro-figs' | 'ro-detail') => {
     const p = worldShareParts(seen, world, unit)
     return (
-      <div className="sr-ft-ro-fig">
+      <div className={`sr-ft-ro-fig ${part}`}>
         <div className="sr-ft-ro-figline">
           <span><b>{p.seen}</b>{p.rest}</span>
           <span className="sr-ft-ro-pct">{share(seen, world)}</span>
@@ -728,7 +775,7 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
     body = (
       <>
         <div><div className="ro-id">{eyebrow(NOTHING_SELECTED)}<p className="sr-ft-ro-rest">{NOTHING_SENTENCE}</p></div></div>
-        <div><p className="sr-ft-ro-rest">{hint}</p></div>
+        <div><p className="sr-ft-ro-rest ro-detail">{hint}</p></div>
       </>
     )
   } else {
@@ -752,10 +799,10 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
               />
             </div>
           </div>
-          <div><dl className="sr-ft-ro-list">{anc(LEVEL_WORDS.genus, g)}{anc(LEVEL_WORDS.family, f)}{anc(LEVEL_WORDS.order, o)}</dl></div>
+          <div><dl className="sr-ft-ro-list ro-lineage">{anc(LEVEL_WORDS.genus, g)}{anc(LEVEL_WORDS.family, f)}{anc(LEVEL_WORDS.order, o)}</dl></div>
           <div>
             {mediaShown ? (
-              <div className="sr-ft-ro-media"><MediaPresenceCell media={presence(leaf.kinds)} /><span>{mediaWords(leaf.kinds ?? 0)}</span></div>
+              <div className="sr-ft-ro-media ro-figs"><MediaPresenceCell media={presence(leaf.kinds)} /><span>{mediaWords(leaf.kinds ?? 0)}</span></div>
             ) : null}
           </div>
         </>
@@ -764,8 +811,8 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
       const p = speciesSeenParts(tree.seen[node])
       body = (
         <>
-          <div>{ident(LEVEL_WORDS.genus, node)}<div className="sr-ft-ro-figline"><span><b>{p.n}</b>{p.rest}</span></div></div>
-          <div><dl className="sr-ft-ro-list">{anc(LEVEL_WORDS.family, tree.parent[node])}{anc(LEVEL_WORDS.order, tree.parent[tree.parent[node]])}</dl></div>
+          <div>{ident(LEVEL_WORDS.genus, node)}<div className="sr-ft-ro-figline ro-figs"><span><b>{p.n}</b>{p.rest}</span></div></div>
+          <div><dl className="sr-ft-ro-list ro-lineage">{anc(LEVEL_WORDS.family, tree.parent[node])}{anc(LEVEL_WORDS.order, tree.parent[tree.parent[node]])}</dl></div>
           <div>{actions(node)}</div>
         </>
       )
@@ -775,11 +822,11 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
       const href = bowFamilyHref(index.families[tree.ref[node]].code)
       body = (
         <>
-          <div>{ident(LEVEL_WORDS.family, node)}<dl className="sr-ft-ro-list">{anc(LEVEL_WORDS.order, tree.parent[node])}</dl></div>
+          <div>{ident(LEVEL_WORDS.family, node)}<dl className="sr-ft-ro-list ro-lineage">{anc(LEVEL_WORDS.order, tree.parent[node])}</dl></div>
           <div>
-            {shareFig(fam.seen, fam.world, 'species')}
+            {shareFig(fam.seen, fam.world, 'species', 'ro-figs')}
             {mediaShown && fam.withKind !== null && fam.items !== null ? (
-              <dl className="sr-ft-ro-list">
+              <dl className="sr-ft-ro-list ro-detail">
                 {KIND_KEYS.map((kk, ki) => {
                   const r = kindRowParts(kk, fam.withKind![ki], fam.items![ki])
                   return (
@@ -795,7 +842,7 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
           <div>
             {actions(node)}
             {href !== null ? (
-              <div className="sr-ft-ro-links">
+              <div className="sr-ft-ro-links ro-detail">
                 <OutboundLink href={href} className="sr-ft-out" aria-label={bowLinkLabel(famName)}>
                   {BOW_LINK_TEXT}<ExternalLink size={12} strokeWidth={2.2} aria-hidden="true" />
                 </OutboundLink>
@@ -809,7 +856,7 @@ function Readout({ refEl, tree, index, node, famOf, mediaShown, open, hint, code
       body = (
         <>
           <div>{ident(LEVEL_WORDS.order, node)}</div>
-          <div>{shareFig(ord.seen, ord.world, 'species')}{shareFig(ord.familiesSeen, ord.familiesWorld, 'families')}</div>
+          <div>{shareFig(ord.seen, ord.world, 'species', 'ro-figs')}{shareFig(ord.familiesSeen, ord.familiesWorld, 'families', 'ro-detail')}</div>
           <div>{actions(node)}</div>
         </>
       )

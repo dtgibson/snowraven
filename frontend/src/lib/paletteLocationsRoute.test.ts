@@ -58,6 +58,8 @@ describe('the location route copies the species route (FR-28)', () => {
     for (const [tab, host] of [
       ['species-detail', 'SpeciesDetail'], ['birding-stats', 'BirdingStats'], ['named-birds', 'NamedBirds'],
       ['weather', 'WeatherForecastPanel'], ['hotspot-reports', 'HotspotReportsTab'],
+      // family-rollups-and-tree's last slice: the tree is the fifth host.
+      ['family-tree', 'FamilyTreeTab'],
     ]) {
       const wrapped = new RegExp(String.raw`<MapTabShowingProvider value=\{activeTab === '${tab}'\}>\s*(?:<Suspense fallback=\{[^}]*\}>\s*)?<${host}\b`)
       expect(wrapped.test(CODE), `${host} is wrapped for '${tab}'`).toBe(true)
@@ -74,7 +76,7 @@ describe('the location route copies the species route (FR-28)', () => {
       .filter(d => readFileSync(join(d.parentPath, d.name), 'utf8').includes('useMapFullscreen({'))
       .map(d => d.name)
       .sort()
-    expect(callers).toEqual(['BirdingStats.tsx', 'HotspotReport.tsx', 'NamedBirdRow.tsx', 'SpeciesDetail.tsx', 'WeatherForecastPanel.tsx'])
+    expect(callers).toEqual(['BirdingStats.tsx', 'FamilyTreeTab.tsx', 'HotspotReport.tsx', 'NamedBirdRow.tsx', 'SpeciesDetail.tsx', 'WeatherForecastPanel.tsx'])
   })
 
   it('GUARD THE GUARD: a route that forgot the fullscreen collapse would not equal the species route', () => {

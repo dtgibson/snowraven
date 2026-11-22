@@ -26,6 +26,7 @@ function corpus(): string[] {
     out.push(sw.seen + sw.rest)
     for (const k of KINDS) out.push(copy.itemsLabel(k, n))
     out.push(copy.familyRowLabel('Ducks', n, n + 2, [n, n, n], [n, n, n]))
+    out.push(`${copy.stillName(n, n, n)}.`)
     // Slice B: the tree's counts and figures, and the readout's lines.
     for (const lv of ['order', 'family', 'genus', 'species'] as const) out.push(copy.countText(lv, n, n + 5))
     for (const lv of ['order', 'family', 'genus'] as const) out.push(`${copy.nodeFigures(lv, n, n + 3)}.`)

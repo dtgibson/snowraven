@@ -7097,6 +7097,37 @@ select:focus-visible {
 .sr-ft-ro-links { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .sr-ft-out { display: inline-flex; align-items: baseline; gap: 5px; font-size: 0.78125rem; font-weight: 600; color: var(--sr-accent); text-decoration: none; }
 .sr-ft-out svg { display: inline-block; align-self: center; flex-shrink: 0; }
+/* Full screen (family-rollups-and-tree schema 11.9; design-spec 10.3). The
+   shared `.sr-map-fs-panel` (the map build's) gives the host its geometry,
+   ground, level and top and side insets; nothing here sets any of those, and
+   no rule of this block names the bar or its root attribute (QA-99). Only the
+   INSIDE of the panel is the tree's, under the compound selector: a flex
+   column whose box takes what the toolbar and the readout leave, and is the
+   only element that scrolls. The expanded host is a size container, so the
+   readout sheds parts by the panel's height in rem: `container-type: size`
+   implies layout and size containment, which makes the host the containing
+   block and a stacking context, which a fixed panel with a level already is;
+   no descendant is fixed, and every positioned one (Find's list, the plane's
+   marks, the focus frame) has a nearer positioned ancestor. */
+.sr-ft-host.sr-map-fs-panel { display: flex; flex-direction: column; container-type: size; container-name: sr-ft-panel; }
+.sr-ft-host.sr-map-fs-panel > .sr-ft-toolbar { flex: none; background: var(--sr-surface); }
+.sr-ft-host.sr-map-fs-panel > .sr-ft-treeview { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.sr-ft-host.sr-map-fs-panel .sr-ft-boxwrap { flex: 1 1 0; min-height: 30%; }
+.sr-ft-host.sr-map-fs-panel .sr-ft-box { height: 100%; }
+.sr-ft-host.sr-map-fs-panel .sr-ft-readout { flex: 0 1 auto; min-height: 0; overflow: hidden; }
+.sr-ios-app .sr-ft-host.sr-map-fs-panel .sr-ft-readout { padding-bottom: calc(13px + env(safe-area-inset-bottom, 0px)); }
+.sr-android-app .sr-ft-host.sr-map-fs-panel .sr-ft-readout { padding-bottom: calc(13px + var(--sr-inset-bottom, 0px)); }
+/* The readout's forms by the panel's height, outline form only: lineage and
+   detail go under 40rem, everything but the identity under 25rem. A dropped
+   part is `display: none`, so it leaves the tab order with it. */
+@container sr-ft-panel (height < 40rem) {
+  .sr-ft-treeview[data-form="outline"] .ro-lineage,
+  .sr-ft-treeview[data-form="outline"] .ro-detail { display: none; }
+}
+@container sr-ft-panel (height < 25rem) {
+  .sr-ft-treeview[data-form="outline"] .ro-figs,
+  .sr-ft-treeview[data-form="outline"] .ro-actions { display: none; }
+}
 /* The table stacks by the LIST's own width, so a wide window at 200% text and
    the phone both get it; each figure then carries its own glyph. */
 @container sr-ft-list (max-width: 44em) {
@@ -7152,6 +7183,31 @@ select:focus-visible {
   .sr-ft-tools .sr-ft-tool--icon { width: 2.75rem; }
   .sr-ft-readout { padding: 12px 12px 14px; }
   .sr-ft-treefoot { padding: 10px 12px 12px; }
+  /* The still (design-spec 10.1): the tree drawn once, cut by a box no taller
+     than the window, taking no pan of its own, so a swipe on it moves the page
+     and a press opens full screen. A fade covers the bottom edge only where
+     the tree runs past the box. */
+  .sr-ft-boxwrap.is-still { cursor: pointer; touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .sr-ft-boxwrap.is-still .sr-ft-box { height: min(17rem, 42dvh); overflow: hidden; touch-action: auto; cursor: pointer; }
+  .sr-ft-boxwrap.is-cut::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3.5rem; z-index: 5; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--sr-surface)); }
+  /* Full screen on this tier (design-spec 10.3): the Exit pill leads the
+     toolbar (its word is the shared `.sr-map-fs-panel .sr-map-exit-label`
+     rule), and the tools are ONE row of equal cells that neither wraps nor
+     scrolls, a glyph over its caption while six fit in 19.5rem and the glyph
+     alone below. The caption sizes itself, so the control row's text floor on
+     the button never reaches it. */
+  .sr-ft-host.sr-map-fs-panel .sr-ft-fsbtn { width: auto; min-height: 2.75rem; padding: 0 16px 0 13px; gap: 7px; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-tools { flex: 1 1 100%; flex-wrap: nowrap; gap: 4px; margin-left: 0; container-type: inline-size; container-name: sr-ft-tools; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-toolgroup { display: contents; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-zoomval { display: none; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool { flex: 1 1 0; min-width: 0; width: auto; min-height: 3rem; flex-direction: column; gap: 3px; padding: 5px 1px 4px; line-height: 1.15; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .t { display: none; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .cap { display: block; font-size: 0.625rem; font-weight: 600; }
+  @container sr-ft-tools (width < 19.5rem) {
+    .sr-ft-tools .sr-ft-tool .cap { display: none; }
+    .sr-ft-tools .sr-ft-tool { min-height: max(44px, 2.25rem); }
+  }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-readout { min-height: min(6.5rem, 20%); }
   /* The county panel's rows stack on a phone, and the action slot takes its own
      line rather than competing with the section title for width. */
   .sr-cardhead-action { margin-left: 0; width: 100%; }

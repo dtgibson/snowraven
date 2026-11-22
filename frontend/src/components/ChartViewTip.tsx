@@ -12,7 +12,7 @@ import { storage } from '../lib/storage'
 
 export const CHART_TIP_SETTING = 'chartTipDismissed'
 
-export type ChartTipPage = 'statistics' | 'species-detail'
+export type ChartTipPage = 'statistics' | 'species-detail' | 'family-tree'
 
 type DismissedMap = Partial<Record<ChartTipPage, boolean>>
 
@@ -23,7 +23,11 @@ function readMap(raw: unknown): DismissedMap {
   return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as DismissedMap) : {}
 }
 
-export function ChartViewTip({ page }: { page: ChartTipPage }) {
+const TIP_LABEL = 'Tip about chart viewing options'
+
+/** `body` and `label` default to the charts' own words; the Family Tree passes
+ *  its own from its copy module (family-rollups-and-tree schema 11.10). */
+export function ChartViewTip({ page, body = TIP_BODY, label = TIP_LABEL }: { page: ChartTipPage; body?: string; label?: string }) {
   const isPhone = useIsPhone()
   // 'pending' until the saved flags hydrate. Closed-until-hydrated: a
   // dismissed installation must never flash the tip at startup (the same
@@ -84,11 +88,11 @@ export function ChartViewTip({ page }: { page: ChartTipPage }) {
 
   return (
     <div ref={wrapRef} className="sr-chart-tip-wrap">
-      <div className="sr-chart-tip" role="note" aria-label="Tip about chart viewing options">
+      <div className="sr-chart-tip" role="note" aria-label={label}>
         <Smartphone size={15} strokeWidth={2.2} className="sr-chart-tip-icon" aria-hidden="true" />
         <span className="sr-chart-tip-text">
           <span className="sr-chart-tip-kicker">Tip</span>
-          <span className="sr-chart-tip-body">{TIP_BODY}</span>
+          <span className="sr-chart-tip-body">{body}</span>
         </span>
         <Button
           type="button"

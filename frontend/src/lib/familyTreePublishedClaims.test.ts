@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 import { SWITCH_LABELS, EVERYWHERE_LABEL, REGION_CONTROL_LABEL } from './lifeListsCopy'
-import { COLLAPSE, COLLAPSE_ALL, EXPAND, EXPAND_ALL, FIT, FOCUS, KIND_COPY, MEDIA_LABEL, NOT_PLACED_HEADING, RESET, SORT_LABEL, VIEW_LABELS, YEAR_LABEL } from './familyTreeCopy'
+import { OPEN_TREE_LABEL, COLLAPSE, COLLAPSE_ALL, EXPAND, EXPAND_ALL, FIT, FOCUS, KIND_COPY, MEDIA_LABEL, NOT_PLACED_HEADING, RESET, SORT_LABEL, VIEW_LABELS, YEAR_LABEL } from './familyTreeCopy'
 import { BOW_FAMILY_LINK_VERIFIED, ML_FAMILY_LINK_VERIFIED } from './familyTreeLinks'
 import { DEFAULT_NAMES, FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING, defaultViewFor } from './familyTreeSettings'
 
@@ -117,6 +117,13 @@ describe('the tree and Find (Slice B)', () => {
     expect(BOW_FAMILY_LINK_VERIFIED).toBe(true)
     expect(ML_FAMILY_LINK_VERIFIED).toBe(false)
     expect(/family[^.]*Macaulay|Macaulay[^.]*famil/i.test(PASSAGE.replace(/\s+/g, ' '))).toBe(false)
+  })
+  it('full screen and the phone still, by the opener\'s own label and the shared Exit word (FR-72)', async () => {
+    const { EXIT_WORD } = await import('./mapStillCopy')
+    const s = sentenceWith(`**${OPEN_TREE_LABEL}**`, 'a swipe on it scrolls the page')
+    expect(s).toContain(`**${EXIT_WORD}**`)
+    sentenceWith("The toolbar's fullscreen button opens the tree to fill the window")
+    sentenceWith('Your zoom, place and selection are kept between visits to fullscreen')
   })
   it('Find searches all four levels by either name, and a species by its code', () => {
     const s = sentenceWith('**Find** searches every species, genus, family and order')

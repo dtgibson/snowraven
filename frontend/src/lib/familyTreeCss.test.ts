@@ -53,7 +53,8 @@ describe('colours are tokens defined in both themes (QA-81)', () => {
     for (const r of ft) for (const m of r.body.matchAll(/var\((--sr-[a-z0-9-]+)/g)) used.add(m[1])
     expect(used.size).toBeGreaterThan(10)
     // Layout variables the tab's own rules set, never colours.
-    const local = new Set(['--sr-label-ratio', '--sr-ctl-rem', '--sr-label-optical', '--sr-ctl-floor'])
+    // and the Android app's bottom inset, which main.tsx sets on the root, never a colour.
+    const local = new Set(['--sr-label-ratio', '--sr-ctl-rem', '--sr-label-optical', '--sr-ctl-floor', '--sr-inset-bottom'])
     for (const t of used) {
       if (local.has(t)) continue
       expect(light.has(t), `${t} in :root`).toBe(true)

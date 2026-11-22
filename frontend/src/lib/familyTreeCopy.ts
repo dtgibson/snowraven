@@ -288,3 +288,16 @@ export function mediaWords(kinds: number): string {
   const list = present.length === 1 ? present[0] : present.length === 2 ? `${present[0]} and ${present[1]}` : `${present[0]}, ${present[1]}, and ${present[2]}`
   return list.charAt(0).toUpperCase() + list.slice(1)
 }
+
+// -- Full screen, the still and the rotate note (the last slice; design-spec 10) --
+
+export const OPEN_TREE_LABEL = 'Open the tree'
+export const OPEN_TREE_NOTE = 'It opens in fullscreen, where it scrolls and zooms on its own.'
+/** The toolbar toggle's name while collapsed: the maps' toggle's own words. */
+export const ENTER_FULLSCREEN_LABEL = 'Enter fullscreen'
+/** The still's accessible name: "Your family tree: {N} species in {F} families and {O} orders". */
+export function stillName(species: number, families: number, orders: number): string {
+  return `Your family tree: ${formatCount(species)} species in ${formatCount(families)} ${noun(families, 'family', 'families')} and ${formatCount(orders)} ${noun(orders, 'order', 'orders')}`
+}
+export const TREE_TIP_BODY = "The tree gets more room in landscape. Rotate your device for a wider view, or open SnowRaven's desktop app if you have it."
+export const TREE_TIP_LABEL = 'Tip about tree viewing options'

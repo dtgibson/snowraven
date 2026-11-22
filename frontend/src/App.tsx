@@ -1574,13 +1574,17 @@ export default function App() {
         }}
       >
         {mountedTabs.has('family-tree') && (
-          <Suspense fallback={<TabLoading label="Loading the family tree…" />}>
-            <FamilyTreeTab
-              onGoToSettings={() => setActiveTab('settings')}
-              onOpenSpecies={navigateToSpeciesDetail}
-              showing={activeTab === 'family-tree'}
-            />
-          </Suspense>
+          // The tree is a useMapFullscreen host (family-rollups-and-tree
+          // schema 11.9), so its full screen is tied to this tab showing.
+          <MapTabShowingProvider value={activeTab === 'family-tree'}>
+            <Suspense fallback={<TabLoading label="Loading the family tree…" />}>
+              <FamilyTreeTab
+                onGoToSettings={() => setActiveTab('settings')}
+                onOpenSpecies={navigateToSpeciesDetail}
+                showing={activeTab === 'family-tree'}
+              />
+            </Suspense>
+          </MapTabShowingProvider>
         )}
       </div>
 

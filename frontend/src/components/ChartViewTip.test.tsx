@@ -112,6 +112,17 @@ describe('ChartViewTip', () => {
     )
   })
 
+  it('the Family Tree page takes its own words and its own flag, merged with the others (family-rollups-and-tree 11.10)', async () => {
+    stubMatchMedia({ phone: true, reducedMotion: true })
+    getSetting.mockResolvedValue({ statistics: true })
+    const { container } = render(<ChartViewTip page="family-tree" body="Tree body." label="Tip about tree viewing options" />)
+    await waitFor(() => expect(screen.getByRole('note', { name: 'Tip about tree viewing options' })).toBeTruthy())
+    expect(screen.getByText('Tree body.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss this tip' }))
+    await waitFor(() => expect(container.firstChild).toBeNull())
+    await waitFor(() => expect(setSetting).toHaveBeenCalledWith(CHART_TIP_SETTING, { statistics: true, 'family-tree': true }))
+  })
+
   it('with motion allowed, the tip collapses and unmounts on transitionend', async () => {
     stubMatchMedia({ phone: true, reducedMotion: false })
     const { container } = render(<ChartViewTip page="statistics" />)

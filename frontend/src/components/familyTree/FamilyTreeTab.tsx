@@ -21,7 +21,7 @@
 // session-only. The tab's own code installs no document or window listener.
 
 import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2, Network, Rows3 } from 'lucide-react'
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2, Maximize2, Minimize2, Network, Rows3 } from 'lucide-react'
 import type { ObservationEntry } from '../../types'
 import { SetupRequired } from '../SetupRequired'
 import { TabLoadErrorAlert } from '../ui/TabLoadErrorAlert'
@@ -32,7 +32,10 @@ import { transport } from '../../lib/transport'
 import { loadEbirdObservations } from '../../lib/observationsCache'
 import { loadMLExport } from '../../lib/mlExportCache'
 import { useFilesEpoch } from '../../lib/useFilesEpoch'
-import { useIsPhone } from '../../lib/useIsPhone'
+import { useMapFullscreen } from '../../lib/useMapFullscreen'
+import { EXIT_FULLSCREEN_LABEL, EXIT_WORD } from '../../lib/mapStillCopy'
+import { FsOpenRow } from '../ui/FsOpenRow'
+import { ChartViewTip } from '../ChartViewTip'
 import { normalizeSpeciesName, withNormalizedParents } from '../../lib/speciesUtils'
 import { deriveFirstSightings } from '../../lib/lifeLists'
 import { deriveRegionIndex, findChoice, sameRegion, type RegionRef } from '../../lib/lifeListsRegion'
@@ -54,6 +57,7 @@ import {
   HEADLINE_LABELS, LOADING_LABEL, NAMES_GROUP_LABEL, NAMES_LABELS, SETUP_BODY, SETUP_TITLE, SORT_LABEL, SORT_LABELS,
   TAB_DESCRIPTION, TAB_TITLE, TOOLS_LABEL, VIEW_GROUP_LABEL, VIEW_LABELS, barWidth, formatCount, headlineSentence,
   mediaScopeParts, notSingleSpeciesLine, notPlacedLine, ofWorld, share, showInTable,
+  ENTER_FULLSCREEN_LABEL, OPEN_TREE_LABEL, OPEN_TREE_NOTE, TREE_TIP_BODY, TREE_TIP_LABEL, stillName,
   type KindKey,
 } from '../../lib/familyTreeCopy'
 import { FamilyTreeControls, type MlAvailability } from './FamilyTreeControls'
@@ -157,8 +161,9 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const [announceSeq, setAnnounceSeq] = useState(0)
   // FR-53, D-35: with nothing stored, the first view follows the window when
   // the tab opens and does not switch if the window later crosses the tier.
-  const stillTier = useIsPhone()
-  const [firstView] = useState<FamilyTreeView>(() => defaultViewFor(stillTier))
+  // The tier is the full-screen hook's own (`fs.stillTier`, schema 11.10), so
+  // the first view is latched while rendering, once the hook has answered.
+  const [firstView, setFirstView] = useState<FamilyTreeView | null>(null)
   const [sessionView, setSessionView] = useState<FamilyTreeView | undefined>(undefined)
   const viewWrite = useRef<Promise<void>>(Promise.resolve())
   const [treeSession, setTreeSession] = useState<TreeSession>(NEW_TREE_SESSION)
@@ -288,7 +293,17 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
 
   // Find's index, once per model; a Names change does not rebuild it (schema 12).
   const findIndex = useMemo(() => (ready && model ? buildFindIndex(model, ready.index) : null), [ready, model])
-  const view: FamilyTreeView = sessionView ?? (ready && ready.rememberedView !== null ? ready.rememberedView : firstView)
+  const view: FamilyTreeView = sessionView ?? (ready && ready.rememberedView !== null ? ready.rememberedView : firstView ?? 'rollup')
+
+  // -- Full screen: the fifth host of the shared hook (schema 11.9). `active`
+  // is true only while the tree is ready, the view is the tree and the roster
+  // is not empty, so a view switch, an empty filter, a reload or an error
+  // collapses and releases by the hook's own rule. The tree draws its own still,
+  // so the host takes `className`, never `hostClassName`.
+  const fsActive = ready !== null && model !== null && view === 'diagram' && model.seen.species > 0
+  const fs = useMapFullscreen({ containerRef: hostRef, baseClass: 'sr-ft-host', active: fsActive })
+  const { stillTier, still: fsStill, expanded: fsExpanded, open: fsOpen, toggle: fsToggle, registerToggle } = fs
+  if (firstView === null) setFirstView(defaultViewFor(stillTier))
 
   // Any change that rebuilds the model ends a running Expand all (schema 9.2).
   useEffect(() => { expandRun.current += 1 }, [model])
@@ -416,6 +431,8 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const chooseFound = (row: FindRow) => {
     if (view === 'diagram' && !row.unplaced) {
       const level = row.level === 'order' ? 0 : row.level === 'family' ? 1 : row.level === 'genus' ? 2 : 3
+      // On the still, a result opens full screen and is revealed there (schema 12).
+      if (fsStill) fsOpen()
       diagramApi.current?.reveal(level, row.ref)
       return
     }
@@ -464,6 +481,29 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const regionLabel = choice ? choice.label : null
   const scopeNote = showMedia ? mediaScopeParts(regionLabel, effectiveYear === null ? null : String(effectiveYear)) : null
   const empty = model.seen.species === 0
+  // The toolbar's full-screen toggle, drawn here and never through the
+  // diagram's portal, so it exists while the tree's chunk is pending (D-48). On
+  // the still tier, expanded, it is the shared Exit form (the word shown by the
+  // shared `.sr-map-fs-panel .sr-map-exit-label` rule); not rendered on the still.
+  const fsToggleShown = view === 'diagram' && !empty && !fsStill
+  const fsToggleButton = (
+    <Button
+      type="button"
+      ref={registerToggle}
+      // `sr-map-fullscreen-btn` is the shared handle (no declarations of its
+      // own): the hook finds the toggle by it when focus must move on open,
+      // and the phone tier's shared Exit pill rule is written against it.
+      className="sr-ft-tool sr-ft-tool--icon sr-ft-fsbtn sr-map-fullscreen-btn sr-touch-target"
+      aria-label={fsExpanded ? EXIT_FULLSCREEN_LABEL : ENTER_FULLSCREEN_LABEL}
+      aria-pressed={fsExpanded}
+      onClick={fsToggle}
+    >
+      {fsExpanded
+        ? <Minimize2 size={15} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
+        : <Maximize2 size={15} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />}
+      {fsExpanded ? <span className="sr-map-exit-label">{EXIT_WORD}</span> : null}
+    </Button>
+  )
   const tiles: [keyof typeof HEADLINE_LABELS, number, number][] = [
     ['species', model.seen.species, model.world.species],
     ['families', model.seen.families, model.world.families],
@@ -552,8 +592,11 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
             ))}
           </span>
         </div>
-        <div className="sr-ft-host" data-view={view} ref={hostRef}>
+        <div className={fs.className} data-view={view} ref={hostRef}>
           <div className="sr-ft-toolbar sr-ctl-row">
+            {/* On the still tier the Exit leads the row by document order, so
+                Tab meets it first (schema 11.9; never `order`, ui.md v0.5.80). */}
+            {fsToggleShown && stillTier ? fsToggleButton : null}
             {findIndex !== null && !empty ? <FamilyTreeFind findIndex={findIndex} names={names} onChoose={chooseFound} /> : null}
             {view === 'rollup' ? (
             <span className="sr-ft-tablebar">
@@ -573,6 +616,8 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
               </span>
             </span>
             ) : null}
+            {/* The tools are not rendered on the still (design-spec 10.1). */}
+            {view === 'rollup' || !fsStill ? (
             <span className="sr-ft-tools" role="toolbar" aria-label={TOOLS_LABEL} ref={setToolsEl}>
               {view === 'rollup' ? (
                 <>
@@ -587,7 +632,12 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
                 </>
               ) : null}
             </span>
+            ) : null}
+            {fsToggleShown && !stillTier ? fsToggleButton : null}
           </div>
+          {view === 'diagram' && !empty && !fsExpanded ? (
+            <ChartViewTip page="family-tree" body={TREE_TIP_BODY} label={TREE_TIP_LABEL} />
+          ) : null}
           {empty ? (
             <p className="sr-ft-empty">{model.filtered || includeEscapees ? EMPTY_FILTERED : EMPTY_UNFILTERED}</p>
           ) : view === 'diagram' ? (
@@ -600,6 +650,9 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
                 initial={treeSession}
                 onSession={setTreeSession}
                 showing={showing}
+                still={fsStill}
+                onOpen={fsOpen}
+                stillLabel={stillName(model.seen.species, model.seen.families, model.seen.orders)}
                 toolsEl={toolsEl}
                 apiRef={diagramApi}
                 codeFor={codeFor}
@@ -621,6 +674,9 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
             />
           )}
         </div>
+        {/* The opener: directly after the host, outside the box that expands,
+            mounted while it is expanded, on the still tier in the tree view. */}
+        {view === 'diagram' && !empty ? <FsOpenRow fs={fs} label={OPEN_TREE_LABEL} note={OPEN_TREE_NOTE} /> : null}
         {(model.unplaced.length > 0 || model.notSingleSpecies > 0) && (
           <div className={view === 'diagram' && !empty ? 'sr-ft-treefoot' : 'sr-ft-tablefoot'}>
             {model.unplaced.length > 0 && (

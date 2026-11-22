@@ -423,6 +423,19 @@ export function selectionScroll(slots: Slots, i: number, k: number, scrollTop: n
   return out ? centeredScroll(first, slots.count[i], k, m, slots.total) : scrollTop
 }
 
+/**
+ * The still's own view (schema 11.3 and 11.10; design-spec 10.1): the tree from
+ * its top, at the larger of the true fit and the pitch that gives the orders
+ * one line each on average, never above full zoom. Derived, never written to
+ * the tab's TreeView; the tree at that pitch may be taller than the box, which
+ * then cuts it (`cut`).
+ */
+export function stillView(tree: DrawnTree, slots: Slots, m: Metrics): { k: number; scrollTop: number; cut: boolean } {
+  const total = Math.max(1, slots.total)
+  const k = Math.min(m.kMax, Math.max(usable(m) / total, (tree.orderNodes.length * m.line) / total))
+  return { k, scrollTop: 0, cut: m.headH + planeHeight(m, slots.total, k) > m.boxH + 1 }
+}
+
 /** A view written from a placement. */
 export function viewOf(tree: DrawnTree, slots: Slots, p: Placement, m: Metrics): TreeView {
   return { zoom: p.k / m.kMax, atFit: p.atFit, anchor: captureAnchor(tree, slots, p.scrollTop, p.k, m) }
