@@ -211,6 +211,25 @@ export function chromeBoxes(main: HTMLElement): Element[] {
  *
  * The write is guarded on the value having changed, so a genuine chrome change
  * costs one property write and a settled layout costs none.
+ *
+ * THE ANDROID INSETS ARRIVE AFTER FIRST PAINT, AND NO OBSERVED BOX RESIZES WHEN
+ * THEY DO (map-scroll-on-phones QA round 1, F-3). MainActivity.kt writes
+ * `--sr-inset-*` as style properties on <html> from a native callback; the body's
+ * new top padding moves <main> down, and the bar's and the footer's new bottom
+ * padding grow their border boxes, but none of that changes a CONTENT box, which
+ * is all the observer above reports. Measured with the Android class modelled
+ * at 390 x 844 (32px top, 24px bottom): the chrome stayed 231px while it had
+ * become 317px, and the page scrolled 56px under the live map. So a
+ * MutationObserver on <html>'s `style` attribute, the
+ * one place the insets are written, re-measures when they land. It cannot loop:
+ * the measurement writes on <main>, never on <html>. Other writes there (the
+ * text scale, the bar height TabNav publishes) cost one measurement that
+ * usually writes nothing. Not observed instead: <body>'s border box, which
+ * would see the top inset too but also grows with the panel, so publishing a
+ * value would re-trigger a shallow observation in the same frame and raise
+ * ResizeObserver's loop error. The iPhone app's insets are `env()`, laid out
+ * before the first measurement here; a rotation that changes them also changes
+ * the width, which the observer above sees.
  */
 export function useMapPanelChrome(
   mainRef: RefObject<HTMLElement | null>,
@@ -233,7 +252,11 @@ export function useMapPanelChrome(
   // fallback constant's and then correcting.
   useLayoutEffect(() => {
     measure()
-    if (typeof ResizeObserver === 'undefined') return
+    // The insets landing on <html> (see above). jsdom has MutationObserver, so
+    // this half runs under test even where ResizeObserver does not.
+    const insets = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure)
+    insets?.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
+    if (typeof ResizeObserver === 'undefined') return () => insets?.disconnect()
     const ro = new ResizeObserver(measure)
     const main = mainRef.current
     if (main) for (const el of chromeBoxes(main)) ro.observe(el)
@@ -242,7 +265,7 @@ export function useMapPanelChrome(
     // arrival and departure re-run this effect and rebuild the observer. A ref
     // would have left the observer watching an element that had unmounted.
     if (navBar) ro.observe(navBar)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); insets?.disconnect() }
   }, [measure, mainRef, navBar])
 }
 
