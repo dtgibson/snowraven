@@ -972,7 +972,7 @@ describe('a files-epoch change releases the previous file and its models (QA-78,
 
     expect(first.obs.deref(), 'the first file\'s observations').toBeUndefined()
     expect(first.ml.deref(), 'the first file\'s ML rows').toBeUndefined()
-    firstModels.forEach((r, i) => expect(r.deref(), `the first file\'s model ${i}`).toBeUndefined())
+    firstModels.forEach((r, i) => expect(r.deref(), `the first file's model ${i}`).toBeUndefined())
     // CONTROL: the model on screen is held, so the collection is not blind.
     expect(H.models.slice(firstModels.length).some(r => r.deref() !== undefined)).toBe(true)
     expect(screen.getByRole('tree')).toBeTruthy()
