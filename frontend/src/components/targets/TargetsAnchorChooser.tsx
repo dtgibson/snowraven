@@ -14,11 +14,12 @@
 // No DOM id here is built from a place name (security.md v1.0.21): the dialog's
 // own id comes from the caller and the section labels from `useId`.
 
-import { useEffect, useId, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { LocateFixed, MapPin } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { AddressSearch } from '../AddressSearch'
 import { useFocusTrap } from '../../lib/useFocusTrap'
+import { useListFit } from '../../lib/useListFit'
 import { showLocationControls } from '../../lib/platformGates'
 import { placeDistance, type ListPlace } from '../../lib/targets/targetsAnchor'
 import type { AnchorState } from '../../lib/targets/useDistanceAnchor'
@@ -42,6 +43,13 @@ export interface ChooserProps {
 export function TargetsAnchorChooser({ id, anchor, places, triggerRef, onClose }: ChooserProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const firstRef = useRef<HTMLButtonElement>(null)
+  // On the phone tier the chooser is ONE scroller fitted to the room visible
+  // under its status line (lib/useListFit.ts, map-scroll-on-phones D-15); its
+  // inner list is released by the stylesheet. Mounted only while open, so it is
+  // always `open` here. The node is held as STATE as well (ui.md v1.0.17).
+  const [fitRoot, setFitRoot] = useState<HTMLDivElement | null>(null)
+  const setRootRef = useCallback((el: HTMLDivElement | null) => { rootRef.current = el; setFitRoot(el) }, [])
+  useListFit(true, undefined, fitRoot, '.sr-tg-apop-item')
   const placeSecId = useId()
   const listSecId = useId()
 
@@ -83,7 +91,7 @@ export function TargetsAnchorChooser({ id, anchor, places, triggerRef, onClose }
 
   const current = anchor.kind
   return (
-    <div className="sr-tg-apop" id={id} role="dialog" aria-label={CHOOSER_TITLE} ref={rootRef}>
+    <div className="sr-tg-apop" id={id} role="dialog" aria-label={CHOOSER_TITLE} ref={setRootRef}>
       <div className="sr-tg-apop-head" aria-hidden="true">{CHOOSER_TITLE}</div>
       {locationShown && <>
       <Button

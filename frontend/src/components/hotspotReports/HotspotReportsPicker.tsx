@@ -20,13 +20,14 @@
 // selected location ranked beyond the cap is drawn and can be the active row on
 // open (FR-23). The kind marks are computed for the rendered rows only.
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { Button } from '../ui/Button'
 import type { HotspotResolution } from '../../lib/hotspotSet'
 import type { LocationIndex } from '../../lib/hotspotReports'
 import { filterLocations, PICKER_QUERY_MAX_CHARS } from '../../lib/hotspotReportsPicker'
 import { kindOf } from '../../lib/hotspotReportsKind'
+import { useListFit } from '../../lib/useListFit'
 import {
   NO_MATCH, OVERVIEW_LABEL, PICKER_CHEVRON_LABEL, PICKER_LABEL, PICKER_LIST_LABEL, PICKER_PLACEHOLDER,
   checklistCountLabel, displayName, narrowingLine, overviewMeta,
@@ -48,6 +49,12 @@ export function HotspotReportsPicker({ index, selectedOrd, onSelect, resolution 
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  // On the phone tier the open list keeps to the room that is visible under
+  // the field (lib/useListFit.ts, map-scroll-on-phones D-15). The list node is
+  // also held as STATE for that measurement (ui.md v1.0.17).
+  const [fitList, setFitList] = useState<HTMLDivElement | null>(null)
+  const setListRef = useCallback((el: HTMLDivElement | null) => { listRef.current = el; setFitList(el) }, [])
+  useListFit(open, undefined, fitList)
   const uid = useId()
   const labelId = `${uid}-label`
   const listId = `${uid}-list`
@@ -223,7 +230,7 @@ export function HotspotReportsPicker({ index, selectedOrd, onSelect, resolution 
         </div>
         {open ? (
           <div
-            ref={listRef}
+            ref={setListRef}
             className="sr-hsr-list"
             role="listbox"
             id={listId}
