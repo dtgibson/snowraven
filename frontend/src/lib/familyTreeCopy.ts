@@ -204,3 +204,87 @@ export function notSingleSpeciesLine(n: number): string {
 
 export const EMPTY_UNFILTERED = 'No countable species in your eBird backup yet.'
 export const EMPTY_FILTERED = 'No species match these filters.'
+
+// -- The view switch, the tree and its tools (Slice B; design-spec 6, 7, 9) -----
+
+export const TREE_LABEL = 'Family tree of your species'
+export const TREE_DESCRIPTION = 'The Table view holds the same information as a list.'
+export const ZOOM_IN = 'Zoom in'
+export const ZOOM_OUT = 'Zoom out'
+export const FIT = 'Fit'
+export const FIT_LABEL = 'Fit the whole tree'
+export const RESET = 'Reset'
+export const RESET_LABEL = 'Reset the tree'
+/** The column header's words (columns form). */
+export const COLUMN_HEADS: readonly { readonly label: string; readonly seenWorld: boolean }[] = [
+  { label: 'Order', seenWorld: true },
+  { label: 'Family', seenWorld: true },
+  { label: 'Genus', seenWorld: false },
+  { label: 'Species', seenWorld: false },
+]
+export const SEEN_WORLD = 'seen / world'
+export const COUNT_TITLE = 'Zoom in to this part of the tree'
+/** "{n}%" of full zoom. */
+export function zoomPercent(fraction: number): string {
+  return `${Math.round(fraction * 100)}%`
+}
+
+export const LEVEL_WORDS = { order: 'Order', family: 'Family', genus: 'Genus', species: 'Species' } as const
+const LEVEL_PLURALS = { order: 'orders', family: 'families', genus: 'genera' } as const
+
+/** A count's words: "{n} species" for a run of species, else
+ *  "{n} {orders | families | genera}, a dot, {m} species". */
+export function countText(level: 'order' | 'family' | 'genus' | 'species', runLength: number, species: number): string {
+  if (level === 'species') return `${formatCount(species)} species`
+  const plural = LEVEL_PLURALS[level]
+  const one = level === 'genus' ? 'genus' : level
+  return `${formatCount(runLength)} ${noun(runLength, one, plural)}${DOT_SEPARATOR}${formatCount(species)} species`
+}
+
+/** A tree item's figures for its accessible name (design-spec 9.7). */
+export function nodeFigures(level: 'order' | 'family' | 'genus', seen: number, world: number): string {
+  return level === 'genus' ? `${formatCount(seen)} species` : `${formatCount(seen)} of ${formatCount(world)} species`
+}
+
+// -- The readout (design-spec 9.9) ----------------------------------------------
+
+export const READOUT_LABEL = 'Selected'
+export const NOTHING_SELECTED = 'Nothing selected'
+export const NOTHING_SENTENCE = 'Select a branch or a species to see its figures and links here.'
+export const HINT_REST = 'Drag to move. Pinch, or hold Ctrl or Command and scroll, to zoom.'
+export const HINT_COUNTS = 'Where names do not fit, a branch shows as a count. Zoom in, or press a count, to see every name.'
+export const EXPAND = 'Expand'
+export const COLLAPSE = 'Collapse'
+export const FOCUS = 'Focus'
+/** "{n} species seen", the count in weight. */
+export function speciesSeenParts(n: number): { n: string; rest: string } {
+  return { n: formatCount(n), rest: ' species seen' }
+}
+/** "{seen} of {world} world species" or "... world families", the seen count in weight. */
+export function worldShareParts(seen: number, world: number, unit: 'species' | 'families'): { seen: string; rest: string } {
+  const words = unit === 'species' ? 'species' : noun(world, 'family', 'families')
+  return { seen: formatCount(seen), rest: ` of ${formatCount(world)} world ${words}` }
+}
+/** A family's per-kind row: "{n} species, a dot, {items} {photos | ...}". */
+export function kindRowParts(k: KindKey, species: number, items: number): { n: string; rest: string; items: string | null } {
+  return { n: formatCount(species), rest: ' species', items: items > 0 ? `${DOT_SEPARATOR}${itemsLabel(k, items)}` : null }
+}
+export const BOW_LINK_TEXT = 'Birds of the World'
+export function bowLinkLabel(family: string): string {
+  return `Open ${family} on Birds of the World (opens in a new tab)`
+}
+
+// -- Find (design-spec 8) ---------------------------------------------------------
+
+export const FIND_LABEL = 'Find a species, genus, family, or order'
+export const FIND_LIST_LABEL = 'Matching species, genera, families, and orders'
+export const FIND_NONE = 'Nothing matches this search.'
+
+/** A species' media in words, with the serial comma: "No media", "Photo",
+ *  "Photo and audio", "Photo, audio, and video". `kinds` bits: 1 photo, 2 audio, 4 video. */
+export function mediaWords(kinds: number): string {
+  const present = (['photo', 'audio', 'video'] as const).filter((_, i) => (kinds & (1 << i)) !== 0)
+  if (present.length === 0) return 'No media'
+  const list = present.length === 1 ? present[0] : present.length === 2 ? `${present[0]} and ${present[1]}` : `${present[0]}, ${present[1]}, and ${present[2]}`
+  return list.charAt(0).toUpperCase() + list.slice(1)
+}

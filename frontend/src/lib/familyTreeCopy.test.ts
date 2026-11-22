@@ -26,6 +26,13 @@ function corpus(): string[] {
     out.push(sw.seen + sw.rest)
     for (const k of KINDS) out.push(copy.itemsLabel(k, n))
     out.push(copy.familyRowLabel('Ducks', n, n + 2, [n, n, n], [n, n, n]))
+    // Slice B: the tree's counts and figures, and the readout's lines.
+    for (const lv of ['order', 'family', 'genus', 'species'] as const) out.push(copy.countText(lv, n, n + 5))
+    for (const lv of ['order', 'family', 'genus'] as const) out.push(`${copy.nodeFigures(lv, n, n + 3)}.`)
+    const ss = copy.speciesSeenParts(n)
+    out.push(ss.n + ss.rest)
+    for (const unit of ['species', 'families'] as const) { const ws = copy.worldShareParts(n, n, unit); out.push(ws.seen + ws.rest) }
+    for (const k of KINDS) { const kr = copy.kindRowParts(k, n, n); out.push(kr.n + kr.rest + (kr.items ?? '')) }
   }
   return out
 }
@@ -83,6 +90,11 @@ describe('the rules over the generated corpus (QA-85)', () => {
     expect(PLURAL_NOUN.test('1 families')).toBe(true)
     expect(PLURAL_AGREEMENT.test('1 species are not placed on the tree.')).toBe(true)
     expect(PLURAL_AGREEMENT.test('1 other entry in your backup is not a single species, so they have no place.')).toBe(true)
+  })
+  it('the media words take the serial comma and read whole at every combination', () => {
+    expect([0, 1, 3, 7].map(copy.mediaWords)).toEqual(['No media', 'Photo', 'Photo and audio', 'Photo, audio, and video'])
+    expect(copy.countText('genus', 1, 4)).toBe('1 genus \u00b7 4 species')
+    expect(copy.worldShareParts(1, 1, 'families').rest).toBe(' of 1 world family')
   })
   it('a nonzero share never reads as a bare 0%', () => {
     expect(copy.share(1, 400)).toBe('<1%')

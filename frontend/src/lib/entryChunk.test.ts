@@ -1197,6 +1197,8 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     'components/familyTree/FamilyTreeTab.tsx',
     'components/familyTree/FamilyTreeControls.tsx',
     'components/familyTree/FamilyTreeRollup.tsx',
+    'components/familyTree/FamilyTreeFind.tsx',
+    'lib/familyTreeFind.ts',
     'lib/familyTreeAsset.ts',
     'lib/familyTreeScope.ts',
     'lib/familyTreeModel.ts',
@@ -1232,6 +1234,26 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     // importer is the lazy() line.
     expect(appCode.split('importFamilyTree()').length - 1).toBe(1)
     expect(appCode).toContain('lazy(() => importFamilyTree()')
+  })
+
+  // The tree view is a chunk of its own with its layout module (schema 13), so
+  // the table path never loads it: off the tab's static graph, and the
+  // diagram's own closure reaches the layout (the positive leg).
+  const FAMILY_TREE_DIAGRAM_FILES = ['components/familyTree/FamilyTreeDiagram.tsx', 'lib/familyTreeLayout.ts']
+  it('the tree view and its layout are off the tab\'s static closure, and the diagram reaches the layout', () => {
+    const sub = closureFrom(resolve(SRC, 'components/familyTree/FamilyTreeTab.tsx'))
+    for (const file of FAMILY_TREE_DIAGRAM_FILES) {
+      expect(hasIn(sub.files, file), `${file} must not ride the tab's chunk`).toBe(false)
+      expect(has(file)).toBe(false)
+    }
+    const diag = closureFrom(resolve(SRC, 'components/familyTree/FamilyTreeDiagram.tsx'))
+    expect(hasIn(diag.files, 'lib/familyTreeLayout.ts')).toBe(true)
+    expect(hasIn(diag.files, 'components/BirdName.tsx')).toBe(true)
+    expect(maplibreIn(diag.externals)).toEqual([])
+    expect([...diag.externals].filter(s => s === 'recharts' || s.startsWith('recharts/'))).toEqual([])
+    const tabCode = stripComments(readFileSync(resolve(SRC, 'components/familyTree/FamilyTreeTab.tsx'), 'utf8'))
+    expect(tabCode).toContain("lazy(() => import('./FamilyTreeDiagram'))")
+    expect(tabCode.split("import('./FamilyTreeDiagram')").length - 1).toBe(1)
   })
 
   it('the family asset is named exactly once in source, inside import() in familyTreeAsset.ts', () => {

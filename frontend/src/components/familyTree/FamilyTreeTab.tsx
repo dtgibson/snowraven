@@ -20,8 +20,8 @@
 // Year, Media, Include Escapees, the sort and every open state are
 // session-only. The tab's own code installs no document or window listener.
 
-import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2, Network } from 'lucide-react'
+import { Suspense, lazy, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Loader2, Network, Rows3 } from 'lucide-react'
 import type { ObservationEntry } from '../../types'
 import { SetupRequired } from '../SetupRequired'
 import { TabLoadErrorAlert } from '../ui/TabLoadErrorAlert'
@@ -32,6 +32,7 @@ import { transport } from '../../lib/transport'
 import { loadEbirdObservations } from '../../lib/observationsCache'
 import { loadMLExport } from '../../lib/mlExportCache'
 import { useFilesEpoch } from '../../lib/useFilesEpoch'
+import { useIsPhone } from '../../lib/useIsPhone'
 import { normalizeSpeciesName, withNormalizedParents } from '../../lib/speciesUtils'
 import { deriveFirstSightings } from '../../lib/lifeLists'
 import { deriveRegionIndex, findChoice, sameRegion, type RegionRef } from '../../lib/lifeListsRegion'
@@ -43,18 +44,29 @@ import {
   type MediaConstraints, type SortKey, type WorldCounts,
 } from '../../lib/familyTreeModel'
 import {
-  FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, parseStoredNames, parseStoredRegion,
-  type FamilyTreeNames,
+  FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING, defaultViewFor, parseStoredNames,
+  parseStoredRegion, parseStoredView,
+  type FamilyTreeNames, type FamilyTreeView,
 } from '../../lib/familyTreeSettings'
+import { buildFindIndex, type FindRow } from '../../lib/familyTreeFind'
 import {
   COLLAPSE_ALL, EMPTY_FILTERED, EMPTY_UNFILTERED, ESCAPEE_STATUS, EXPAND_ALL, FAMILY_DATA_ERROR, FILTER_NOTE,
   HEADLINE_LABELS, LOADING_LABEL, NAMES_GROUP_LABEL, NAMES_LABELS, SETUP_BODY, SETUP_TITLE, SORT_LABEL, SORT_LABELS,
-  TAB_DESCRIPTION, TAB_TITLE, TOOLS_LABEL, barWidth, formatCount, headlineSentence, mediaScopeParts,
-  notSingleSpeciesLine, notPlacedLine, ofWorld, share,
+  TAB_DESCRIPTION, TAB_TITLE, TOOLS_LABEL, VIEW_GROUP_LABEL, VIEW_LABELS, barWidth, formatCount, headlineSentence,
+  mediaScopeParts, notSingleSpeciesLine, notPlacedLine, ofWorld, share, showInTable,
   type KindKey,
 } from '../../lib/familyTreeCopy'
 import { FamilyTreeControls, type MlAvailability } from './FamilyTreeControls'
-import { FamilyTreeRollup } from './FamilyTreeRollup'
+import { FamilyTreeRollup, NOT_PLACED_KEY } from './FamilyTreeRollup'
+import { FamilyTreeFind } from './FamilyTreeFind'
+import type { DiagramApi, TreeSession } from './FamilyTreeDiagram'
+
+// The tree view is its own chunk with its layout module (schema 13): the table
+// path never loads it until the tree is chosen.
+const FamilyTreeDiagram = lazy(() => import('./FamilyTreeDiagram'))
+
+/** The tree's session before its first layout: full zoom, from the top, nothing active. */
+const NEW_TREE_SESSION: TreeSession = { exp: null, active: null, view: { zoom: 1, atFit: false, anchor: null } }
 
 type MlState = { tag: 'none' } | { tag: 'unreadable' } | { tag: 'ready' }
 
@@ -71,6 +83,8 @@ type Phase =
     /** The validated saved choices, re-read at every epoch. */
     rememberedRegion: RegionRef | null
     rememberedNames: FamilyTreeNames
+    /** null when no view has been stored (FR-53's first use). */
+    rememberedView: FamilyTreeView | null
   }
 
 interface CodeRequest {
@@ -133,6 +147,18 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   const [open, setOpen] = useState<ReadonlySet<number>>(EMPTY_OPEN)
   const [fresh, setFresh] = useState<ReadonlySet<number>>(EMPTY_OPEN)
   const [announceSeq, setAnnounceSeq] = useState(0)
+  // FR-53, D-35: with nothing stored, the first view follows the window when
+  // the tab opens and does not switch if the window later crosses the tier.
+  const stillTier = useIsPhone()
+  const [firstView] = useState<FamilyTreeView>(() => defaultViewFor(stillTier))
+  const [sessionView, setSessionView] = useState<FamilyTreeView | undefined>(undefined)
+  const viewWrite = useRef<Promise<void>>(Promise.resolve())
+  const [treeSession, setTreeSession] = useState<TreeSession>(NEW_TREE_SESSION)
+  const [toolsEl, setToolsEl] = useState<HTMLSpanElement | null>(null)
+  const diagramApi = useRef<DiagramApi | null>(null)
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  // A reveal in the table: applied after the commit that opens its family.
+  const [tableReveal, setTableReveal] = useState<{ seq: number; selector: string; order: boolean } | null>(null)
   // One write at a time per key, in press order (each best-effort).
   const regionWrite = useRef<Promise<void>>(Promise.resolve())
   const namesWrite = useRef<Promise<void>>(Promise.resolve())
@@ -151,9 +177,9 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
         const assetLoad: Promise<AssetResult> = loadFamilyIndex().then(index => ({ ok: true as const, index }), () => ({ ok: false as const }))
-        const [ebird, ml, savedRegion, savedNames, asset] = await Promise.all([
+        const [ebird, ml, savedRegion, savedNames, savedView, asset] = await Promise.all([
           loadEbirdObservations(), loadMLExport().catch(() => null),
-          readSaved(FAMILY_TREE_REGION_SETTING), readSaved(FAMILY_TREE_NAMES_SETTING), assetLoad,
+          readSaved(FAMILY_TREE_REGION_SETTING), readSaved(FAMILY_TREE_NAMES_SETTING), readSaved(FAMILY_TREE_VIEW_SETTING), assetLoad,
         ])
         if (cancelled) return
         if (!ebird) { setPhase({ tag: 'error', message: EBIRD_BACKUP_LOAD_ERROR }); return }
@@ -184,6 +210,7 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
           ml: mlState,
           rememberedRegion: parseStoredRegion(savedRegion),
           rememberedNames: parseStoredNames(savedNames),
+          rememberedView: parseStoredView(savedView),
         })
         setCodeRequest(prev => (prev !== null && prev.key === key ? prev : { key, species }))
         // FR-17: a year the new backup lacks falls back to all years.
@@ -250,6 +277,10 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
     })
   }, [ready, scope, provenance.escapees, includeEscapees, media, region, effectiveYear])
 
+  // Find's index, once per model; a Names change does not rebuild it (schema 12).
+  const findIndex = useMemo(() => (ready && model ? buildFindIndex(model, ready.index) : null), [ready, model])
+  const view: FamilyTreeView = sessionView ?? (ready && ready.rememberedView !== null ? ready.rememberedView : firstView)
+
   // Any change that rebuilds the model ends a running Expand all (schema 9.2).
   useEffect(() => { expandRun.current += 1 }, [model])
 
@@ -276,6 +307,13 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
     setSessionNames(next)
     namesWrite.current = namesWrite.current
       .then(() => storage.setSetting(FAMILY_TREE_NAMES_SETTING, next))
+      .catch(() => { /* a preference: best-effort */ })
+  }
+  const selectView = (next: FamilyTreeView) => {
+    if (next === view) return
+    setSessionView(next)
+    viewWrite.current = viewWrite.current
+      .then(() => storage.setSetting(FAMILY_TREE_VIEW_SETTING, next))
       .catch(() => { /* a preference: best-effort */ })
   }
   const cycleKind = (k: KindKey) => {
@@ -319,6 +357,51 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
     expandRun.current += 1
     setOpen(EMPTY_OPEN)
     setFresh(EMPTY_OPEN)
+  }
+
+  // The table half of a find reveal (design-spec 8): after the commit that
+  // opened its family, the row scrolls to the middle and takes focus; an
+  // order's heading scrolls to the top and its first family row takes focus.
+  useEffect(() => {
+    const host = hostRef.current
+    if (tableReveal === null || host === null) return
+    const el = host.querySelector<HTMLElement>(tableReveal.selector)
+    if (el === null) return
+    el.scrollIntoView({ block: tableReveal.order ? 'start' : 'center' })
+    const target = tableReveal.order
+      ? el.querySelector<HTMLElement>('[data-ft-family]')
+      : el.matches('button') ? el : el.querySelector<HTMLElement>('.sr-birdname-link, button')
+    target?.focus({ preventScroll: true })
+  }, [tableReveal])
+
+  const revealInTable = (row: FindRow) => {
+    if (!ready) return
+    setSort('taxonomic')
+    const seq = tableReveal === null ? 1 : tableReveal.seq + 1
+    if (row.level === 'order') { setTableReveal({ seq, selector: `[data-ft-order="${row.ref}"]`, order: true }); return }
+    const family = row.unplaced ? NOT_PLACED_KEY
+      : row.level === 'family' ? row.ref
+        : row.level === 'genus' ? ready.index.genera[row.ref].family
+          : ready.index.speciesFamily[row.ref]
+    expandRun.current += 1
+    setOpen(prev => (prev.has(family) ? prev : new Set([...prev, family])))
+    const selector = row.level === 'species' ? `[data-ft-sp="${row.unplaced ? 'u' : 's'}${row.ref}"]` : `[data-ft-family="${family}"]`
+    setTableReveal({ seq, selector, order: false })
+  }
+  const chooseFound = (row: FindRow) => {
+    if (view === 'diagram' && !row.unplaced) {
+      const level = row.level === 'order' ? 0 : row.level === 'family' ? 1 : row.level === 'genus' ? 2 : 3
+      diagramApi.current?.reveal(level, row.ref)
+      return
+    }
+    if (view === 'diagram') selectView('rollup')
+    revealInTable(row)
+  }
+  const showUnplaced = () => {
+    selectView('rollup')
+    expandRun.current += 1
+    setOpen(prev => (prev.has(NOT_PLACED_KEY) ? prev : new Set([...prev, NOT_PLACED_KEY])))
+    setTableReveal(r => ({ seq: (r?.seq ?? 0) + 1, selector: `[data-ft-family="${NOT_PLACED_KEY}"]`, order: false }))
   }
 
   const header = (
@@ -413,6 +496,22 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
           {!provenance.checkComplete && <p className="sr-ft-status">{ESCAPEE_STATUS}</p>}
         </div>
         <div className="sr-ft-viewbar sr-ctl-row">
+          <span role="group" aria-label={VIEW_GROUP_LABEL} className="sr-segbar sr-ft-viewseg">
+            {(['rollup', 'diagram'] as const).map(v => (
+              <Button
+                key={v}
+                type="button"
+                className="sr-segbar-btn sr-touch-target"
+                aria-pressed={view === v}
+                onClick={() => selectView(v)}
+              >
+                {v === 'rollup'
+                  ? <Rows3 size={13} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
+                  : <Network size={13} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />}
+                {VIEW_LABELS[v]}
+              </Button>
+            ))}
+          </span>
           <span role="group" aria-label={NAMES_GROUP_LABEL} className="sr-segbar sr-segbar--compact sr-ft-namesseg">
             {(['common', 'scientific', 'both'] as const).map(n => (
               <Button
@@ -427,8 +526,10 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
             ))}
           </span>
         </div>
-        <div className="sr-ft-host">
+        <div className="sr-ft-host" data-view={view} ref={hostRef}>
           <div className="sr-ft-toolbar sr-ctl-row">
+            {findIndex !== null && !empty ? <FamilyTreeFind findIndex={findIndex} names={names} onChoose={chooseFound} /> : null}
+            {view === 'rollup' ? (
             <span className="sr-ft-tablebar">
               <label className="sr-ctl-label sr-ft-label" htmlFor={sortId}>{SORT_LABEL}</label>
               <span className="sr-ft-selwrap">
@@ -445,19 +546,39 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
                 <ChevronDown size={12} strokeWidth={2.4} className="sr-ft-selcaret" aria-hidden="true" />
               </span>
             </span>
-            <span className="sr-ft-tools" role="toolbar" aria-label={TOOLS_LABEL}>
-              <Button type="button" className="sr-ft-tool sr-touch-target" onClick={expandAll} disabled={empty}>
-                <ChevronsUpDown size={14} strokeWidth={2.2} aria-hidden="true" />
-                <span className="t">{EXPAND_ALL}</span>
-              </Button>
-              <Button type="button" className="sr-ft-tool sr-touch-target" onClick={collapseAll} disabled={empty}>
-                <ChevronsDownUp size={14} strokeWidth={2.2} aria-hidden="true" />
-                <span className="t">{COLLAPSE_ALL}</span>
-              </Button>
+            ) : null}
+            <span className="sr-ft-tools" role="toolbar" aria-label={TOOLS_LABEL} ref={setToolsEl}>
+              {view === 'rollup' ? (
+                <>
+                  <Button type="button" className="sr-ft-tool sr-touch-target" onClick={expandAll} disabled={empty}>
+                    <ChevronsUpDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                    <span className="t">{EXPAND_ALL}</span>
+                  </Button>
+                  <Button type="button" className="sr-ft-tool sr-touch-target" onClick={collapseAll} disabled={empty}>
+                    <ChevronsDownUp size={14} strokeWidth={2.2} aria-hidden="true" />
+                    <span className="t">{COLLAPSE_ALL}</span>
+                  </Button>
+                </>
+              ) : null}
             </span>
           </div>
           {empty ? (
             <p className="sr-ft-empty">{model.filtered || includeEscapees ? EMPTY_FILTERED : EMPTY_UNFILTERED}</p>
+          ) : view === 'diagram' ? (
+            <Suspense fallback={<div className="sr-ft-treeview"><div className="sr-ft-boxwrap"><div className="sr-ft-box" /></div></div>}>
+              <FamilyTreeDiagram
+                model={model}
+                index={ready.index}
+                names={names}
+                stillTier={stillTier}
+                initial={treeSession}
+                onSession={setTreeSession}
+                toolsEl={toolsEl}
+                apiRef={diagramApi}
+                codeFor={codeFor}
+                onOpenSpecies={onOpenSpecies}
+              />
+            </Suspense>
           ) : (
             <FamilyTreeRollup
               model={model}
@@ -473,8 +594,15 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
           )}
         </div>
         {(model.unplaced.length > 0 || model.notSingleSpecies > 0) && (
-          <div className="sr-ft-tablefoot">
-            {model.unplaced.length > 0 && <p className="sr-ft-status">{notPlacedLine(model.unplaced.length)}</p>}
+          <div className={view === 'diagram' && !empty ? 'sr-ft-treefoot' : 'sr-ft-tablefoot'}>
+            {model.unplaced.length > 0 && (
+              <p className="sr-ft-status">
+                {notPlacedLine(model.unplaced.length)}
+                {view === 'diagram' && !empty ? (
+                  <> <Button type="button" className="sr-ft-textbtn" onClick={showUnplaced}>{showInTable(model.unplaced.length)}</Button></>
+                ) : null}
+              </p>
+            )}
             {model.notSingleSpecies > 0 && <p className="sr-ft-status">{notSingleSpeciesLine(model.notSingleSpecies)}</p>}
           </div>
         )}

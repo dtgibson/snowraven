@@ -29,6 +29,9 @@ const H = vi.hoisted(() => ({
   snapshot: null as unknown,
   getFilesStatus: vi.fn(),
   listeners: new Set<() => void>(),
+  // The still tier (useIsPhone). True by default so the Slice A rows meet the
+  // table, the first view at or under the tier (FR-53); the tree rows set it.
+  phone: true,
 }))
 
 vi.mock('../../lib/storage', () => ({
@@ -41,6 +44,7 @@ vi.mock('../../lib/mlExportCache', () => ({
   loadMLExport: vi.fn(async () => (H.mlRows ? { entries: [], mediaMap: {}, rows: H.mlRows } : null)),
 }))
 vi.mock('../../lib/transport', () => ({ transport: { post: H.post, get: vi.fn() } }))
+vi.mock('../../lib/useIsPhone', () => ({ useIsPhone: () => H.phone }))
 vi.mock('../../lib/exoticProvenanceCache', () => ({
   getSnapshot: () => H.snapshot,
   subscribe: (l: () => void) => { H.listeners.add(l); return () => { H.listeners.delete(l) } },
@@ -60,7 +64,7 @@ vi.mock('../../lib/familyTreeAsset', async importOriginal => {
 import { FamilyTreeTab } from './FamilyTreeTab'
 import { notifyFilesChanged } from '../../lib/filesChanged'
 import { EBIRD_BACKUP_LOAD_ERROR } from '../setupCopy'
-import { FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING } from '../../lib/familyTreeSettings'
+import { FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING } from '../../lib/familyTreeSettings'
 import {
   EMPTY_FILTERED, EMPTY_UNFILTERED, ESCAPEE_STATUS, FAMILY_DATA_ERROR, FILTER_NOTE, ML_NONE_SENTENCE, ML_UNREADABLE_SENTENCE,
 } from '../../lib/familyTreeCopy'
@@ -101,6 +105,7 @@ beforeEach(() => {
   H.assetFails = 0
   H.snapshot = snapshot()
   H.listeners.clear()
+  H.phone = true
   H.getFilesStatus.mockImplementation(async () => H.files)
   H.getSetting.mockImplementation(async () => null)
   H.setSetting.mockImplementation(async () => {})
@@ -439,5 +444,156 @@ describe('requests and the lifecycle (QA-50, QA-84)', () => {
     const mine = (calls: unknown[][]) => calls.filter(c => ['keydown', 'wheel', 'pointerdown', 'pointermove', 'scroll', 'resize'].includes(String(c[0])))
     expect(mine(doc.mock.calls)).toEqual([])
     expect(mine(win.mock.calls)).toEqual([])
+  })
+})
+
+// -- Slice B: the view switch, Find and the tree --------------------------------
+
+/** jsdom has no layout: the tree box reports a desktop size and a
+ *  ResizeObserver that reports once on observe, so the layout runs. */
+function layoutShims(boxW = 1100, boxH = 424) {
+  const dims = (el: Element, wide: boolean) => (el.classList.contains('sr-ft-box') ? (wide ? boxW : boxH) : 0)
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) { return dims(this, true) })
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) { return dims(this, false) })
+  vi.stubGlobal('ResizeObserver', class {
+    private cb: () => void
+    constructor(cb: () => void) { this.cb = cb }
+    observe() { queueMicrotask(() => this.cb()) }
+    disconnect() {}
+  })
+}
+
+describe('the view switch (FR-53, D-35)', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+  it('first use: the tree wider than the still tier, the table at or under it, and nothing is written', async () => {
+    H.phone = false
+    layoutShims()
+    await ready()
+    expect(await screen.findByRole('tree')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Tree' }).getAttribute('aria-pressed')).toBe('true')
+    cleanup()
+    H.phone = true
+    await ready()
+    expect(screen.getByRole('button', { name: 'Table' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('tree')).toBeNull()
+    expect(H.setSetting.mock.calls.filter(c => c[0] === FAMILY_TREE_VIEW_SETTING)).toEqual([])
+  })
+  it('a choice writes one setting under its own key, and a remount restores it on every tier', async () => {
+    layoutShims()
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Tree' }))
+    expect(await screen.findByRole('tree')).toBeTruthy()
+    await waitFor(() => expect(H.setSetting).toHaveBeenCalledWith(FAMILY_TREE_VIEW_SETTING, 'diagram'))
+    cleanup()
+    H.getSetting.mockImplementation(async key => (key === FAMILY_TREE_VIEW_SETTING ? 'diagram' : null))
+    await ready()
+    expect(await screen.findByRole('tree')).toBeTruthy()
+  })
+})
+
+describe('the tree (FR-55 to FR-70)', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+  async function tree() {
+    H.phone = false
+    layoutShims()
+    await ready()
+    const t = await screen.findByRole('tree')
+    await waitFor(() => expect(t.querySelectorAll('[role="treeitem"]').length).toBeGreaterThan(0))
+    return t
+  }
+  it('is one tab stop: the tree carries the one tabIndex and its items none, no link and no button', async () => {
+    const t = await tree()
+    expect(t.getAttribute('tabindex')).toBe('0')
+    const items = [...t.querySelectorAll('[role="treeitem"]')]
+    for (const it of items) {
+      expect(it.hasAttribute('tabindex')).toBe(false)
+      expect(it.querySelector('a, button, [tabindex]')).toBeNull()
+      expect(it.getAttribute('id')).toMatch(/-n-\d+$/)
+    }
+    expect(t.getAttribute('aria-label')).toBe('Family tree of your species')
+    expect(document.getElementById(t.getAttribute('aria-describedby')!)?.textContent).toBe('The Table view holds the same information as a list.')
+  })
+  it('arrival is every branch open, with species named, and each item names its level and figures', async () => {
+    const t = await tree()
+    const labels = [...t.querySelectorAll('[role="treeitem"]')].map(e => e.getAttribute('aria-label'))
+    expect(labels).toContain('Species, Snow Goose, Anser caerulescens')
+    expect(labels.some(l => /^Order, Waterfowl, Anseriformes, \d+ of [\d,]+ species$/.test(l ?? ''))).toBe(true)
+  })
+  it('a key moves the active node; aria-activedescendant resolves; the readout follows', async () => {
+    const t = await tree()
+    fireEvent.keyDown(t, { key: 'ArrowDown' })
+    await waitFor(() => expect(t.getAttribute('aria-activedescendant')).not.toBeNull())
+    const active = document.getElementById(t.getAttribute('aria-activedescendant')!)!
+    expect(active.getAttribute('role')).toBe('treeitem')
+    expect(active.getAttribute('aria-selected')).toBe('true')
+    const readout = screen.getByRole('region', { name: 'Selected' })
+    expect(within(readout).getByText('Order')).toBeTruthy()
+  })
+  it('a species in the readout renders through BirdName with its lineage as buttons', async () => {
+    const t = await tree()
+    const item = [...t.querySelectorAll('[role="treeitem"]')].find(e => e.getAttribute('aria-label')?.startsWith('Species, Snow Goose'))!
+    // A touch press acts on click; a mouse press acts on a pointer-up that moved under 4px.
+    fireEvent.pointerDown(item, { pointerType: 'touch' })
+    fireEvent.click(item)
+    const readout = screen.getByRole('region', { name: 'Selected' })
+    await waitFor(() => expect(within(readout).getByRole('button', { name: 'Snow Goose' })).toBeTruthy())
+    fireEvent.click(within(readout).getByRole('button', { name: 'Snow Goose' }))
+    expect(openSpecies).toHaveBeenCalledWith('Snow Goose')
+    expect(within(readout).getByText('Genus')).toBeTruthy()
+    expect(within(readout).getByText('Family')).toBeTruthy()
+  })
+  it('the tools render in the toolbar; Zoom in is disabled at full zoom, and Collapse all closes every branch', async () => {
+    const t = await tree()
+    const tools = screen.getByRole('toolbar', { name: 'View tools' })
+    expect((within(tools).getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(within(tools).getByRole('button', { name: 'Collapse all' }))
+    await waitFor(() => expect([...t.querySelectorAll('[role="treeitem"]')].every(e => e.getAttribute('aria-level') === '1')).toBe(true))
+  })
+})
+
+describe('Find (FR-65 to FR-67)', () => {
+  // jsdom implements no scrolling; the reveal's scroll is the real-engine probe's.
+  beforeEach(() => { Element.prototype.scrollIntoView = vi.fn() })
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+  it('is a combobox in both views; a result opens its family in the table and focuses the row', async () => {
+    await ready()
+    const input = screen.getByRole('combobox', { name: 'Find a species, genus, family, or order' })
+    fireEvent.change(input, { target: { value: 'robin' } })
+    const list = screen.getByRole('listbox', { name: 'Matching species, genera, families, and orders' })
+    const opt = within(list).getAllByRole('option')[0]
+    expect(opt.textContent).toContain('American Robin')
+    expect(opt.id).toMatch(/-find-opt-0$/)
+    fireEvent.mouseDown(opt)
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.textContent).toBe('American Robin'))
+  })
+  it('Escape closes the list only and is consumed while it is open', async () => {
+    await ready()
+    const outer = vi.fn()
+    document.addEventListener('keydown', outer)
+    const input = screen.getByRole('combobox', { name: 'Find a species, genus, family, or order' })
+    fireEvent.change(input, { target: { value: 'goose' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(outer).not.toHaveBeenCalled()
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(outer).toHaveBeenCalledTimes(1)
+    document.removeEventListener('keydown', outer)
+  })
+  it('in the tree a result opens its lineage, makes it active and moves focus to the tree', async () => {
+    H.phone = false
+    layoutShims()
+    await ready()
+    const t = await screen.findByRole('tree')
+    await waitFor(() => expect(t.querySelectorAll('[role="treeitem"]').length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }))
+    const input = screen.getByRole('combobox', { name: 'Find a species, genus, family, or order' })
+    fireEvent.change(input, { target: { value: 'canada goose' } })
+    fireEvent.mouseDown(within(screen.getByRole('listbox')).getAllByRole('option')[0])
+    await waitFor(() => expect(document.activeElement).toBe(t))
+    await waitFor(() => {
+      const id = t.getAttribute('aria-activedescendant')
+      expect(id).not.toBeNull()
+      expect(document.getElementById(id!)?.getAttribute('aria-label')).toMatch(/^Species, Canada Goose/)
+    })
   })
 })

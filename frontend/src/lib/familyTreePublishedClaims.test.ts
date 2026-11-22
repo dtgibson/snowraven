@@ -16,8 +16,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 import { SWITCH_LABELS, EVERYWHERE_LABEL, REGION_CONTROL_LABEL } from './lifeListsCopy'
-import { COLLAPSE_ALL, EXPAND_ALL, KIND_COPY, MEDIA_LABEL, NOT_PLACED_HEADING, SORT_LABEL, YEAR_LABEL } from './familyTreeCopy'
-import { DEFAULT_NAMES, FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING } from './familyTreeSettings'
+import { COLLAPSE, COLLAPSE_ALL, EXPAND, EXPAND_ALL, FIT, FOCUS, KIND_COPY, MEDIA_LABEL, NOT_PLACED_HEADING, RESET, SORT_LABEL, VIEW_LABELS, YEAR_LABEL } from './familyTreeCopy'
+import { DEFAULT_NAMES, FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING, defaultViewFor } from './familyTreeSettings'
 
 const HELP = readFileSync(new URL('../../../docs/HELP.md', import.meta.url), 'utf8')
 const TAB = 'family-tree' as const
@@ -96,14 +96,36 @@ describe('the controls the passage names are the controls the tab draws', () => 
   })
 })
 
+describe('the tree and Find (Slice B)', () => {
+  it('the view switch by its two labels, and the first view by the window', () => {
+    sentenceWith(`**${VIEW_LABELS.rollup}**`, `**${VIEW_LABELS.diagram}**`)
+    const s = sentenceWith('When you first open the tab')
+    expect(s).toContain('the tree in a wide window and the table on a phone')
+    expect([defaultViewFor(false), defaultViewFor(true)]).toEqual(['diagram', 'rollup'])
+  })
+  it('the tools and the readout actions by their labels', () => {
+    sentenceWith(`**${FIT}**`, `**${RESET}**`)
+    sentenceWith(`**${EXPAND}**`, `**${COLLAPSE}**`, `**${FOCUS}**`)
+  })
+  it('the tree is one Tab stop with its keys', () => {
+    const s = sentenceWith('one stop for the Tab key')
+    expect(s).toContain('plus, minus and zero zoom in, out and to fit')
+  })
+  it('Find searches all four levels by either name, and a species by its code', () => {
+    const s = sentenceWith('**Find** searches every species, genus, family and order')
+    expect(s).toContain('by common or scientific name in any Names state')
+    expect(s).toContain('four-letter code')
+  })
+})
+
 describe('the claims about figures and memory', () => {
   it('world totals never change with the filters', () => {
     sentenceWith('never change with the filters')
   })
   it('the remembered choices are the keys the tab writes, and the rest are per-session', () => {
-    const s = sentenceWith('SnowRaven remembers the region and the names you choose')
+    const s = sentenceWith('SnowRaven remembers the region, the names and the view you choose')
     expect(s).toContain('per-session, resetting on relaunch')
-    expect([FAMILY_TREE_REGION_SETTING, FAMILY_TREE_NAMES_SETTING]).toEqual(['familyTreeRegion', 'familyTreeNames'])
+    expect([FAMILY_TREE_REGION_SETTING, FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_VIEW_SETTING]).toEqual(['familyTreeRegion', 'familyTreeNames', 'familyTreeView'])
     expect(PASSAGE).not.toContain('on this device')
   })
   it('nothing is looked up for the tab', () => {

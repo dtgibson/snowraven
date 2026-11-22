@@ -65,12 +65,14 @@ function presence(kinds: number | null) {
   return { photo: (k & 1) !== 0, audio: (k & 2) !== 0, video: (k & 4) !== 0 }
 }
 
-function SpeciesRow({ leaf, names, codeFor, onOpenSpecies, mediaShown }: {
-  leaf: SpeciesLeaf; names: NamesState; codeFor: (n: string) => string | undefined
+function SpeciesRow({ leaf, spKey, names, codeFor, onOpenSpecies, mediaShown }: {
+  leaf: SpeciesLeaf; spKey: string; names: NamesState; codeFor: (n: string) => string | undefined
   onOpenSpecies?: (n: string) => void; mediaShown: boolean
 }) {
+  // `spKey` is Find's handle on the row (design-spec 8's reveal): the asset
+  // sequence, or the place in the unplaced list, never the name.
   return (
-    <div className="sr-ft-sp">
+    <div className="sr-ft-sp" data-ft-sp={spKey}>
       <BirdName
         commonName={leaf.name}
         scientificName={leaf.sci}
@@ -86,7 +88,11 @@ function SpeciesRow({ leaf, names, codeFor, onOpenSpecies, mediaShown }: {
   )
 }
 
-function FamilyOpen({ family, index, names, codeFor, onOpenSpecies, mediaShown, isNew }: {
+// FamilyOpen and FamilyRow are memoized so an Expand all chunk re-renders only
+// the families it opens, never every family opened before it: the built table
+// measured a longest block of 664 ms in WebKit at every species without it
+// (family-rollups-and-tree decisions D-41).
+const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onOpenSpecies, mediaShown, isNew }: {
   family: FamilyNode; index: FamilyIndex; names: NamesState; codeFor: (n: string) => string | undefined
   onOpenSpecies?: (n: string) => void; mediaShown: boolean; isNew: boolean
 }) {
@@ -103,16 +109,16 @@ function FamilyOpen({ family, index, names, codeFor, onOpenSpecies, mediaShown, 
               <span>{genusSpecies(g.seen)}</span>
             </p>
             {g.species.map(s => (
-              <SpeciesRow key={s.name} leaf={s} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} />
+              <SpeciesRow key={s.name} leaf={s} spKey={`s${s.seq}`} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} />
             ))}
           </div>
         )
       })}
     </div>
   )
-}
+})
 
-function FamilyRow({ order, family, index, names, flat, isOpen, onToggle, mediaShown }: {
+const FamilyRow = memo(function FamilyRow({ order, family, index, names, flat, isOpen, onToggle, mediaShown }: {
   order: OrderNode; family: FamilyNode; index: FamilyIndex; names: NamesState; flat: boolean
   isOpen: boolean; onToggle: (k: number) => void; mediaShown: boolean
 }) {
@@ -164,7 +170,7 @@ function FamilyRow({ order, family, index, names, flat, isOpen, onToggle, mediaS
       )}
     </Button>
   )
-}
+})
 
 export const FamilyTreeRollup = memo(function FamilyTreeRollup({
   model, index, names, sort, open, fresh, onToggle, codeFor, onOpenSpecies,
@@ -233,8 +239,8 @@ export const FamilyTreeRollup = memo(function FamilyTreeRollup({
             {unplacedOpen && (
               <div className={fresh.has(NOT_PLACED_KEY) ? 'sr-ft-open is-new' : 'sr-ft-open'}>
                 <p className="sr-ft-reason">{notPlacedReason(model.unplaced.length)}</p>
-                {model.unplaced.map(s => (
-                  <SpeciesRow key={s.name} leaf={s} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} />
+                {model.unplaced.map((s, i) => (
+                  <SpeciesRow key={s.name} leaf={s} spKey={`u${i}`} names={names} codeFor={codeFor} onOpenSpecies={onOpenSpecies} mediaShown={mediaShown} />
                 ))}
               </div>
             )}
