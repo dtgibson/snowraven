@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-// MARKUP GOLDENS for the two shared components the Family Tree tab changes
-// (family-rollups-and-tree schema 9.3; QA-12, QA-91).
+// MARKUP GOLDENS for the shared components the Family Tree tab changes
+// (family-rollups-and-tree schema 9.3; QA-12, QA-91; and, after QA round 2,
+// schema 8.2's optional `onReload` on the shared load-failure alert, whose
+// every existing prop combination is pinned here before the prop is added).
 //
 // WHY THIS FILE EXISTS AND WHY ITS ORDER MATTERS. Two changes must leave every
 // existing surface byte-identical: Life Lists' media presence cell leaves
@@ -25,6 +27,7 @@ import { dirname, join } from 'node:path'
 import { render, cleanup } from '@testing-library/react'
 import { BirdName, type BirdNameProps } from './BirdName'
 import { LifeListsRows } from './lifeLists/LifeListsRows'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import type { LifeListRow } from '../lib/lifeLists'
 
 afterEach(cleanup)
@@ -95,8 +98,25 @@ function birdNameMarkup(): Record<string, string> {
   return out
 }
 
+/** Every prop combination an existing caller can reach: both variants, idle and
+ *  showing, with and without Retry. */
+function tabLoadErrorAlertMarkup(): Record<string, string> {
+  const out: Record<string, string> = {}
+  const noop = () => {}
+  for (const variant of ['panel', 'stats'] as const) {
+    for (const message of [null, "SnowRaven couldn't read your eBird data."]) {
+      for (const retry of [false, true]) {
+        const { container } = render(<TabLoadErrorAlert message={message} onGoToSettings={noop} variant={variant} onRetry={retry ? noop : undefined} />)
+        out[JSON.stringify({ variant, message: message !== null, retry })] = normalize(container.innerHTML)
+        cleanup()
+      }
+    }
+  }
+  return out
+}
+
 describe('the shared components render byte-identically to the captured golden', () => {
-  const now = { lifeListsRows: lifeListsRowsMarkup(), birdName: birdNameMarkup() }
+  const now = { lifeListsRows: lifeListsRowsMarkup(), birdName: birdNameMarkup(), tabLoadErrorAlert: tabLoadErrorAlertMarkup() }
   if (CAPTURE) {
     writeFileSync(GOLDEN, JSON.stringify(now, null, 1) + '\n')
   }
@@ -112,5 +132,9 @@ describe('the shared components render byte-identically to the captured golden',
   })
   it('every BirdName prop combination an existing call can reach is unchanged', () => {
     expect(now.birdName).toEqual(golden!.birdName)
+  })
+  it('the load-failure alert without onReload is unchanged in every variant and state (schema 8.2)', () => {
+    expect(Object.keys(golden!.tabLoadErrorAlert)).toHaveLength(8)
+    expect(now.tabLoadErrorAlert).toEqual(golden!.tabLoadErrorAlert)
   })
 })
