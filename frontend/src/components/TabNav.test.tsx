@@ -475,9 +475,10 @@ describe('the More sheet', () => {
 // of a list then capped at min(70dvh, 460px). When Targets made that list eight
 // rows, Settings fell past the cap on every notched iPhone, under the home
 // indicator, with no scroll cue, and larger text did the same with fewer rows.
-// The cap is now min(73dvh, 616px), both terms measured for thirteen tabs
-// (hotspot-reports decisions.md D-08), so at the default text size the whole
-// list fits as well (the row below holds it as a property at 616px).
+// The cap is now min(78dvh, 660px), both terms measured for fourteen tabs
+// (family-rollups-and-tree decisions.md D-50; 616px for thirteen at
+// hotspot-reports D-08), so at the default text size the whole list fits as
+// well (the row below holds it as a property at 660px).
 //
 // THE CLAIM GUARDED HERE is the structure that takes the row count and the text
 // scale out of the question: the sheet is a flex column; every row but Settings
@@ -720,9 +721,10 @@ describe('the More sheet keeps Settings in view at any row count and any text sc
     // page, and it is tall enough for the whole sheet at the default text size.
     // SHEET_AT_1X_PX is a MEASUREMENT, not a number to derive here: the sheet's
     // full height at 1x on a notched iPhone with the iOS inset (393x852, 34px
-    // inset, all thirteen tabs, nine rows in the body), read in WebKit and
-    // Chromium on the built app: the body's 506px, the foot's 61px, the 48px of
-    // padding and the border (hotspot-reports decisions.md D-08). jsdom has no
+    // inset, all fourteen tabs, ten rows in the body), read in WebKit and
+    // Chromium on the built app: the body's 550px, the foot's 61px, the 48px of
+    // padding and the border (family-rollups-and-tree decisions.md D-50; first
+    // measured at thirteen tabs, hotspot-reports D-08). jsdom has no
     // layout and the heading's line height is font-dependent, so it cannot be
     // computed from the declarations. The row is a PROPERTY over both terms of
     // the cap: a pixel term below the measured sheet, or a viewport term whose
@@ -730,7 +732,7 @@ describe('the More sheet keeps Settings in view at any row count and any text sc
     // scroll at 1x on that phone, and either goes red here. It still cannot see
     // the content grow: a destination added later owes a new measurement and a
     // new constant (ui.md, the v1.0.45 rule).
-    const SHEET_AT_1X_PX = 616
+    const SHEET_AT_1X_PX = 660
     const REFERENCE_PHONE_HEIGHT_PX = 852
     const cap = /^min\(\s*(\d+(?:\.\d+)?)dvh\s*,\s*(\d+(?:\.\d+)?)px\s*\)$/.exec(onSheet.value('max-height') ?? '')
     expect(cap, `the sheet cap is not min(<v>dvh, <px>): ${onSheet.value('max-height')}`).not.toBeNull()

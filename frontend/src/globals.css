@@ -9355,18 +9355,19 @@ select:focus-visible {
    keeps `overflow: auto` only as a fallback for a window too short to hold the
    foot at all. The column and the gate are pinned as resolved cascade values in
    TabNav.test.tsx; that the row is actually on screen is a browser measurement.
-   THE CAP IS min(73dvh, 616px), both terms MEASURED (hotspot-reports
-   decisions.md D-08, the user's direction at that design review): the whole
-   sheet at 1x on a notched iPhone with the iOS inset (393x852, 34px inset, all
-   thirteen tabs, nine rows in the body: the body's 506px plus the foot's 61px,
-   the padding and the border) is 616px in WebKit and in Chromium, and 73 is the
-   smallest whole dvh that holds 616px of 852px, so at the default text size
+   THE CAP IS min(78dvh, 660px), both terms MEASURED (first at hotspot-reports
+   decisions.md D-08, the user's direction at that design review; re-measured
+   for fourteen tabs at family-rollups-and-tree D-50): the whole sheet at 1x on
+   a notched iPhone with the iOS inset (393x852, 34px inset, all fourteen tabs,
+   ten rows in the body: the body's 550px plus the foot's 61px, the 48px of
+   padding and the border) is 660px in WebKit and in Chromium, and 78 is the
+   smallest whole dvh that holds 660px of 852px, so at the default text size
    every destination shows with nothing to scroll on the reference phone. The
    viewport term still binds first on the short SE screens, which scroll with
    Settings pinned in the foot. A destination added later owes a new
    measurement of both terms and of TabNav.test.tsx's constant. */
 .sr-nav-sheet {
-  width: 100%; max-height: min(73dvh, 616px);
+  width: 100%; max-height: min(78dvh, 660px);
   display: flex; flex-direction: column;
   background: var(--sr-surface);
   border-top: 1px solid var(--sr-border);
