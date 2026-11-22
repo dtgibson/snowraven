@@ -16,7 +16,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { EXIT_WORD, OPEN_MAP_LABEL } from './mapStillCopy'
+import { EXIT_WORD, OPEN_MAP_LABEL, STILL_NAMES } from './mapStillCopy'
 import { FS_OPEN_ATTR } from './useMapFullscreen'
 
 const read = (path: string) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8')
@@ -84,5 +84,21 @@ describe('docs/HELP.md: Maps on a phone', () => {
     expect(HELP).toContain('On a phone, open the map to drop the pin. The place search and the coordinate fields work without opening it.')
     expect(HELP).toContain('On a phone the map opens in fullscreen like the other maps. On larger screens it has no fullscreen button.')
     expect(HELP).toContain(`On a phone, where the window is too short to hold the whole map, the map is shown as a still with **${OPEN_MAP_LABEL}** under it, which opens it in fullscreen.`)
+  })
+})
+
+// QA round 1: lib/mapStillCopy.ts said its one typographic apostrophe was written
+// as an escape while the file held the literal character (the editing-tool
+// escape loss in testing.md, v1.0.52 to v1.0.63). The module's header states the
+// contract for its whole source, comments included, so the row holds all of it.
+describe('lib/mapStillCopy.ts holds no literal non-ASCII character', () => {
+  const src = read('frontend/src/lib/mapStillCopy.ts')
+
+  it('in its source, and its one apostrophe still renders as one', () => {
+    const bad: string[] = []
+    for (const ch of src) if (ch.charCodeAt(0) > 0x7e) bad.push(`U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`)
+    expect(bad).toEqual([])
+    expect(src).toContain(String.raw`bird\u2019s`)
+    expect(STILL_NAMES.named).toBe('Map showing this bird\u2019s sightings')
   })
 })

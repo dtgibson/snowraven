@@ -34,7 +34,7 @@ export const PICKER_PAGE_NOTE = 'Tap the map to drop a pin, drag to fine-tune, o
 export const STILL_NAMES = {
   species: 'Map showing sighting locations',
   statistics: 'Map showing Geographic Stats',
-  named: 'Map showing this bird’s sightings',
+  named: 'Map showing this bird\u2019s sightings',
   picker: 'Map showing the chosen place',
   explorer: 'Map',
 } as const
