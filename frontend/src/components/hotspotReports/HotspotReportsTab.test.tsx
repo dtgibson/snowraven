@@ -62,8 +62,8 @@ vi.mock('../../lib/useHotspotSet', () => ({
 }))
 // The map is its own lazy chunk (maplibre); a stub stands in for it here.
 vi.mock('./HotspotReportMap', () => ({
-  HotspotReportMap: ({ name, lat, lng }: { name: string; lat: number; lng: number }) => (
-    <div data-testid="map" role="group" aria-label={`Map showing ${name}`} data-at={`${lat},${lng}`} />
+  HotspotReportMap: ({ lat, lng }: { lat: number; lng: number }) => (
+    <div data-testid="map" data-at={`${lat},${lng}`} />
   ),
 }))
 // The two file-scaled derivations, wrapped so QA-06 and QA-35 can count them.
@@ -424,7 +424,11 @@ describe('a report (FR-31 to FR-56, QA-24, QA-25, QA-31, QA-32, QA-40, QA-77)', 
     const { container } = await ready()
     await choose(container, 'Jamaica Bay')
     await waitFor(() => expect(container.querySelector('[data-testid="map"]')).not.toBeNull())
-    expect(container.querySelector('[data-testid="map"]')!.getAttribute('aria-label')).toBe('Map showing Jamaica Bay')
+    // The named box is the host's since map-scroll-on-phones (it holds the box
+    // through the lazy chunk); the map renders inside it.
+    const box = container.querySelector('[data-testid="map"]')!.closest('.sr-hsr-map')!
+    expect(box.getAttribute('role')).toBe('group')
+    expect(box.getAttribute('aria-label')).toBe('Map showing Jamaica Bay')
     await choose(container, 'Backyard')
     expect(container.querySelector('[data-testid="map"]')).toBeNull()
     expect(container.textContent).toContain('Your backup has no coordinates for this location, so there is no map.')

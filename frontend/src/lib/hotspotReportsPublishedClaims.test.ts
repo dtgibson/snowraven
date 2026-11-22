@@ -465,17 +465,25 @@ describe('the map sentences, kept true with a plain map in the app (FR-40, FR-59
     .filter(f => f.endsWith('.tsx') && !f.includes('.test.'))
     .filter(f => src(f).includes('<SnowMap'))
     .sort()
-  const SHARE = /<(MapCornerControls|SharePin)\b/
+  // A share control is a SharePin, or a corner row that is not told `share={false}`
+  // (map-scroll-on-phones gave the Weather picker and the report's map an
+  // Exit-only row on the phone tier, which carries no share pin).
+  const SHARE = /<SharePin\b|<MapCornerControls\b(?![^>]*share=\{false\})/
 
-  it("the report's map is plain: one marker, and no base switcher, share, fullscreen or location control, and no popup", () => {
+  it("the report's map is plain: one marker, and no base switcher, share or location control, and no popup", () => {
     const code = src('hotspotReports/HotspotReportMap.tsx')
     expect(code).toContain('<SnowMap')
     expect(code).toContain('<Marker')
-    for (const absent of ['switcher', 'SharePin', 'MapCornerControls', 'useMapFullscreen', '<Popup', 'Locate']) {
+    for (const absent of ['switcher', 'SharePin', 'useMapFullscreen', '<Popup', 'Locate']) {
       expect(code.includes(absent), `HotspotReportMap.tsx has no ${absent}`).toBe(false)
     }
-    expect(paragraph(passage(), SECTION_TITLES.map)).toContain(
-      'It is a plain map: its zoom buttons and the map credits, and no base map switcher, share button, fullscreen button, location button or popup.')
+    // map-scroll-on-phones D-13: the one corner row it has is Exit-only and
+    // exists only while expanded, which only the phone tier's opener does.
+    expect(code).toContain('<MapCornerControls compact={false} share={false} fsOnly />')
+    const para = paragraph(passage(), SECTION_TITLES.map)
+    expect(para).toContain(
+      'It is a plain map: its zoom buttons and the map credits, and no base map switcher, share button, location button or popup.')
+    expect(para).toContain('On a phone the map opens in fullscreen like the other maps. On larger screens it has no fullscreen button.')
   })
 
   it('the maps without a share control are exactly the two Help names as having no corner row', () => {
@@ -486,12 +494,12 @@ describe('the map sentences, kept true with a plain map in the app (FR-40, FR-59
     const plain = MAP_FILES.filter(f => !SHARE.test(src(f))).sort()
     expect(plain, 'a new map without a share control: re-check Help\'s "Where it works" and corner-row sentences')
       .toEqual(['PredictMap.tsx', 'hotspotReports/HotspotReportMap.tsx'])
-    expect(HELP).toContain(`The small location-picker map in the Weather tab's Plan form and the map in a ${LABEL} report have no row at all.`)
+    expect(HELP).toContain(`The small location-picker map in the Weather tab's Plan form and the map in a ${LABEL} report have no row in the page; on a phone, opened in fullscreen, each has an **Exit** button there and nothing else.`)
   })
 
   it('"Copying a location works on every map in the app" is gone, re-scoped at paragraph scope to the maps with a share button', () => {
     expect(HELP.includes('works on every map in the app')).toBe(false)
-    expect(HELP).toContain(`**Where it works.** Copying a location works on every map that has a share button in its bottom-right corner (see "The buttons in the map's bottom-right corner" above). A map with no row of buttons there, such as the Weather tab's Plan location picker or the map in a ${LABEL} report, has no share pin.`)
+    expect(HELP).toContain(`**Where it works.** Copying a location works on every map that has a share button in its bottom-right corner (see "The buttons in the map's bottom-right corner" above). A map with no share button there, such as the Weather tab's Plan location picker or the map in a ${LABEL} report, has no share pin.`)
     // The cross-reference resolves to a real lead-in in the Map Explorer section.
     expect(HELP).toContain("**The buttons in the map's bottom-right corner.**")
   })

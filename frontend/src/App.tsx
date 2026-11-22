@@ -1382,7 +1382,12 @@ export default function App() {
           {/* Current / Predict — live + forecast weather and tide, bypassing the
               checklist. Self-contained; the map (maplibre) lazy-loads only when
               the user opens Predict, so the first-paint Weather tab stays light. */}
-          <WeatherForecastPanel onPlanVisible={setPlanOnScreen} />
+          {/* The Plan location picker is a useMapFullscreen host on the phone
+              tier (map-scroll-on-phones D-12), so an expanded picker is tied to
+              this tab showing, exactly as the other hosts below are (E-09). */}
+          <MapTabShowingProvider value={activeTab === 'weather'}>
+            <WeatherForecastPanel onPlanVisible={setPlanOnScreen} />
+          </MapTabShowingProvider>
         </div>
         {/* Weather Backlog — a third bottom section: list the user's recent
             checklists that still have no weather block, built from the loaded
@@ -1531,14 +1536,18 @@ export default function App() {
         }}
       >
         {mountedTabs.has('hotspot-reports') && (
-          <Suspense fallback={<TabLoading label="Loading hotspot reports…" />}>
-            <HotspotReportsTab
-              onGoToSettings={() => setActiveTab('settings')}
-              onOpenSpecies={navigateToSpeciesDetail}
-              requestedLocationId={requestedLocation}
-              onRequestedLocationConsumed={clearRequestedLocation}
-            />
-          </Suspense>
+          // The report's map is a useMapFullscreen host on the phone tier
+          // (map-scroll-on-phones D-13), so it is tied to this tab showing.
+          <MapTabShowingProvider value={activeTab === 'hotspot-reports'}>
+            <Suspense fallback={<TabLoading label="Loading hotspot reports…" />}>
+              <HotspotReportsTab
+                onGoToSettings={() => setActiveTab('settings')}
+                onOpenSpecies={navigateToSpeciesDetail}
+                requestedLocationId={requestedLocation}
+                onRequestedLocationConsumed={clearRequestedLocation}
+              />
+            </Suspense>
+          </MapTabShowingProvider>
         )}
       </div>
 

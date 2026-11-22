@@ -18,7 +18,7 @@
 // Section heading ids are fixed literals (one tab instance in the document),
 // never built from file content.
 
-import { lazy, Suspense, type RefObject } from 'react'
+import { lazy, Suspense, useRef, type RefObject } from 'react'
 import { BarChart2, CalendarDays, ClipboardList, CloudSun, ListChecks, ListOrdered, MapPin } from 'lucide-react'
 import { Link } from '../ui/Link'
 import { smoothScrollIntoView } from '../../lib/scroll'
@@ -26,8 +26,11 @@ import type { LocationRecord } from '../../lib/hotspotReports'
 import type { LocationKind } from '../../lib/hotspotReportsKind'
 import { mostRecordedView, type LocationFacts, type LocationSpecies, type WeatherView } from '../../lib/hotspotReportsLocation'
 import {
-  JUMP_CHIPS, JUMP_NAV_LABEL, JUMP_SECTIONS, NO_MAP, SECTION_TITLES, displayName, type ReportSection,
+  JUMP_CHIPS, JUMP_NAV_LABEL, JUMP_SECTIONS, NO_MAP, SECTION_TITLES, displayName, mapLabel, type ReportSection,
 } from '../../lib/hotspotReportsCopy'
+import { useMapFullscreen, MapFullscreenProvider } from '../../lib/useMapFullscreen'
+import { OPEN_MAP_LABEL, OPEN_MAP_NOTE } from '../../lib/mapStillCopy'
+import { FsOpenRow } from '../ui/FsOpenRow'
 import { HotspotReportHeader } from './HotspotReportHeader'
 import { HotspotReportLifeList } from './HotspotReportLifeList'
 import { GlanceBody, MostRecordedBody, ProtocolsBody, VisitsBody, WeatherBody, type MediaState } from './HotspotReportSections'
@@ -73,6 +76,17 @@ export function HotspotReport({
   // The chip set is the sections actually rendered after the row, in order.
   const chips = JUMP_SECTIONS.filter(s => s !== 'top' || top !== null)
 
+  // The map's fullscreen, on the phone tier only (map-scroll-on-phones D-13).
+  // Above the tier this stays the plain map of hotspot-reports D-01: nothing
+  // here draws a control there (the corner row exists only while expanded, and
+  // only the phone tier has the opener that expands it). The host owns the box
+  // so the opener is in the layout from the first frame, before the lazy map
+  // chunk arrives. A change of place collapses it (`resetKey`), since the map is
+  // not remounted across selections.
+  const hasMap = rec.lat !== null && rec.lng !== null
+  const mapBoxRef = useRef<HTMLDivElement>(null)
+  const mapFs = useMapFullscreen({ containerRef: mapBoxRef, baseClass: 'sr-hsr-map', active: hasMap, resetKey: rec.ord })
+
   return (
     <div className="sr-hsr-report">
       <HotspotReportHeader
@@ -104,12 +118,31 @@ export function HotspotReport({
       <div className="sr-hsr-body">
         <div className="sr-hsr-rail">
           <SectionCard
-            id={SECTION_IDS.map} glyph={<MapPin {...GLYPH} />} title={SECTION_TITLES.map} flushBody={rec.lat !== null && rec.lng !== null}
+            id={SECTION_IDS.map} glyph={<MapPin {...GLYPH} />} title={SECTION_TITLES.map} flushBody={hasMap}
           >
             {rec.lat !== null && rec.lng !== null ? (
-              <Suspense fallback={<div className="sr-hsr-map" aria-hidden="true" />}>
-                <HotspotReportMap lat={rec.lat} lng={rec.lng} name={name} />
-              </Suspense>
+              <>
+                {/* The box (and its name) moved here from HotspotReportMap so
+                    the host can hold it through the lazy chunk; it is the same
+                    `.sr-hsr-map` group named `mapLabel(name)`, and on the phone
+                    tier a still (`role="img"`, same name) whose body is inert. */}
+                <div
+                  ref={mapBoxRef}
+                  className={mapFs.hostClassName}
+                  role={mapFs.still ? 'img' : 'group'}
+                  aria-label={mapLabel(name)}
+                  onClick={mapFs.still ? mapFs.open : undefined}
+                >
+                  <div className="sr-map-still-body" inert={mapFs.still}>
+                    <MapFullscreenProvider value={mapFs}>
+                      <Suspense fallback={null}>
+                        <HotspotReportMap lat={rec.lat} lng={rec.lng} />
+                      </Suspense>
+                    </MapFullscreenProvider>
+                  </div>
+                </div>
+                <FsOpenRow fs={mapFs} label={OPEN_MAP_LABEL} note={OPEN_MAP_NOTE} inset />
+              </>
             ) : (
               <p className="sr-hsr-body-text">{NO_MAP}</p>
             )}

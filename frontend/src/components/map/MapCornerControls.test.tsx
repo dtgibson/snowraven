@@ -69,10 +69,12 @@ import { useMapFullscreen, MapFullscreenProvider } from '../../lib/useMapFullscr
 
 /** A host in the shape of the three real ones. `withProvider` false models a map
  *  mounted outside any provider, which must still get its share button. */
-function Host({ compact = false, withProvider = true }: { compact?: boolean; withProvider?: boolean }) {
+function Host({ compact = false, withProvider = true, share = true, fsOnly = false }: {
+  compact?: boolean; withProvider?: boolean; share?: boolean; fsOnly?: boolean
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-map-container' })
-  const row = <MapCornerControls compact={compact} />
+  const row = <MapCornerControls compact={compact} share={share} fsOnly={fsOnly} />
   return (
     <div ref={ref} className={fs.className} data-testid="container">
       {withProvider ? <MapFullscreenProvider value={fs}>{row}</MapFullscreenProvider> : row}
@@ -266,5 +268,38 @@ describe('the gesture handoff (FR-15, OQ-02, QA-21)', () => {
     unmount()
     expect(scrollZoom.current!.state.on).toBe(false)
     expect(cooperative.current!.state.on).toBe(true)
+  })
+})
+
+
+describe('the Exit-only row and the visible word (map-scroll-on-phones D-10, D-12, D-13)', () => {
+  it('share={false} renders the toggle alone: no share button and no slot for one', () => {
+    render(<Host share={false} />)
+    expect(toggle()).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /pin (at|to) the map cent(er|re)/i })).toBeNull()
+    const row = document.querySelector('.sr-map-corner-row')!
+    expect(row.querySelector('.sr-map-fab-slot')).toBeNull()
+    expect(row.querySelectorAll('button')).toHaveLength(1)
+  })
+
+  it('fsOnly marks the row so the stylesheet draws it only inside the expanded panel', () => {
+    render(<Host share={false} fsOnly />)
+    expect(document.querySelector('.sr-map-corner-row')!.className).toBe('sr-map-corner-row sr-map-corner-row--fs-only')
+    cleanup()
+    render(<Host />)
+    expect(document.querySelector('.sr-map-corner-row')!.className).toBe('sr-map-corner-row')
+  })
+
+  it('carries the word Exit only while expanded, and keeps the accessible name that contains it', () => {
+    render(<Host />)
+    expect(toggle().querySelector('.sr-map-exit-label')).toBeNull()
+    fireEvent.click(toggle())
+    const label = toggle().querySelector('.sr-map-exit-label')
+    expect(label?.textContent).toBe('Exit')
+    expect(toggle().getAttribute('aria-label')).toBe('Exit fullscreen')
+    expect(toggle().getAttribute('aria-label')!.startsWith(label!.textContent!)).toBe(true)
+    // The class list is HEAD's in both states: the pill is the stylesheet's
+    // phone-tier business, never a class the component adds.
+    expect(toggle().className).toBe('sr-map-fab sr-map-fab--std sr-map-fullscreen-btn')
   })
 })

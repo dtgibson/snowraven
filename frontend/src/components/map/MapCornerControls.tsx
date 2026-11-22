@@ -1,6 +1,9 @@
-// The bottom-right corner row on the four embedded map mounts: the share-pin
-// drop button, then the fullscreen toggle, in that order left to right, matching
-// the Map Explorer's shipped cluster so a user learns the vocabulary once.
+// The bottom-right corner row on the embedded map mounts: the share-pin drop
+// button, then the fullscreen toggle, in that order left to right, matching the
+// Map Explorer's shipped cluster so a user learns the vocabulary once. The
+// Weather location picker and the Hotspot Reports map (map-scroll-on-phones
+// D-12, D-13) carry the row too, with no share pin, and only while expanded:
+// above the phone tier they are the plain maps they were designed as.
 //
 // MOUNTED AS A <SnowMap> CHILD, which is what gives it useMap() access to the
 // live MaplibreMap for the resize and gesture effects. That co-location is the
@@ -19,15 +22,24 @@ import { useEffect, useLayoutEffect, useState } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useMap } from 'react-map-gl/maplibre'
 import { SharePin } from './SharePin'
+import { StillCredits } from './StillCredits'
 import { useMapFullscreenContext } from '../../lib/useMapFullscreen'
+import { EXIT_WORD } from '../../lib/mapStillCopy'
 
-export function MapCornerControls({ compact, sharePinResetKey }: {
+export function MapCornerControls({ compact, share, fsOnly, sharePinResetKey }: {
   /** Density, forwarded to SharePin and to the toggle's size modifier. REQUIRED,
    *  never defaulted (the MediaFrame precedent the share pin already follows).
    *  The modifier does NOT change when the map expands: a control that grows
    *  under the finger that just pressed it is a second state change nobody
    *  asked for. */
   compact: boolean
+  /** Whether this map has a share pin. REQUIRED, never defaulted: false on the
+   *  Weather picker and the Hotspot Reports map, which have none. */
+  share: boolean
+  /** The row exists only while the map is expanded (`.sr-map-corner-row--fs-only`
+   *  is `display: none` outside `.sr-map-fs-panel`). True on the two maps that
+   *  have no corner row in the page. REQUIRED, never defaulted. */
+  fsOnly: boolean
   /** Remounts ONLY the share pin when the entity behind the map changes, exactly
    *  as the shipped call sites did. Species Detail's map keeps its JSX position
    *  across a species change, so nothing unmounts and a stale pin would survive. */
@@ -41,6 +53,7 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
   // cheap way to keep both.
   const fs = useMapFullscreenContext()
   const expanded = fs?.expanded ?? false
+  const still = fs?.still ?? false
   const registerToggle = fs?.registerToggle
   const onToggle = fs?.toggle
   const map = useMap().current
@@ -106,10 +119,12 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
 
   const label = expanded ? 'Exit fullscreen' : 'Enter fullscreen'
 
+  const rowClass = `sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}${fsOnly ? ' sr-map-corner-row--fs-only' : ''}`
+
   return (
     <>
-      <div className={`sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}`}>
-        <div className="sr-map-fab-slot" ref={setSlot} />
+      <div className={rowClass}>
+        {share && <div className="sr-map-fab-slot" ref={setSlot} />}
         {onToggle && (
           <Button
             type="button"
@@ -129,10 +144,20 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
             {expanded
               ? <Minimize2 size={17} strokeWidth={2.2} aria-hidden />
               : <Maximize2 size={17} strokeWidth={2.2} aria-hidden />}
+            {/* The visible word, rendered only while expanded and drawn only on
+                the phone tier (`.sr-map-fs-panel .sr-map-exit-label`, D-10):
+                there the control that opened the map was the button under the
+                still, so the exit is a new control and may carry its word.
+                Above the tier it stays `display: none` and the toggle is HEAD's
+                disc. The accessible name above is unchanged and contains it. */}
+            {expanded && <span className="sr-map-exit-label">{EXIT_WORD}</span>}
           </Button>
         )}
       </div>
-      <SharePin key={sharePinResetKey} compact={compact} buttonHost={slot} />
+      {share && <SharePin key={sharePinResetKey} compact={compact} buttonHost={slot} />}
+      {/* The credits on a still are drawn open: the "i" that would open them
+          cannot be pressed there (D-17). */}
+      <StillCredits still={still} />
     </>
   )
 }

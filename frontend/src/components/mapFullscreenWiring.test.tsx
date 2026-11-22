@@ -263,6 +263,25 @@ const HOSTS = [
     // and the county popup's open-species link collapses on its way out (FR-24).
     extra: [/active:\s*mapReady\s*&&\s*geoHasPins/, /collapseGeoFs\(\)/],
   },
+  // map-scroll-on-phones D-12 and D-13: two hosts that expand on the phone tier
+  // only. Each mounts its corner row inside its own lazy map module (below).
+  {
+    name: 'Weather — the Plan location picker',
+    file: 'src/components/WeatherForecastPanel.tsx',
+    baseClass: 'sr-wx-pick-map',
+    mounts: [/<PredictMap\b/],
+    // The picker's subtree unmounts on any other phase; `active` is the exit.
+    extra: [/active:\s*phase\.kind\s*===\s*'predict'/],
+  },
+  {
+    name: 'Hotspot Reports — the report\'s map',
+    file: 'src/components/hotspotReports/HotspotReport.tsx',
+    baseClass: 'sr-hsr-map',
+    mounts: [/<HotspotReportMap\b/],
+    // No coordinates, no map; a change of place collapses it (the map is not
+    // remounted across selections).
+    extra: [/active:\s*hasMap/, /resetKey:\s*rec\.ord/],
+  },
 ] as const
 
 describe.each(HOSTS)('$name', ({ file, baseClass, mounts, extra }) => {
@@ -280,7 +299,21 @@ describe.each(HOSTS)('$name', ({ file, baseClass, mounts, extra }) => {
   })
 
   it('puts the composed className and the ref on the container it owns', () => {
-    expect(src).toMatch(/<div\s+ref=\{\w+\}\s+className=\{\w+\.className\}/)
+    // `hostClassName` since map-scroll-on-phones: `className` plus the still
+    // class while the map is a still on the phone tier.
+    expect(src).toMatch(/<div\s+ref=\{\w+\}\s+className=\{\w+\.hostClassName\}/)
+  })
+
+  it('is a still on the phone tier: named as a picture, its body inert, a press opens it, and the opener follows', () => {
+    // D-08, D-18. The container is `role="img"` with a name only while still
+    // (Hotspot Reports keeps its shipped `group` otherwise); the ONE wrapper is
+    // inert while still; the press is wired to `open` only while still; and the
+    // opener row (the keyboard and screen-reader route) is rendered by the host.
+    expect(src).toMatch(/role=\{\w+\.still \? 'img' : (undefined|'group')\}/)
+    expect(src).toMatch(/aria-label=\{(\w+\.still \? [^}]+ : undefined|mapLabel\(name\))\}/)
+    expect(src).toMatch(/onClick=\{\w+\.still \? \w+\.open : undefined\}/)
+    expect(src).toMatch(/<div className="sr-map-still-body" inert=\{\w+\.still\}>/)
+    expect(src).toMatch(/<FsOpenRow fs=\{\w+\}/)
   })
 
   it('wraps the map subtree in the provider, which is how the corner row reads the state', () => {
@@ -308,6 +341,14 @@ describe('the shared implementation (FR-07, QA-08)', () => {
     const shared = read('src/components/SightingsMap.tsx')
     expect(shared).toMatch(/<MapCornerControls\s+compact=\{compact\}/)
     expect(shared).not.toMatch(/fullscreen/i)
+  })
+
+  it('the two phone-tier-only hosts mount an Exit-only row inside their lazy map modules', () => {
+    // D-12, D-13: no share pin, and the row exists only while expanded, so
+    // above the tier both maps keep the plain look they were designed with.
+    for (const file of ['src/components/PredictMap.tsx', 'src/components/hotspotReports/HotspotReportMap.tsx']) {
+      expect(read(file), file).toMatch(/<MapCornerControls compact=\{false\} share=\{false\} fsOnly \/>/)
+    }
   })
 
   it('adds no fullscreen state to App.tsx and writes nothing to the storage seam', () => {

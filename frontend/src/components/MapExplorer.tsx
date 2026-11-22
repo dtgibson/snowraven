@@ -32,6 +32,10 @@ import { classifyLiveError, formatLoadedTime, OFFLINE_MESSAGE_SHORT, type LiveEr
 import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
 import { useIsPhone } from '../lib/useIsPhone'
+import { usePanelOnFloor } from '../lib/mapPanelChrome'
+import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
+import { FsOpenRow } from './ui/FsOpenRow'
+import { StillCredits } from './map/StillCredits'
 import { mapContentClass, mobileMapFullscreen } from '../lib/mapFullscreen'
 import { showLocationControls } from '../lib/platformGates'
 import { focusablesIn, useFocusTrap } from '../lib/useFocusTrap'
@@ -1859,6 +1863,64 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // "is there data" (FR-02), so it stays absent for both, for the same reason: no
   // MapEffects is mounted to consume a panTarget either way.
   const mapMounted = !isLoadingSaved && !((isSetupRequired || loadErrorMessage !== null) && viewMode === 'sightings')
+
+  // THE PHONE-TIER STILL (map-scroll-on-phones D-14). The panel's phone-tier
+  // floor is 300px on every platform, which keeps the page from scrolling under
+  // the live map at every measured size at 100% text. Where the window still
+  // cannot hold the panel (it is on that floor: a small phone at large text),
+  // the map is a still with the same opener the other maps use, INSIDE the
+  // panel's fixed height, and opening it is the tab's own fullscreen through
+  // `onToggleFullscreen`. So "the page never scrolls under a live map on the
+  // phone tier" holds at every text size. The reading is the panel's own height
+  // against its own floor (lib/mapPanelChrome.ts), which nothing the still adds
+  // can move. The panel is App's element, this component's parent, so it is
+  // taken from the root's callback ref as STATE (ui.md v1.0.17).
+  const [explorerPanel, setExplorerPanel] = useState<HTMLElement | null>(null)
+  const explorerRootRef = useCallback((node: HTMLDivElement | null) => {
+    setExplorerPanel(node?.parentElement ?? null)
+  }, [])
+  const panelOnFloor = usePanelOnFloor(explorerPanel, isPhoneWidth && !isFullscreen)
+  const explorerStill = panelOnFloor && mapMounted && !sidebarOpen && !!onToggleFullscreen
+  const [stillOpener, setStillOpener] = useState<HTMLButtonElement | null>(null)
+  const openedFromStill = useRef(false)
+  const openFromStill = useCallback(() => {
+    if (isFullscreen || !onToggleFullscreen) return
+    openedFromStill.current = true
+    onToggleFullscreen()
+  }, [isFullscreen, onToggleFullscreen])
+  const stillOpenerHost = useMemo(
+    () => ({ stillTier: explorerStill, open: openFromStill, registerOpener: setStillOpener }),
+    [explorerStill, openFromStill],
+  )
+  // Focus follows the round trip, after each commit, and only on a CHANGE of
+  // `isFullscreen`: opened from the still, it lands on the fullscreen exit (the
+  // opener has just left the layout); back from fullscreen onto the still, it
+  // returns to the opener, read back, with the page's offset left where it is.
+  // Leaving the tab collapses fullscreen too; the opener is then in a hidden
+  // panel and refuses focus, so nothing moves. The opener MOUNTS in the exit
+  // commit (it is not rendered while fullscreen), so its registration arrives a
+  // render later: the request is held until it does, and dropped if the still
+  // does not come back.
+  const shownFullscreen = useRef(!!isFullscreen)
+  const focusOpenerPending = useRef(false)
+  useEffect(() => {
+    const now = !!isFullscreen
+    if (shownFullscreen.current !== now) {
+      shownFullscreen.current = now
+      if (now) {
+        focusOpenerPending.current = false
+        if (openedFromStill.current) fullscreenButtonRef.current?.focus()
+        openedFromStill.current = false
+        return
+      }
+      focusOpenerPending.current = true
+    }
+    if (!focusOpenerPending.current) return
+    if (!explorerStill) { focusOpenerPending.current = false; return }
+    if (!stillOpener?.isConnected) return
+    focusOpenerPending.current = false
+    stillOpener.focus({ preventScroll: true })
+  }, [isFullscreen, explorerStill, stillOpener])
   // One name on all four views: the promise is identical everywhere. On the three
   // centre views the same press MAY also run a search, but only when both
   // coordinate fields were empty — a condition the user cannot see, so a name
@@ -3137,7 +3199,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // ── Layout ────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+    <div ref={explorerRootRef} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
       {/* Mode bar — flexWrap so the four pills drop to a second/third line on a
           narrow phone (or at a large in-app text size) instead of forcing the
           whole panel into horizontal overflow. */}
@@ -3259,7 +3321,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         {/* Map area. The ref is the CONTAINER half of the OI-01 fit measurement
             (useSearchControlFit) — the box the control row must stay inside,
             and the subtree the layers switcher is looked up in. */}
-        <div ref={mapAreaRef} style={{ flex: 1, position: 'relative' }}>
+        <div ref={mapAreaRef} className={explorerStill ? 'sr-mx-area--still' : undefined} style={{ flex: 1, position: 'relative' }}>
           {/* Loading chip over the canvas while a search is in flight — the
               sidebar button already shows "Finding…", but on mobile (sidebar
               closed) the map itself gave no signal. */}
@@ -3553,6 +3615,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               )}
               {onToggleFullscreen && (
                 <Button
+                  ref={fullscreenButtonRef}
                   className="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn"
                   onClick={onToggleFullscreen}
                   aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
@@ -3618,11 +3681,26 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               onGoToSettings={onGoToSettings}
             />
           ) : loadErrorMessage !== null && viewMode === 'sightings' ? null : (
+            // The still's two boxes (D-14): the outer one names it and takes the
+            // press, the inner one is inert and takes no pointer. Two, not one,
+            // because an inert element leaves the accessibility tree itself, so
+            // the name cannot sit on it; and not the map area, whose live
+            // regions (the search outcome, the landing announcer, the load
+            // failure) must stay in the tree. Both are 100% high and carry no
+            // other style, so above the tier the map lays out as at HEAD.
+            <div
+              className={explorerStill ? 'sr-mx-still-host sr-map-still' : 'sr-mx-still-host'}
+              role={explorerStill ? 'img' : undefined}
+              aria-label={explorerStill ? STILL_NAMES.explorer : undefined}
+              onClick={explorerStill ? openFromStill : undefined}
+            >
+            <div className="sr-map-still-body" inert={explorerStill}>
             <SnowMap
               initialViewState={{ longitude: -100, latitude: 45, zoom: 4 }}
               style={{ height: '100%', width: '100%' }}
               switcher
             >
+              <StillCredits still={explorerStill} />
               <MapEffects
                 panTarget={panTarget}
                 onPanDone={handlePanDone}
@@ -3726,9 +3804,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <NearbyLiferMarkers key={`${displayedLiferLocations.length}-${liferWindow}`} pins={displayedLiferLocations} speciesCodeMap={speciesCodeMap} onOpenSpecies={onOpenSpecies} sel={selectedLiferLocId} onSelect={setSelectedLiferLocId} markerMode={liferMarkerMode} autoFit={framedByViewport.lifers !== true} />
               )}
             </SnowMap>
+            </div>
+            </div>
           )}
         </div>
       </div>
+      {/* The opener, inside the panel's fixed height (D-14): rendered only while
+          the map is a still. Its helper line is for assistive tech only here,
+          where every pixel of the panel is map. */}
+      <FsOpenRow fs={stillOpenerHost} label={OPEN_MAP_LABEL} note={OPEN_MAP_NOTE} noteHidden />
     </div>
   )
 }

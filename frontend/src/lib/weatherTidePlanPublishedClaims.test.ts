@@ -266,7 +266,8 @@ describe('the rename: the entry is Plan, never Predict (FR-05, FR-06, QA-05, QA-
     const src = read('docs/HELP.md')
     // hotspot-reports: the sentence now names the report's map beside the Plan
     // form's, which carries no corner row either (HotspotReportMap.tsx).
-    expect(src).toContain("The small location-picker map in the Weather tab's Plan form and the map in a Hotspot Reports report have no row at all.")
+    // map-scroll-on-phones: no row in the page; Exit alone while expanded on a phone.
+    expect(src).toContain("The small location-picker map in the Weather tab's Plan form and the map in a Hotspot Reports report have no row in the page; on a phone, opened in fullscreen, each has an **Exit** button there and nothing else.")
     expect(src).not.toContain("Weather tab's Predict mode")
     // No published sentence in the three files names the entry or the form Predict;
     // the word Predicted as the tide label stays legal.

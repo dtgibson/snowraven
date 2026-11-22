@@ -33,7 +33,7 @@
 //   `below <= 0` -> `< 0`    admits the all-zero reading above.
 //   drop `above < 0`         admits a reading taken against the wrong origin.
 import { describe, it, expect } from 'vitest'
-import { mapPanelChromePx } from './mapPanelChrome'
+import { mapPanelChromePx, panelOnFloor } from './mapPanelChrome'
 
 describe('mapPanelChromePx', () => {
   it('sums what is above <main> and what is below it', () => {
@@ -75,5 +75,28 @@ describe('mapPanelChromePx', () => {
     // Not a hypothetical shape — it is what the ≤640 tier trends toward — and it
     // is the case a `> 0` guard on `above` would wrongly reject.
     expect(mapPanelChromePx(0, 38)).toBe(38)
+  })
+})
+
+
+// map-scroll-on-phones D-14: whether the Map Explorer panel is on its phone-tier
+// floor, which is the one condition under which its map becomes a still. The
+// arithmetic only; that the panel's height is the stylesheet's and nothing the
+// still adds can move it is the Tester's real-engine reading.
+describe('panelOnFloor', () => {
+  it('is on the floor exactly when the rendered height is the computed min-height', () => {
+    expect(panelOnFloor(300, 300)).toBe(true)
+    // A sub-pixel reading of the same box (a fractional device pixel ratio).
+    expect(panelOnFloor(300.4, 300)).toBe(true)
+    // 320 x 568 at 100% text: the window leaves 305px, so the panel fits.
+    expect(panelOnFloor(305, 300)).toBe(false)
+    expect(panelOnFloor(301, 300)).toBe(false)
+  })
+
+  it('answers null, so the last good answer stands, for a hidden tab or an unlaid-out box', () => {
+    expect(panelOnFloor(0, 300)).toBeNull()          // display: none reads 0 high
+    expect(panelOnFloor(Number.NaN, 300)).toBeNull()  // jsdom / pre-layout
+    expect(panelOnFloor(300, Number.NaN)).toBeNull()  // `min-height: auto` parses to NaN
+    expect(panelOnFloor(300, 0)).toBeNull()           // no floor at all (the fullscreen panel)
   })
 })

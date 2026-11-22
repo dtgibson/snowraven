@@ -30,6 +30,8 @@ import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 // components/map/MapCornerControls.tsx and must never be imported from here; it
 // arrives with SightingsMap through the lazy import below.
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
+import { FsOpenRow } from './ui/FsOpenRow'
+import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 
 // SightingsMap (and the ~1 MB maplibre-gl it pulls) is lazy-loaded so it stays
 // out of the app's entry chunk and off first paint — this static import was the
@@ -304,18 +306,34 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                   fullscreen-specific chrome, and turning it on would also open a
                   settings.json base-map write path from a card that has never had
                   one. */}
-              <div ref={cardMapRef} className={cardMapFs.className}>
+              {/* On the phone tier the card map is a STILL (map-scroll-on-phones):
+                  its body inert and taking no pointer, so a swipe on it moves the
+                  page; a press on it, or the opener row under it inside this
+                  card, opens it in fullscreen. Above the tier: HEAD. */}
+              <div
+                ref={cardMapRef}
+                className={cardMapFs.hostClassName}
+                role={cardMapFs.still ? 'img' : undefined}
+                aria-label={cardMapFs.still ? STILL_NAMES.named : undefined}
+                onClick={cardMapFs.still ? cardMapFs.open : undefined}
+              >
+                <div className="sr-map-still-body" inert={cardMapFs.still}>
                 <MapFullscreenProvider value={cardMapFs}>
                   <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
                     {/* compact: this card map is 220px tall and often half the page
                         wide, so the share popup, its drop button and the fullscreen
                         toggle take the denser density — in both states, since
                         nothing about a control should change size as a side effect
-                        of the toggle. Passed explicitly rather than by default. */}
+                        of the toggle. Passed explicitly rather than by default.
+                        (On the phone tier the expanded discs take the standard
+                        size, map-scroll-on-phones D-10: there the control that
+                        opened the map is the opener, not this toggle.) */}
                     <SightingsMap markers={cardMarkers} switcher={false} compact />
                   </Suspense>
                 </MapFullscreenProvider>
+                </div>
               </div>
+              <FsOpenRow fs={cardMapFs} label={OPEN_MAP_LABEL} note={OPEN_MAP_NOTE} />
             </div>
           )}
 

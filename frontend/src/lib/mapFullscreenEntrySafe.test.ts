@@ -115,9 +115,35 @@ describe('the two entry-safe lib modules', () => {
     expect([...externals]).toEqual(['react'])
   })
 
-  it('lib/useMapFullscreen.ts imports react and the focus trap, and NOTHING else', () => {
+  it('lib/useMapFullscreen.ts imports react, the focus trap and the phone-tier store, and NOTHING else', () => {
+    // map-scroll-on-phones D-11 admitted `./useIsPhone` (react only, and already
+    // on App.tsx's static graph): the hook reads the phone tier itself, so no
+    // consumer passes a width in. Any other edge is still a red here.
     const { files, externals } = closureFrom(resolve(SRC, 'lib/useMapFullscreen.ts'))
-    expect([...files].map(rel).sort()).toEqual(['lib/useFocusTrap.ts', 'lib/useMapFullscreen.ts'])
+    expect([...files].map(rel).sort()).toEqual(['lib/useFocusTrap.ts', 'lib/useIsPhone.ts', 'lib/useMapFullscreen.ts'])
+    expect([...externals]).toEqual(['react'])
+  })
+
+  it('lib/useIsPhone.ts, the one edge the hook gained, imports react and NOTHING else', () => {
+    const { files, externals } = closureFrom(resolve(SRC, 'lib/useIsPhone.ts'))
+    expect(files.size).toBe(1)
+    expect([...externals]).toEqual(['react'])
+  })
+
+  it('the opener row and its copy are entry-safe: Button, one lucide glyph, plain strings', () => {
+    // NamedBirdRow.tsx and WeatherForecastPanel.tsx render FsOpenRow and sit on
+    // App.tsx's static graph, so nothing map-side may ever reach it.
+    const row = closureFrom(resolve(SRC, 'components/ui/FsOpenRow.tsx'))
+    expect([...row.files].map(rel).sort()).toEqual(['components/ui/Button.tsx', 'components/ui/FsOpenRow.tsx'])
+    expect([...row.externals].sort()).toEqual(['lucide-react', 'react'])
+    const copy = closureFrom(resolve(SRC, 'lib/mapStillCopy.ts'))
+    expect(copy.files.size).toBe(1)
+    expect([...copy.externals]).toEqual([])
+  })
+
+  it('lib/useListFit.ts, on the static graph through the lists, imports react and the phone-tier store only', () => {
+    const { files, externals } = closureFrom(resolve(SRC, 'lib/useListFit.ts'))
+    expect([...files].map(rel).sort()).toEqual(['lib/useIsPhone.ts', 'lib/useListFit.ts'])
     expect([...externals]).toEqual(['react'])
   })
 
@@ -130,6 +156,8 @@ describe('the two entry-safe lib modules', () => {
     expect(has('lib/useMapFullscreen.ts')).toBe(true)
     expect(has('lib/useFocusTrap.ts')).toBe(true)
     expect(has('components/NamedBirdRow.tsx')).toBe(true)
+    expect(has('components/ui/FsOpenRow.tsx')).toBe(true)
+    expect(has('components/WeatherForecastPanel.tsx')).toBe(true)
     expect(has('components/ui/ModalDialog.tsx')).toBe(true)
     // ...and the entry graph is still map-free, which is the property the whole
     // split exists to preserve. entryChunk.test.ts owns this claim; it is
@@ -160,10 +188,21 @@ describe('the map-side module stays off the entry chunk', () => {
     expect(mapExternals(corner.externals).length).toBeGreaterThan(0)
   })
 
-  it('is reached from each of the three lazy hosts', () => {
+  it('is not imported by WeatherForecastPanel either, the other host on the entry graph', () => {
+    // The picker reaches its corner row inside the lazy PredictMap chunk.
+    const panel = closureFrom(resolve(SRC, 'components/WeatherForecastPanel.tsx'))
+    expect([...panel.files].some(f => rel(f) === 'components/map/MapCornerControls.tsx')).toBe(false)
+    expect(mapExternals(panel.externals)).toEqual([])
+    expect([...panel.files].some(f => rel(f) === 'lib/useMapFullscreen.ts')).toBe(true)
+  })
+
+  it('is reached from each of the lazy hosts', () => {
     // The other half of the split: off the entry graph, and actually wired
     // everywhere it is meant to be.
-    for (const host of ['components/SightingsMap.tsx', 'components/SpeciesDetail.tsx', 'components/BirdingStats.tsx']) {
+    for (const host of [
+      'components/SightingsMap.tsx', 'components/SpeciesDetail.tsx', 'components/BirdingStats.tsx',
+      'components/PredictMap.tsx', 'components/hotspotReports/HotspotReportMap.tsx',
+    ]) {
       const { files } = closureFrom(resolve(SRC, host))
       expect([...files].some(f => rel(f) === 'components/map/MapCornerControls.tsx'), host).toBe(true)
     }
