@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Map scroll on phones: design refinement (SnowRaven)</title>
+<style>
+/* ============================================================================
+   TOKENS. Copied from frontend/src/globals.css (:root and [data-theme="dark"]),
+   the subset these surfaces touch. Nothing is minted for this change. The
+   --mk-map-* block is the stand-in basemap only: map-anchored literals, the
+   same in both themes, as the real Positron basemap is (maps.md).
+   ========================================================================== */
+:root {
+  --sr-text-scale: 1;
+  --sr-ctl-floor: 16px;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-text-footer: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-warning-subtle: #FDE68A;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --sr-nav-bar-shadow: 0 -3px 6px -2px rgba(15,17,23,0.12);
+  --sr-county-1: #C3E8D1; --sr-county-4: #71B58D; --sr-county-7: #358758; --sr-county-10: #1A5C38;
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-share-pin: #B4341F;
+
+  --mk-map-water: #C3C9CC;
+  --mk-map-land: #F1F1EE;
+  --mk-map-park: #B5DCC3;
+  --mk-map-urban: #E4E3DE;
+  --mk-map-road: #FFFFFF;
+  --mk-map-line: #475569;
+  --mk-map-ink: #1B1D23;
+  --mk-map-ink-soft: #5A5D66;
+  --mk-map-chrome: #FFFFFF;
+  --mk-heat-a: rgba(180,52,31,0.62);
+  --mk-heat-b: rgba(201,132,42,0.34);
+  --mk-heat-c: rgba(201,132,42,0);
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-text-footer: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-warning: #FCD34D;
+  --sr-warning-bg: #1C1505;
+  --sr-warning-subtle: #5B4708;
+  --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+  --sr-nav-bar-shadow: 0 -3px 8px -2px rgba(2,2,4,0.60);
+}
+
+/* ============================================================================
+   BASE (the app's html/body rules, the global focus ring, reduced motion).
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { background-color: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+body {
+  margin: 0; font-family: var(--font-sans); font-size: 1rem; line-height: 1.5;
+  color: var(--sr-text); background-color: var(--sr-bg);
+  background-image: radial-gradient(1200px 520px at 12% -8%, var(--sr-accent-bg), transparent 62%);
+  background-repeat: no-repeat;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+button, input, select { font: inherit; color: inherit; }
+svg { display: block; }
+h1, h2, h3, p, dl, dd { margin: 0; }
+ol, ul { margin: 0; padding: 0; list-style: none; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(45,134,83,0.12);
+}
+input:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 0; box-shadow: 0 0 0 4px rgba(45,134,83,0.12); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+/* ============================================================================
+   MOCKUP CHROME (.mk-*). Sized in px on purpose, so the Text control scales
+   the phone frames and not the page around them.
+   ========================================================================== */
+.mk-top { max-width: 1320px; margin: 0 auto; padding: 36px 28px 0; }
+.mk-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--sr-accent); }
+.mk-title { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.022em; margin-top: 6px; max-width: 24ch; }
+.mk-lede { font-size: 15px; line-height: 1.6; color: var(--sr-text-muted); margin-top: 12px; max-width: 68ch; }
+.mk-controls { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-top: 22px; padding: 12px 0; border-top: 1px solid var(--sr-border); border-bottom: 1px solid var(--sr-border); }
+.mk-ctl { display: flex; align-items: center; gap: 8px; }
+.mk-ctl-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); }
+.mk-seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); }
+.mk-seg button { border: 0; background: none; padding: 5px 11px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.mk-seg button[aria-pressed="true"] { background: var(--sr-surface); color: var(--sr-text); box-shadow: 0 1px 2px rgba(15,17,23,0.10); }
+.mk-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 14px; }
+.mk-tabs button { border: 0; background: none; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.mk-tabs button[aria-current="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+@media (hover: hover) { .mk-tabs button:hover, .mk-seg button:hover { color: var(--sr-text); } }
+.mk-stage { max-width: 1320px; margin: 0 auto; padding: 26px 28px 80px; }
+.mk-view + .mk-view { margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--sr-border); }
+.mk-view-head { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 12px 40px; align-items: end; margin-bottom: 22px; }
+.mk-view-title { font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -0.018em; }
+.mk-view-sub { font-size: 14px; line-height: 1.6; color: var(--sr-text-muted); }
+.mk-points { display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--sr-text); }
+.mk-points li { padding-left: 16px; position: relative; }
+.mk-points li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 6px; height: 6px; border-radius: 50%; background: var(--sr-accent); }
+.mk-row { display: flex; gap: 30px; align-items: flex-start; overflow-x: auto; padding: 4px 4px 18px; }
+.mk-frame { flex: none; }
+.mk-frame-label { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+.mk-frame-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 5px; }
+.mk-frame-tag--today { background: var(--sr-warning-bg); color: var(--sr-warning); border: 1px solid var(--sr-warning-subtle); }
+.mk-frame-tag--new { background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent-border); }
+.mk-frame-name { font-size: 13px; font-weight: 600; }
+.mk-frame-cap { width: var(--mk-w); font-size: 12.5px; line-height: 1.5; color: var(--sr-text-muted); margin-top: 10px; }
+.mk-frame-cap b { color: var(--sr-text); font-weight: 600; }
+.mk-frame-seg { margin-top: 8px; }
+.mk-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 26px; }
+.mk-table th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--sr-text-muted); padding: 8px 10px; border-bottom: 1px solid var(--sr-border-medium); }
+.mk-table td { padding: 9px 10px; border-bottom: 1px solid var(--sr-border); vertical-align: top; line-height: 1.45; }
+.mk-table code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+body.mk-single { background-image: none; }
+body.mk-single .mk-top, body.mk-single .mk-view-head, body.mk-single .mk-frame-label, body.mk-single .mk-frame-cap, body.mk-single .mk-frame-seg, body.mk-single .mk-table { display: none; }
+body.mk-single .mk-stage { padding: 0; max-width: none; }
+body.mk-single .mk-row { padding: 0; gap: 0; overflow: visible; }
+body.mk-single .mk-phone { border: 0; border-radius: 0; box-shadow: none; }
+
+/* The phone frame. The screen is the viewport: in the app the bar and the
+   expanded panel are position: fixed; here they are absolute inside the
+   screen, which is the nearest positioned ancestor of both. Nothing between a
+   map host and the screen is positioned or transformed, which is the same
+   constraint the real panel lives under. */
+.mk-phone { width: var(--mk-w); height: var(--mk-h); border-radius: 26px; border: 1px solid var(--sr-border-medium); box-shadow: var(--sr-card-shadow); overflow: hidden; background: var(--sr-bg); }
+.mk-screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--sr-bg); color: var(--sr-text); }
+.mk-scroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; padding-bottom: var(--mk-bar, 3.6rem); scrollbar-width: none; }
+.mk-scroll::-webkit-scrollbar { display: none; }
+.mk-scroll.is-locked { overflow: hidden; }
+.mk-ios .mk-scroll { padding-top: 54px; }
+.mk-island { display: none; position: absolute; top: 11px; left: 50%; width: 110px; height: 32px; margin-left: -55px; border-radius: 18px; background: var(--mk-map-ink); z-index: 1300; pointer-events: none; }
+.mk-homebar { display: none; position: absolute; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--mk-map-ink); opacity: 0.85; z-index: 1300; pointer-events: none; }
+.mk-ios .mk-island, .mk-ios .mk-homebar { display: block; }
+
+/* ============================================================================
+   THE APP INSIDE THE FRAME. Sized in rem like globals.css.
+   ========================================================================== */
+.sr-header { padding: 18px 16px 8px; text-align: center; }
+.sr-wordmark { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.02em; }
+.sr-wordmark span { color: var(--sr-accent); }
+.sr-tab-title { font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); margin-top: 1px; }
+.sr-panel { padding: 12px 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.mk-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 14px; }
+.mk-card h2 { font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; }
+.mk-sechead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.mk-meta { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+.mk-rows { margin-top: 8px; }
+.mk-rows li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid var(--sr-border-subtle); font-size: 0.8125rem; }
+.mk-rows li span:last-child { color: var(--sr-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mk-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.mk-fig b { display: block; font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.mk-fig span { font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.mk-field { display: flex; align-items: center; gap: 8px; min-height: 2.75rem; padding: 0 10px; border: 1.5px solid var(--sr-border-input); border-radius: 8px; background: var(--sr-surface); font-size: max(var(--sr-ctl-floor), 0.8125rem); font-weight: 600; }
+.mk-field svg { flex: none; color: var(--sr-text-muted); }
+.mk-field .grow { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-field.is-focus { border-color: var(--sr-accent-border-strong); box-shadow: 0 0 0 4px rgba(45,134,83,0.12); }
+.mk-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 5px; }
+.mk-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.sr-segbar { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--sr-surface-subtle); }
+.sr-segbar-btn { border: 0; background: none; min-height: 2.125rem; padding: 0 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out; }
+.sr-segbar-btn[aria-pressed="true"] { background: var(--sr-surface); color: var(--sr-text); box-shadow: 0 1px 2px rgba(15,17,23,0.10); }
+.sr-btn-accent { min-height: 2.75rem; padding: 0 14px; background: var(--sr-accent); color: var(--sr-on-accent); border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background-color 120ms ease-out, box-shadow 120ms ease-out; }
+@media (hover: hover) { .sr-btn-accent:hover { background: var(--sr-accent-strong); } }
+.sr-app-footer { text-align: center; font-size: 0.75rem; color: var(--sr-text-footer); padding: 10px 12px 14px; }
+
+/* The phone bar (globals.css .sr-navbar). */
+.sr-navbar { container-type: inline-size; position: absolute; left: 0; right: 0; bottom: 0; z-index: 1200; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--sr-surface); border-top: 1px solid var(--sr-border); box-shadow: var(--sr-nav-bar-shadow); }
+.sr-navbar-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; padding: 7px 3px 8px; border: 0; background: none; cursor: pointer; color: var(--sr-text-muted); }
+.sr-navbar-cell--active { color: var(--sr-accent); }
+.sr-navbar-glyph { display: flex; align-items: center; justify-content: center; width: 40px; height: 26px; border-radius: 13px; }
+.sr-navbar-cell--active .sr-navbar-glyph { background: var(--sr-accent-bg); }
+.sr-navbar-label { font-size: 0.625rem; font-weight: 600; line-height: 1.15; text-align: center; }
+.sr-navbar-cell--active .sr-navbar-label { font-weight: 700; }
+@container (max-width: 17rem) { .sr-navbar-label { display: none; } }
+.mk-ios .sr-navbar { padding-bottom: calc(6px + 34px); }
+
+/* ── The map hosts, at their phone-tier heights (unchanged). ── */
+.sr-map-container { height: 300px; width: 100%; position: relative; border-radius: 10px; overflow: hidden; }
+.sr-geo-map { height: 320px; width: 100%; position: relative; border: 1px solid var(--sr-border); border-radius: 8px; overflow: hidden; }
+.sr-named-map { height: 220px; width: 100%; position: relative; border: 1px solid var(--sr-border); border-radius: 10px; overflow: hidden; }
+.sr-wx-pick-map { height: clamp(180px, 28vw, 280px); width: 100%; position: relative; border: 1px solid var(--sr-border-input); border-radius: 9px; overflow: hidden; }
+/* Scoped :not(.sr-map-fs-panel), as every phone-tier height override on a map
+   host must be (maps.md trap a): unscoped, it out-ranks the panel's height. */
+.mk-phone .sr-wx-pick-map:not(.sr-map-fs-panel) { height: 180px; }
+.sr-hsr-map { height: 200px; width: 100%; position: relative; border-radius: 10px; overflow: hidden; background: var(--sr-surface-subtle); }
+.sr-mx-map { width: 100%; height: 100%; position: relative; overflow: hidden; }
+
+/* The expanded panel. In globals.css: position fixed; inset 0; height 100dvh;
+   z-index 1200. UNCHANGED by this design: same level as the bar. */
+.sr-map-fs-panel { position: absolute; inset: 0; height: auto; z-index: 1200; background: var(--sr-bg); border: none; border-radius: 0; overflow: hidden; }
+.mk-ios .sr-map-fs-panel { padding-top: 54px; }
+
+/* THE ONE NEW RULE FOR THE BAR (D-07). While any panel is expanded the bar
+   keeps its box and is not painted, not hit-tested, not focusable and not in
+   the accessibility tree. In globals.css it reads
+     :root[data-sr-fs-open] .sr-navbar { visibility: hidden; }
+   and the hook sets the attribute; a frame here has no root of its own, so the
+   mockup spells the same condition with :has() on the frame's screen. The
+   Today frames do not carry the rule, so they show the defect. */
+.mk-new .mk-screen:has(.sr-map-fs-panel) .sr-navbar { visibility: hidden; }
+
+/* The stand-in map (in the app this is <SnowMap>, kept mounted). */
+.mk-map-body { position: absolute; inset: 0; }
+.mk-ios .sr-map-fs-panel .mk-map-body { top: 54px; }
+.mk-canvas { width: 100%; height: 100%; background: var(--mk-map-water); touch-action: none; cursor: grab; }
+.mk-canvas.is-drag { cursor: grabbing; }
+.mk-map-label { font-size: 12.5px; font-weight: 500; fill: var(--mk-map-ink); paint-order: stroke; stroke: var(--mk-map-land); stroke-width: 3px; }
+.mk-map-label--area { font-size: 11px; letter-spacing: 0.12em; fill: var(--mk-map-ink-soft); font-style: italic; }
+.mk-pin path { fill: var(--sr-map-pin-visited); stroke: var(--mk-map-chrome); stroke-width: 1; }
+.mk-pin circle { fill: var(--mk-map-chrome); }
+.mk-pin { cursor: pointer; }
+.mk-pin.is-sel path { fill: var(--sr-accent-strong); stroke-width: 2; }
+.mk-pin--pick path { fill: var(--sr-accent); }
+.mk-pop rect { fill: var(--mk-map-chrome); stroke: var(--sr-border-medium); }
+.mk-pop text { font-size: 12px; fill: var(--mk-map-ink); }
+.mk-pop text.s { font-size: 11px; fill: var(--mk-map-ink-soft); }
+.mk-zoom { position: absolute; top: 10px; left: 10px; z-index: 2; display: grid; border-radius: 4px; background: var(--mk-map-chrome); box-shadow: 0 0 0 2px rgba(15,17,23,0.1); }
+.mk-zoom button { width: 29px; height: 29px; border: 0; background: none; color: var(--mk-map-ink); display: grid; place-items: center; cursor: pointer; }
+.mk-zoom button + button { border-top: 1px solid var(--sr-border); }
+.mk-switcher { position: absolute; top: 8px; right: 8px; z-index: 2; max-width: calc(100% - 57px); padding: 8px; border-radius: 10px; background: var(--mk-map-chrome); box-shadow: var(--sr-card-shadow); color: var(--mk-map-ink); font-size: 0.75rem; }
+.mk-switcher-seg { display: flex; flex-wrap: wrap; padding: 2px; border-radius: 7px; background: #F0F0EE; }
+.mk-switcher-seg span { padding: 4px 9px; border-radius: 5px; color: var(--mk-map-ink-soft); font-weight: 500; }
+.mk-switcher-seg span.on { background: var(--mk-map-chrome); color: var(--mk-map-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(15,17,23,0.12); }
+.mk-switcher label { display: flex; align-items: center; gap: 6px; margin-top: 7px; padding-left: 2px; }
+.mk-switcher i { width: 12px; height: 12px; border: 1.5px solid var(--mk-map-ink-soft); border-radius: 3px; }
+/* The map credits (maplibre's compact attribution, bottom left). */
+.mk-attrib { position: absolute; left: 10px; bottom: 10px; z-index: 2; max-width: calc(100% - 20px); min-height: 24px; display: flex; align-items: flex-start; border-radius: 12px; background: var(--mk-map-chrome); color: var(--mk-map-ink); font-size: 0.6875rem; line-height: 1.45; }
+.mk-attrib button { flex: none; width: 24px; height: 24px; border: 0; background: none; color: var(--mk-map-ink); display: grid; place-items: center; cursor: pointer; }
+.mk-attrib span { padding: 4px 9px 4px 2px; }
+.mk-attrib:not(.is-open) span { display: none; }
+.mk-ios .sr-map-fs-panel .mk-attrib { bottom: calc(10px + 34px); }
+
+/* The corner row (globals.css .sr-map-corner-row) and its discs. */
+.sr-map-corner-row { position: absolute; bottom: 20px; right: 16px; z-index: 3; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; row-gap: 10px; max-width: calc(100% - 32px); pointer-events: none; }
+.sr-map-corner-row button { pointer-events: auto; }
+.sr-map-corner-row--compact { bottom: 12px; right: 12px; max-width: calc(100% - 24px); }
+.sr-map-fab { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text); box-shadow: 0 2px 8px rgba(15,17,23,0.18); cursor: pointer; padding: 0; transition: background-color 120ms ease-out; }
+.sr-map-fab svg { width: var(--sr-fab-glyph); height: var(--sr-fab-glyph); }
+@media (hover: hover) { .sr-map-fab:hover { background: var(--sr-surface-subtle); } }
+.sr-map-fab--std { --sr-fab-glyph: 1.0625rem; width: 2.75rem; height: 2.75rem; }
+.sr-map-fab--compact { --sr-fab-glyph: 0.9375rem; width: 2.5rem; height: 2.5rem; }
+.sr-share-drop-btn[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border-strong); }
+@keyframes sr-map-corner-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.sr-map-fs-panel .sr-map-corner-row { animation: sr-map-corner-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ── NEW, phone tier. In globals.css every rule below sits inside the
+   established @media (max-width: 640px) block; here `.mk-new` stands for it. ── */
+
+/* 1. The still. The same map, kept mounted: its body is inert (the host sets
+      the attribute from the hook) and takes no pointer, so a swipe on it is a
+      swipe on the page and a press on it is a press on the host, which opens
+      it. Controls that cannot be pressed are not drawn; the credits are drawn
+      open, because the "i" that would open them cannot be pressed either. */
+.mk-new .sr-map-still { cursor: pointer; }
+.mk-new .sr-map-still > .mk-map-body { pointer-events: none; }
+.mk-new .sr-map-still :is(.mk-zoom, .mk-switcher, .sr-map-corner-row, .sr-map-note, .mk-pop-close) { display: none; }
+.mk-new .sr-map-still .mk-attrib span { display: block; }
+.mk-new .sr-map-still .mk-attrib button { pointer-events: none; }
+
+/* 2. The opener row, one register for the maps and the Family Tree. */
+.sr-fs-open-row { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; }
+.sr-fs-open-btn { width: 100%; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; white-space: normal; }
+.sr-fs-open-btn svg { flex: none; width: 0.9375rem; height: 0.9375rem; }
+.sr-fs-open-note { font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted); }
+
+/* 3. Full screen: the exit carries its word, and the row stands one control
+      above the bottom edge so the open credits and the two buttons never
+      share a band. Only where the row was never pressed to get here. */
+.sr-map-exit-label { display: none; font-size: 0.875rem; font-weight: 600; }
+/* The compact discs take the standard size while expanded: the 40 px density
+   is for the 220 px card, and Exit is never under 44 px. */
+.mk-new .sr-map-fs-panel .sr-map-fab--compact { --sr-fab-glyph: 1.0625rem; width: 2.75rem; height: 2.75rem; }
+.mk-new .sr-map-fs-panel .sr-map-fullscreen-btn { width: auto; min-width: 2.75rem; padding: 0 16px 0 13px; gap: 7px; }
+.mk-new .sr-map-fs-panel .sr-map-exit-label { display: inline; }
+.mk-new .sr-map-fs-panel .sr-map-corner-row,
+.mk-new .sr-map-fs-panel .sr-map-corner-row--compact { bottom: calc(20px + 3rem); right: 16px; max-width: calc(100% - 32px); }
+.mk-new.mk-ios .sr-map-fs-panel .sr-map-corner-row { bottom: calc(20px + 3rem + 34px); }
+/* A map with no corner row above the tier (Weather, Hotspot Reports) shows the
+   row only while expanded. */
+.sr-map-corner-row--fs-only { display: none; }
+.sr-map-fs-panel .sr-map-corner-row--fs-only { display: flex; }
+
+/* 4. The picker's instruction, a statement at the top centre (takes no
+      pointer; anchored left and right, its child centred). */
+.sr-map-note { position: absolute; top: 10px; left: 52px; right: 52px; z-index: 2; display: none; justify-content: center; pointer-events: none; }
+.sr-map-fs-panel .sr-map-note { display: flex; }
+.sr-map-note span { max-width: 100%; padding: 6px 12px; border-radius: 999px; background: var(--mk-map-chrome); color: var(--mk-map-ink); box-shadow: var(--sr-card-shadow); font-size: 0.75rem; font-weight: 600; line-height: 1.35; text-align: center; }
+
+/* ── The Map Explorer tab. ── */
+.mk-mx-pills { display: flex; gap: 6px; overflow-x: auto; padding: 0 12px 10px; scrollbar-width: none; }
+.mk-mx-pills span { flex: none; padding: 0 12px; min-height: 2.25rem; display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid var(--sr-border); background: var(--sr-surface); font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted); }
+.mk-mx-pills span.on { background: var(--sr-accent-bg); border-color: var(--sr-accent-border-strong); color: var(--sr-accent); }
+.sr-map-explorer-panel { display: flex; flex-direction: column; border-top: 1px solid var(--sr-border); border-bottom: 1px solid var(--sr-border); background: var(--sr-surface); }
+.mk-mx-mapwrap { flex: 1 1 auto; min-height: 0; position: relative; }
+.sr-map-fab-cluster { position: absolute; right: 16px; bottom: 20px; z-index: 3; display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 32px); }
+.mk-mx-filters { width: auto; padding: 0 14px; gap: 6px; font-size: 0.8125rem; font-weight: 600; background: var(--sr-accent); color: var(--sr-on-accent); border-color: transparent; }
+.sr-map-explorer-panel .sr-fs-open-row { padding: 10px 12px 12px; }
+.sr-map-fullscreen-panel { position: absolute; inset: 0; z-index: 1200; height: auto !important; min-height: 0 !important; background: var(--sr-bg); }
+.mk-new .mk-screen:has(.sr-map-fullscreen-panel) .sr-navbar { visibility: hidden; }
+.mk-mx-still :is(.mk-zoom, .mk-switcher, .sr-map-fab-cluster) { display: none; }
+.mk-mx-still .mk-attrib span { display: block; }
+.mk-mx-still .mk-map-body { pointer-events: none; }
+.mk-mx-still .mk-mx-mapwrap { cursor: pointer; }
+
+/* ── The dropdown lists. ── */
+.mk-combo { position: relative; }
+.sr-hsr-list, .sr-tg-apop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 1200; margin: 0; padding: 4px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow); transform-origin: top left; animation: sr-hsr-list-in 140ms cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes sr-hsr-list-in { from { opacity: 0; transform: scaleY(0.92); } to { opacity: 1; transform: none; } }
+.sr-hsr-list { max-height: 20rem; overflow: auto; overscroll-behavior: contain; }
+.sr-hsr-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 2.75rem; padding: 6px 10px; border-radius: 6px; font-size: 0.8125rem; }
+.sr-hsr-opt small { font-size: 0.71875rem; color: var(--sr-text-muted); white-space: nowrap; }
+.sr-hsr-opt[aria-selected="true"] { font-weight: 600; color: var(--sr-accent); }
+.sr-hsr-opt.is-active { background: var(--sr-surface-subtle); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.sr-tg-apop { padding: 6px; font-size: 0.8125rem; line-height: 1.35; }
+.sr-tg-apop-head, .sr-tg-apop-sec { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+.sr-tg-apop-head { padding: 6px 9px 4px; }
+.sr-tg-apop-sec { padding: 10px 9px 4px; margin-top: 4px; border-top: 1px solid var(--sr-border-subtle); }
+.sr-tg-apop-item { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 2.75rem; padding: 6px 9px; border: 0; border-radius: 7px; background: none; text-align: left; cursor: pointer; }
+.sr-tg-apop-item svg { flex: none; color: var(--sr-text-muted); }
+.sr-tg-apop-t { flex: 1 1 auto; min-width: 0; font-weight: 500; }
+.sr-tg-apop-sub { display: block; font-size: 0.71875rem; font-weight: 400; color: var(--sr-text-muted); }
+.sr-tg-apop-d { flex: none; font-size: 0.71875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+.sr-tg-apop-item[aria-current="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.sr-tg-apop-item[aria-current="true"] :is(svg, .sr-tg-apop-sub) { color: var(--sr-accent); }
+.sr-tg-apop-search { display: flex; gap: 6px; padding: 2px 9px 4px; }
+.sr-tg-apop-search .mk-field { flex: 1 1 auto; min-height: 2.5rem; font-weight: 500; color: var(--sr-text-muted); }
+.sr-tg-apop-go { flex: none; width: 2.5rem; border: 1px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface-subtle); display: grid; place-items: center; color: var(--sr-text-muted); }
+.sr-tg-apop-hint { font-size: 0.6875rem; color: var(--sr-text-muted); padding: 0 9px 6px; line-height: 1.4; }
+.sr-tg-apop-list { max-height: 11.5rem; overflow-y: auto; overscroll-behavior: contain; }
+/* NEW, phone tier: the cap a list may take is the smaller of its own and the
+   measured room (--sr-list-fit, a px value written from a ref side effect);
+   the Targets chooser becomes ONE scroller, its inner list released. */
+.mk-new .sr-hsr-list { max-height: min(20rem, var(--sr-list-fit, 20rem)); }
+.mk-new .sr-tg-apop { max-height: var(--sr-list-fit, none); overflow-y: auto; overscroll-behavior: contain; }
+.mk-new .sr-tg-apop .sr-tg-apop-list { max-height: none; overflow: visible; }
+.mk-anchor { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.mk-anchor b { color: var(--sr-accent); font-weight: 600; border-bottom: 1px dashed var(--sr-accent-border-strong); }
+.mk-kbd { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1280; padding: 6px 3px 26px; background: var(--sr-surface-subtle); border-top: 1px solid var(--sr-border-medium); display: grid; gap: 7px; }
+.mk-kbd-sug { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; font-size: 13px; color: var(--sr-text-muted); padding: 5px 0 3px; }
+.mk-kbd-row { display: flex; justify-content: center; gap: 4px; }
+.mk-kbd-row i { flex: 1 1 0; max-width: 34px; height: 36px; border-radius: 5px; background: var(--sr-surface); box-shadow: 0 1px 0 var(--sr-border-medium); display: grid; place-items: center; font-style: normal; font-size: 14px; color: var(--sr-text); }
+.mk-kbd-row i.w { max-width: none; flex: 4 1 0; font-size: 12px; color: var(--sr-text-muted); }
+.mk-kbd-row i.m { max-width: 46px; flex: 1.4 1 0; background: var(--sr-border); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header class="mk-top">
+  <p class="mk-kicker">SnowRaven · Improve · map-scroll-on-phones · design refinement</p>
+  <h1 class="mk-title">On a phone, a map in the page is a still. You use it in fullscreen.</h1>
+  <p class="mk-lede">A swipe on the page always moves the page. The map in the page is the real map, kept as you left it and not interactive; pressing it, or <b>Open the map</b>, opens it in fullscreen, where it pans and zooms and every button is whole. The bottom bar steps out of the way while a map is open, so Exit and the share pin are never under it. This is the same form the Family Tree takes for its tree.</p>
+  <div class="mk-controls" role="group" aria-label="Mockup controls">
+    <div class="mk-ctl"><span class="mk-ctl-label">Viewport</span><div class="mk-seg" data-ctl="vp"><button data-v="390">390 x 844</button><button data-v="320">320 x 568</button></div></div>
+    <div class="mk-ctl"><span class="mk-ctl-label">Theme</span><div class="mk-seg" data-ctl="theme"><button data-v="light">Light</button><button data-v="dark">Dark</button></div></div>
+    <div class="mk-ctl"><span class="mk-ctl-label">Text</span><div class="mk-seg" data-ctl="scale"><button data-v="1">100%</button><button data-v="2">200%</button></div></div>
+    <div class="mk-ctl"><span class="mk-ctl-label">Insets</span><div class="mk-seg" data-ctl="ios"><button data-v="0">Browser</button><button data-v="1">iPhone app</button></div></div>
+  </div>
+  <nav class="mk-tabs" aria-label="Surfaces" id="tabs"></nav>
+</header>
+
+<main class="mk-stage" id="stage"></main>
+
+<script>
+/* ============================================================================
+   State and URL switches, for stills:
+   ?view=species|statistics|named|weather|hotspot|explorer|lists|all
+   &viewport=390|320 &theme=light|dark &scale=1|2 &ios=1
+   &state=today|today-open|page|open   (one frame, no page around it)
+   &list=hsr|apop &kbd=1               (with view=lists and state=today|page)
+   ========================================================================== */
+const Q = new URLSearchParams(location.search);
+const S = {
+  view: Q.get('view') || 'species',
+  vp: Q.get('viewport') === '320' ? 320 : 390,
+  theme: Q.get('theme') === 'dark' ? 'dark' : 'light',
+  scale: Q.get('scale') === '2' ? 2 : 1,
+  ios: Q.get('ios') === '1' ? 1 : 0,
+  state: Q.get('state'),
+  list: Q.get('list') || 'hsr',
+  kbd: Q.get('kbd') === '1',
+};
+const VIEWS = [
+  ['species', 'Species Detail'], ['statistics', 'Statistics'], ['named', 'Named Birds'],
+  ['weather', 'Weather picker'], ['hotspot', 'Hotspot Reports'], ['explorer', 'Map Explorer'],
+  ['lists', 'Dropdown lists'], ['all', 'Everything'],
+];
+const $ = (sel, el = document) => el.querySelector(sel);
+const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const dims = () => (S.vp === 320 ? { w: 320, h: 568 } : { w: 390, h: 844 });
+
+/* Icons (lucide geometry, inline). */
+const IC = {
+  maximize2: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
+  minimize2: '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+  info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  chevron: '<polyline points="6 9 12 15 18 9"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  flag: '<path d="M7 22V2l10 5-10 5"/>',
+  locate: '<line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/>',
+  sliders: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/>',
+};
+const icon = (n, size = 16, sw = 2.2) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${IC[n]}</svg>`;
+
+/* ── The stand-in basemap: the San Mateo coast, drawn in a 1000 x 1000 world. ── */
+const TOWNS = [
+  ['Pacifica', 392, 62], ['Montara', 372, 176], ['Moss Beach', 404, 236], ['El Granada', 462, 300],
+  ['Half Moon Bay', 512, 404], ['San Mateo', 806, 214], ['Woodside', 792, 470], ['La Honda', 706, 640],
+  ['San Gregorio', 560, 690], ['Pescadero', 610, 812],
+];
+const PLACES = [
+  { n: 'Pillar Point Harbor', x: 412, y: 296, c: 41, d: '14 Mar 2026' },
+  { n: 'Fitzgerald Marine Reserve', x: 352, y: 232, c: 18, d: '2 Mar 2026' },
+  { n: 'Montara State Beach', x: 330, y: 150, c: 9, d: '11 Jan 2026' },
+  { n: 'Half Moon Bay State Beach', x: 452, y: 432, c: 22, d: '28 Feb 2026' },
+  { n: 'Pescadero Marsh', x: 548, y: 786, c: 31, d: '7 Mar 2026' },
+  { n: 'Pigeon Point Lighthouse', x: 566, y: 930, c: 12, d: '19 Oct 2025' },
+  { n: 'San Gregorio State Beach', x: 508, y: 700, c: 7, d: '4 Dec 2025' },
+  { n: 'Edgewood Park', x: 840, y: 380, c: 15, d: '21 Feb 2026' },
+  { n: 'Skyline Ridge', x: 760, y: 590, c: 11, d: '15 Nov 2025' },
+  { n: 'Coyote Point', x: 846, y: 150, c: 26, d: '9 Mar 2026' },
+  { n: 'Sharp Park', x: 348, y: 84, c: 8, d: '30 Dec 2025' },
+  { n: 'Purisima Creek Redwoods', x: 640, y: 470, c: 6, d: '12 Sep 2025' },
+];
+const COAST = 'M296 -600 L330 0 L352 82 L300 150 L326 226 L372 262 L404 292 L388 352 L432 430 L470 520 L456 602 L500 690 L538 782 L530 884 L582 1000 L660 1600';
+function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function countyPolys() {
+  const r = rnd(7), N = 12, C = 2200 / N, pts = [];
+  for (let j = 0; j <= N; j++) { pts.push([]); for (let i = 0; i <= N; i++) pts[j].push([-600 + i * C + (i && i < N ? (r() - 0.5) * 70 : 0), -600 + j * C + (j && j < N ? (r() - 0.5) * 70 : 0)]); }
+  const tiers = ['--sr-county-1', '--sr-county-4', '--sr-county-7', '--sr-county-10'];
+  let out = '';
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const p = [pts[j][i], pts[j][i + 1], pts[j + 1][i + 1], pts[j + 1][i]].map(a => a.map(n => n.toFixed(0)).join(' ')).join(' L');
+    const t = r(); const fill = t < 0.22 ? 'none' : `var(${tiers[Math.min(3, Math.floor((t - 0.22) * 5.2))]})`;
+    out += `<path d="M${p} Z" fill="${fill}" fill-opacity="0.82" stroke="var(--mk-map-line)" stroke-opacity="0.75" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`;
+  }
+  return out;
+}
+const COUNTY_LABELS = [['SAN MATEO', 640, 330], ['SANTA CLARA', 800, 660], ['SANTA CRUZ', 690, 900], ['ALAMEDA', 880, 120], ['MARIN', 430, 40]];
+function worldSvg(kind) {
+  const land = `${COAST} L1600 1600 L1600 -600 Z`;
+  let s = `<path d="${land}" fill="var(--mk-map-land)"/>`;
+  s += '<path d="M700 -600 L770 0 L806 96 L876 150 L900 250 L1000 318 L1180 380 L1600 520 L1600 -600 Z" fill="var(--mk-map-water)"/>';
+  if (kind === 'counties') {
+    s += `<g clip-path="url(#mkLand)">${countyPolys()}</g>`;
+  } else {
+    s += '<path d="M700 250 L880 200 L900 330 L820 420 L720 380 Z" fill="var(--mk-map-urban)"/>';
+    s += '<path d="M560 420 L700 400 L760 520 L740 660 L620 700 L560 600 Z" fill="var(--mk-map-park)"/><path d="M360 96 L440 90 L470 170 L400 200 Z" fill="var(--mk-map-park)"/><path d="M600 760 L700 740 L740 860 L640 900 Z" fill="var(--mk-map-park)"/>';
+    s += '<path d="M352 30 L372 110 L338 170 L372 240 L432 300 L428 360 L470 440 L504 530 L494 610 L536 700 L572 790 L566 890 L610 1000 L690 1600" fill="none" stroke="var(--mk-map-road)" stroke-width="5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+    s += '<path d="M476 410 L600 380 L720 300 L800 240 L880 180" fill="none" stroke="var(--mk-map-road)" stroke-width="4" vector-effect="non-scaling-stroke"/><path d="M640 -600 L700 0 L740 160 L800 330 L860 520 L900 740 L960 1000 L1040 1600" fill="none" stroke="var(--mk-map-road)" stroke-width="4" vector-effect="non-scaling-stroke"/>';
+  }
+  return s;
+}
+const pinPath = '<path d="M0 0c0 0-9-8.4-9-15.6A9 9 0 0 1 9-15.6C9-8.4 0 0 0 0z"/><circle cx="0" cy="-15.6" r="3.2"/>';
+
+/* One map: the same element in the page and in fullscreen. */
+function makeMap(cfg, mode) {
+  const st = { k: cfg.k || 1, cx: cfg.cx || 500, cy: cfg.cy || 500, sel: cfg.sel ?? null, pick: cfg.pick || null, view: 'pins', share: false };
+  const isNew = mode === 'new';
+  const host = h(`<div class="${cfg.base}"><div class="mk-map-body">
+    <svg class="mk-canvas" role="presentation">
+      <defs><clipPath id="mkLand"><path d="${COAST} L1600 1600 L1600 -600 Z"/></clipPath>
+      <radialGradient id="mkHeat"><stop offset="0" stop-color="var(--mk-heat-a)"/><stop offset="0.55" stop-color="var(--mk-heat-b)"/><stop offset="1" stop-color="var(--mk-heat-c)"/></radialGradient></defs>
+      <g class="mk-world">${worldSvg(cfg.scene)}<g class="mk-heatg"></g><g class="mk-labels"></g><g class="mk-pins"></g><g class="mk-popg"></g></g>
+    </svg>
+    <div class="mk-zoom"><button type="button" aria-label="Zoom in" data-z="1.5">${icon('plus', 15, 2.6)}</button><button type="button" aria-label="Zoom out" data-z="0.6667">${icon('minus', 15, 2.6)}</button></div>
+    ${cfg.switcher ? '<div class="mk-switcher" aria-hidden="true"><div class="mk-switcher-seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div><label><i></i>Trails</label></div>' : ''}
+    ${cfg.picker ? '<div class="sr-map-note"><span></span></div>' : ''}
+    <div class="mk-attrib is-open"><button type="button" aria-label="Toggle attribution">${icon('info', 15, 2.4)}</button><span>OpenFreeMap © OpenMapTiles Data from OpenStreetMap</span></div>
+    <div class="sr-map-corner-row${cfg.compact ? ' sr-map-corner-row--compact' : ''}${cfg.fsOnly ? ' sr-map-corner-row--fs-only' : ''}">
+      ${cfg.share ? `<button type="button" class="sr-map-fab sr-map-fab--${cfg.compact ? 'compact' : 'std'} sr-share-drop-btn" aria-label="Drop a pin to share a location" aria-pressed="false">${icon('flag')}</button>` : ''}
+      <button type="button" class="sr-map-fab sr-map-fab--${cfg.compact ? 'compact' : 'std'} sr-map-fullscreen-btn" aria-label="Enter fullscreen" aria-pressed="false"></button>
+    </div>
+  </div></div>`);
+  const body = $('.mk-map-body', host), svg = $('.mk-canvas', host), world = $('.mk-world', host);
+  const fsBtn = $('.sr-map-fullscreen-btn', host), attrib = $('.mk-attrib', host);
+  const places = cfg.places || PLACES;
+
+  function paint() {
+    /* One world unit is a fixed number of px at a given zoom, as on a real map:
+       a bigger box shows more of the world, it does not magnify it. So a class
+       swap keeps the centre and the zoom (map.resize() in the app). */
+    const r = svg.getBoundingClientRect(), w = r.width || 300, hh = r.height || 300, sc = st.k * 0.62;
+    svg.setAttribute('viewBox', `0 0 ${w} ${hh}`);
+    world.setAttribute('transform', `translate(${w / 2} ${hh / 2}) scale(${sc}) translate(${-st.cx} ${-st.cy})`);
+    const inv = (x, y, s = 1) => `translate(${x} ${y}) scale(${s / sc})`;
+    const labels = cfg.scene === 'counties' ? COUNTY_LABELS.map(([n, x, y]) => `<text class="mk-map-label mk-map-label--area" text-anchor="middle" transform="${inv(x, y)}">${n}</text>`).join('')
+      : TOWNS.map(([n, x, y]) => `<text class="mk-map-label" transform="${inv(x, y)}">${n}</text>`).join('')
+        + `<text class="mk-map-label mk-map-label--area" transform="${inv(150, 560)}">PACIFIC OCEAN</text>`;
+    $('.mk-labels', host).innerHTML = labels;
+    $('.mk-heatg', host).innerHTML = st.view === 'heat' ? places.map(p => `<circle cx="${p.x}" cy="${p.y}" r="${34 + p.c * 1.6}" fill="url(#mkHeat)"/>`).join('') : '';
+    let pins = '';
+    if (cfg.pins !== false && st.view === 'pins') pins = places.map((p, i) => `<g class="mk-pin${st.sel === i ? ' is-sel' : ''}" data-i="${i}" transform="${inv(p.x, p.y, 1.25)}">${pinPath}</g>`).join('');
+    if (st.pick) pins += `<g class="mk-pin mk-pin--pick" transform="${inv(st.pick.x, st.pick.y, 1.5)}">${pinPath}</g>`;
+    $('.mk-pins', host).innerHTML = pins;
+    const p = st.sel != null && st.view === 'pins' ? places[st.sel] : null;
+    $('.mk-popg', host).innerHTML = p ? `<g class="mk-pop" transform="${inv(p.x, p.y)}"><rect x="-96" y="-88" width="192" height="50" rx="8"/><text x="-84" y="-67" font-weight="600">${p.n}</text><text class="s" x="-84" y="-49">${p.c} checklists · last ${p.d}</text></g>` : '';
+    fsBtn.innerHTML = icon(api.fs ? 'minimize2' : 'maximize2') + '<span class="sr-map-exit-label">Exit</span>';
+    fsBtn.setAttribute('aria-label', api.fs ? 'Exit fullscreen' : 'Enter fullscreen');
+    fsBtn.setAttribute('aria-pressed', String(api.fs));
+    if (cfg.picker) $('.sr-map-note span', host).textContent = st.pick ? 'Drag the pin to fine-tune. Exit when it is in place.' : 'Tap the map to drop a pin.';
+  }
+  const unit = () => 1 / 0.62;
+  const toWorld = (e) => { const r = svg.getBoundingClientRect(), u = unit(); return { x: ((e.clientX - r.left - r.width / 2) * u) / st.k + st.cx, y: ((e.clientY - r.top - r.height / 2) * u) / st.k + st.cy }; };
+
+  /* Live gestures. In the still none of this is reachable: the body takes no
+     pointer, so the events below never fire there. */
+  let drag = null;
+  svg.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, cx: st.cx, cy: st.cy, moved: false }; svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener('pointermove', e => {
+    if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true; svg.classList.add('is-drag'); attrib.classList.remove('is-open');
+    const u = unit(); st.cx = drag.cx - (dx * u) / st.k; st.cy = drag.cy - (dy * u) / st.k; paint();
+  });
+  const end = e => {
+    if (!drag) return; const moved = drag.moved; drag = null; svg.classList.remove('is-drag');
+    if (moved) return;
+    const pin = e.target.closest && e.target.closest('.mk-pin[data-i]');
+    if (pin) { st.sel = st.sel === +pin.dataset.i ? null : +pin.dataset.i; paint(); return; }
+    if (cfg.picker) { st.pick = toWorld(e); paint(); cfg.onPick && cfg.onPick(st.pick); return; }
+    if (st.sel != null) { st.sel = null; paint(); }
+  };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', () => { drag = null; svg.classList.remove('is-drag'); });
+  host.querySelectorAll('.mk-zoom button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); st.k = Math.min(8, Math.max(0.8, st.k * +b.dataset.z)); paint(); }));
+  $('button', attrib).addEventListener('click', e => { e.stopPropagation(); attrib.classList.toggle('is-open'); });
+  const shareBtn = $('.sr-share-drop-btn', host);
+  if (shareBtn) shareBtn.addEventListener('click', e => { e.stopPropagation(); st.share = !st.share; shareBtn.setAttribute('aria-pressed', String(st.share)); });
+
+  const api = { host, st, fs: false, paint, setView(v) { st.view = v; paint(); }, setStill(on) { host.classList.toggle('sr-map-still', on); body.inert = on; if (on) { host.setAttribute('role', 'img'); host.setAttribute('aria-label', cfg.name); } else { host.removeAttribute('role'); host.removeAttribute('aria-label'); } } };
+  if (isNew) api.setStill(true);
+  new ResizeObserver(() => paint()).observe(svg);
+  paint();
+  return api;
+}
+
+/* The opener row: one register for every map and for the Family Tree. */
+function openRow(label, note, id) {
+  return h(`<div class="sr-fs-open-row"><button type="button" class="sr-btn-accent sr-fs-open-btn sr-touch-target" aria-describedby="${id}">${icon('maximize2', 15)}<span>${label}</span></button><p class="sr-fs-open-note" id="${id}">${note}</p></div>`);
+}
+
+/* ── The six surfaces. ── */
+const NOTE = 'It opens in fullscreen, where it pans and zooms.';
+const rows = (items) => `<ul class="mk-rows">${items.map(([a, b]) => `<li><span>${a}</span><span>${b}</span></li>`).join('')}</ul>`;
+const SURF = {
+  species: {
+    tab: 'Species Detail', active: 3, title: 'Species Detail: Sighting Locations',
+    sub: 'The reference surface. Pins and Heatmap share one container and one state; the view switch stays on the page and still changes the still, because the still is the live map.',
+    points: ['The still is the map as you left it: same pins, same view, same place and zoom, an open popup still open.', 'A press anywhere on it, or Open the map, opens it. A press on a pin opens the map too; the pin is chosen there.', 'Not drawn on the still: zoom, the base map switcher, the share pin and the fullscreen disc. Drawn: the map credits, open.', 'Fullscreen: the bar is gone, Exit carries its word, and the row stands clear of the credits.'],
+    map: { base: 'sr-map-container', scene: 'coast', switcher: true, share: true, k: 0.85, cx: 560, cy: 500, name: 'Map showing sighting locations' },
+    today: 'Measured at HEAD: the bar covers <b>44 of 44 px</b> of Exit and the share pin, and a tap on Exit opened More in <b>24 of 24</b> runs. In the page, two fingers still pan a half-hidden map.',
+    page: (slot) => `<section class="mk-card"><span class="mk-label">Species</span><div class="mk-field">${icon('search', 15)}<span class="grow">Common Raven</span>${icon('chevron', 15)}</div><p class="mk-meta" style="margin-top:8px">12 locations · 206 checklists · first seen 22 Feb 2024</p></section>
+      <section class="mk-card"><div class="mk-sechead"><h2>Sighting Locations</h2><div class="sr-segbar" data-seg="view"><button type="button" class="sr-segbar-btn" aria-pressed="true" data-v="pins">Pins</button><button type="button" class="sr-segbar-btn" aria-pressed="false" data-v="heat">Heatmap</button></div></div>${slot}</section>
+      <section class="mk-card"><h2>Recent checklists</h2>${rows([['Pillar Point Harbor', '14 Mar 2026'], ['Coyote Point', '9 Mar 2026'], ['Pescadero Marsh', '7 Mar 2026'], ['Fitzgerald Marine Reserve', '2 Mar 2026'], ['Half Moon Bay State Beach', '28 Feb 2026'], ['Edgewood Park', '21 Feb 2026']])}</section>`,
+  },
+  statistics: {
+    tab: 'Statistics', active: 1, title: 'Statistics: Geographic Stats',
+    sub: 'Today this map takes a one-finger swipe away from the page (cooperative gestures are off), in a page 21,157 px long. As a still it cannot.',
+    points: ['The county shading and the metric switch beside the map work as before; the still redraws when the metric changes.', 'In the page a swipe that starts on the map moves the page. Measured at HEAD it moved the page 0 px in 34 of 35 runs.', 'County popups open in fullscreen only.'],
+    map: { base: 'sr-geo-map', scene: 'counties', pins: false, switcher: true, share: true, k: 0.8, cx: 640, cy: 480, name: 'Map showing Geographic Stats' },
+    today: 'Measured at HEAD: a one-finger swipe on this map panned the map and left the page still, at 100% and at 50% visible. Expanded, the bar covers <b>36.5 to 44 px</b> of each button.',
+    page: (slot) => `<section class="mk-card"><div class="mk-sechead"><h2>Geographic Stats</h2></div><div class="mk-figs"><div class="mk-fig"><b>2</b><span>Countries</span></div><div class="mk-fig"><b>7</b><span>States</span></div><div class="mk-fig"><b>41</b><span>Counties</span></div></div><div class="mk-sechead"><span class="mk-meta">Shade counties by</span><div class="sr-segbar"><button type="button" class="sr-segbar-btn" aria-pressed="true">Species</button><button type="button" class="sr-segbar-btn" aria-pressed="false">Checklists</button></div></div>${slot}</section>
+      <section class="mk-card"><h2>Top counties</h2>${rows([['San Mateo, California', '214 species'], ['Santa Clara, California', '187 species'], ['Santa Cruz, California', '163 species'], ['Marin, California', '151 species'], ['Alameda, California', '139 species'], ['Monterey, California', '122 species']])}</section>`,
+  },
+  named: {
+    tab: 'Named Birds', active: 4, title: 'Named Birds: the open card',
+    sub: 'The 220 px card map with the compact corner row. The opener is the same button; the still keeps the card its size.',
+    points: ['One card is open at a time, so one still and one opener are on the page.', 'In the card the still draws no discs. In fullscreen the share pin and Exit are the standard 44 px, not the card’s 40 px.'],
+    map: { base: 'sr-named-map', scene: 'coast', compact: true, share: true, k: 1.5, cx: 420, cy: 320, places: PLACES.slice(0, 4), name: 'Map showing this bird’s sightings' },
+    today: 'Measured at HEAD: expanded, the bar covers <b>40 of 40 px</b> of both compact buttons. In the page at 320 x 568 the row sits 10.8 px under the bar with the map half hidden.',
+    page: (slot) => `<section class="mk-card"><div class="mk-sechead"><h2>Lefty</h2><span class="mk-meta">Western Gull · 23 sightings</span></div><p class="mk-meta" style="margin-bottom:10px">The gull with the bad left foot. First noted at the harbor on 3 Nov 2024.</p>${slot}${rows([['Pillar Point Harbor', '14 Mar 2026'], ['Fitzgerald Marine Reserve', '2 Mar 2026'], ['Half Moon Bay State Beach', '28 Feb 2026']])}</section>
+      <section class="mk-card"><div class="mk-sechead"><h2>Old Blue</h2><span class="mk-meta">Great Blue Heron · 9 sightings</span></div></section>
+      <section class="mk-card"><div class="mk-sechead"><h2>Stumpy</h2><span class="mk-meta">Black Oystercatcher · 14 sightings</span></div></section>`,
+  },
+  weather: {
+    tab: 'Weather', active: 0, title: 'Weather: the Plan location picker',
+    sub: 'Today a tap in the page drops the pin and a swipe pans the map. As a still the map shows the place chosen; the pin is placed in fullscreen. The place search and the two coordinate fields stay on the page, so the picker is still complete from a keyboard.',
+    points: ['Fullscreen: tap to drop the pin, drag it to fine-tune, then Exit. The chosen place is in the page when you come back.', 'No share pin here: the row holds Exit alone, and only while the map is open.', 'With no place chosen the still shows the opening view and the line reads the same.'],
+    map: { base: 'sr-wx-pick-map', scene: 'coast', pins: false, picker: true, fsOnly: true, k: 1.5, cx: 430, cy: 300, pick: { x: 412, y: 296 }, name: 'Map showing the chosen place' },
+    note: 'Open the map to drop a pin, or type coordinates below.',
+    today: 'Measured at HEAD: a one-finger swipe on the picker panned the map and moved the page 0 px in 24 of 24 runs. There is no fullscreen here today.',
+    page: (slot) => `<section class="mk-card"><h2>Now, or any time ahead</h2><p class="mk-meta" style="margin:4px 0 12px">Skip the checklist: get weather and tide for where you are, or for a place and time you choose.</p>
+      <span class="mk-label">Place</span><div class="mk-field" style="margin-bottom:12px"><span class="grow">Pillar Point Harbor</span>${icon('search', 15)}</div>${slot}
+      <div class="mk-grid2"><div><span class="mk-label">Latitude</span><div class="mk-field"><span class="grow" data-f="lat">37.5024</span></div></div><div><span class="mk-label">Longitude</span><div class="mk-field"><span class="grow" data-f="lng">-122.4828</span></div></div></div></section>
+      <section class="mk-card"><h2>Forecast for Sat 21 Nov</h2>${rows([['7:00', '51°F · wind NW 6'], ['9:00', '54°F · wind NW 9'], ['11:00', '58°F · wind W 11'], ['High tide', '10:42 · 5.1 ft']])}</section>`,
+  },
+  hotspot: {
+    tab: 'Hotspot Reports', active: 4, title: 'Hotspot Reports: the report’s map',
+    sub: 'Above the phone tier this map stays the plain map it was designed as. On the phone tier it is a still like the others, and opening it is the only way to pan or zoom it there.',
+    points: ['Still a plain map: one pin, zoom and the credits. No share pin, no base map switcher, no popup.', 'Fullscreen exists on the phone tier only; the row holds Exit alone.'],
+    map: { base: 'sr-hsr-map', scene: 'coast', fsOnly: true, k: 2.2, cx: 420, cy: 300, places: PLACES.slice(0, 1), name: 'Map showing Pillar Point Harbor' },
+    today: 'Measured at HEAD: one finger scrolls the page, and two fingers pan this map with half of it hidden (36 of 36 runs across the three such maps).',
+    page: (slot) => `<section class="mk-card"><span class="mk-label">Hotspot</span><div class="mk-field">${icon('pin', 15)}<span class="grow">Pillar Point Harbor</span>${icon('chevron', 15)}</div></section>
+      <section class="mk-card"><div class="mk-figs"><div class="mk-fig"><b>148</b><span>Species</span></div><div class="mk-fig"><b>63</b><span>Checklists</span></div><div class="mk-fig"><b>2024</b><span>First visit</span></div></div><div class="mk-sechead"><h2>Map</h2></div>${slot}</section>
+      <section class="mk-card"><h2>Most reported</h2>${rows([['Western Gull', '61 of 63'], ['Brown Pelican', '58 of 63'], ['Surf Scoter', '49 of 63'], ['Black Turnstone', '44 of 63'], ['Common Raven', '41 of 63']])}</section>`,
+  },
+};
+const BAR = [['cloud', 'Weather'], ['chart', 'Statistics'], ['map', 'Map Explorer'], ['book', 'Species Detail'], ['more', 'More']];
+const barHtml = (active) => `<nav class="sr-navbar" aria-label="Main">${BAR.map(([g, l], i) => `<button type="button" class="sr-navbar-cell${i === active ? ' sr-navbar-cell--active' : ''}"><span class="sr-navbar-glyph">${icon(g, 20, 2)}</span><span class="sr-navbar-label">${l}</span></button>`).join('')}</nav>`;
+let uid = 0;
+
+function phone(cls) {
+  const d = dims();
+  const el = h(`<div class="mk-phone ${cls}${S.ios ? ' mk-ios' : ''}" style="--mk-w:${d.w}px;--mk-h:${d.h}px"><div class="mk-screen"><div class="mk-scroll"></div><span class="mk-island"></span><span class="mk-homebar"></span></div></div>`);
+  return { el, screen: $('.mk-screen', el), scroll: $('.mk-scroll', el) };
+}
+function frame(tag, name, phoneEl, cap, seg) {
+  const d = dims();
+  const f = h(`<div class="mk-frame" style="--mk-w:${d.w}px"><div class="mk-frame-label"><span class="mk-frame-tag mk-frame-tag--${tag === 'Today' ? 'today' : 'new'}">${tag}</span><span class="mk-frame-name">${name}</span></div></div>`);
+  f.append(phoneEl);
+  if (seg) f.append(seg);
+  f.append(h(`<p class="mk-frame-cap">${cap}</p>`));
+  return f;
+}
+
+/* A surface frame. mode 'today' shows HEAD; mode 'new' shows the design. */
+function surfaceFrame(key, mode, startOpen) {
+  const cfg = SURF[key], isNew = mode === 'new', P = phone(isNew ? 'mk-new' : 'mk-today');
+  P.scroll.innerHTML = `<header class="sr-header"><div class="sr-wordmark">Snow<span>Raven</span></div><div class="sr-tab-title">${cfg.tab}</div></header><div class="sr-panel">${cfg.page('<div data-slot></div>')}</div><p class="sr-app-footer">SnowRaven 1.0.75 · Help · Privacy</p>`;
+  P.screen.insertAdjacentHTML('beforeend', barHtml(cfg.active));
+  const map = makeMap({ ...cfg.map, onPick: (p) => { const la = $('[data-f="lat"]', P.scroll), ln = $('[data-f="lng"]', P.scroll); if (la) { la.textContent = (37.68 - p.y * 0.0006).toFixed(4); ln.textContent = (-122.73 + p.x * 0.0006).toFixed(4); } } }, mode);
+  const slot = $('[data-slot]', P.scroll); slot.replaceWith(map.host);
+  let opener = null, pageTop = 0;
+  const fsBtn = $('.sr-map-fullscreen-btn', map.host);
+  function open() {
+    if (map.fs) return;
+    pageTop = P.scroll.scrollTop; map.fs = true;
+    map.host.classList.add('sr-map-fs-panel'); P.scroll.classList.add('is-locked');
+    if (isNew) map.setStill(false);
+    map.paint(); if (isNew) fsBtn.focus({ preventScroll: true });
+  }
+  function exit() {
+    if (!map.fs) return;
+    map.fs = false; map.host.classList.remove('sr-map-fs-panel'); P.scroll.classList.remove('is-locked');
+    if (isNew) map.setStill(true);
+    P.scroll.scrollTop = pageTop; map.paint();
+    if (isNew && opener) $('button', opener).focus({ preventScroll: true });
+  }
+  if (isNew) {
+    opener = openRow('Open the map', cfg.note || NOTE, 'mkn' + (++uid));
+    map.host.after(opener);
+    $('button', opener).addEventListener('click', open);
+    map.host.addEventListener('click', () => { if (!map.fs) open(); });
+    fsBtn.addEventListener('click', e => { e.stopPropagation(); exit(); });
+    P.el.addEventListener('keydown', e => { if (e.key === 'Escape' && map.fs) { e.preventDefault(); exit(); } });
+  } else {
+    fsBtn.addEventListener('click', e => { e.stopPropagation(); map.fs ? exit() : open(); });
+  }
+  const seg = $('[data-seg="view"]', P.scroll);
+  if (seg) seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); map.setView(b.dataset.v); });
+  /* Start state. Today in the page: the lower half of the map under the bar. */
+  const place = () => {
+    const bar = $('.sr-navbar', P.screen).offsetHeight;
+    const top = map.host.getBoundingClientRect().top - P.scroll.getBoundingClientRect().top + P.scroll.scrollTop;
+    P.scroll.scrollTop = isNew ? Math.max(0, top - (dims().h - bar - map.host.offsetHeight - 110) / 2) : top - (dims().h - bar) + map.host.offsetHeight / 2;
+    if (startOpen) open();
+  };
+  return { P, place, open, exit, hasFs: !cfg.map.fsOnly };
+}
+
+function surfaceView(key) {
+  const cfg = SURF[key];
+  const v = h(`<section class="mk-view"><div class="mk-view-head"><div><h2 class="mk-view-title">${cfg.title}</h2><p class="mk-view-sub" style="margin-top:8px">${cfg.sub}</p></div><ul class="mk-points">${cfg.points.map(p => `<li>${p}</li>`).join('')}</ul></div><div class="mk-row"></div></section>`);
+  const row = $('.mk-row', v), after = [];
+  const want = (s) => !S.state || S.state === s;
+  if (want('today') || S.state === 'today-open') {
+    const t = surfaceFrame(key, 'today', S.state === 'today-open' || (!S.state && SURF[key].map.fsOnly !== true));
+    let seg = null;
+    if (t.hasFs) {
+      seg = h('<div class="mk-seg mk-frame-seg"><button type="button" data-v="page">In the page</button><button type="button" data-v="open" aria-pressed="true">Expanded</button></div>');
+      seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); b.dataset.v === 'open' ? t.open() : t.exit(); });
+    }
+    row.append(frame('Today', t.hasFs ? 'The bar over the open map' : 'Half hidden and still live', t.P.el, cfg.today, seg)); after.push(t.place);
+  }
+  if (want('page')) { const a = surfaceFrame(key, 'new', false); row.append(frame('New', 'In the page: a still and its opener', a.P.el, 'Press the still or <b>Open the map</b>. Swipe over the still and the page moves.')); after.push(a.place); }
+  if (want('open')) { const b = surfaceFrame(key, 'new', true); row.append(frame('New', 'Opened: the bar is gone', b.P.el, 'The same map. <b>Exit</b> is whole at the bottom right, above the credits; Escape leaves it too. Pan it, zoom it, pick a pin, then exit: the page shows it as you left it.')); after.push(b.place); }
+  return { el: v, after };
+}
+
+/* ── The Map Explorer. ── */
+function explorerFrame(mode) {
+  const isNew = mode === 'new', P = phone(isNew ? 'mk-new' : 'mk-today'), d = dims();
+  const floor = isNew ? 300 : 340;
+  P.scroll.innerHTML = `<header class="sr-header" style="min-height:${S.vp === 320 ? 6.7 : 5.3}rem"><div class="sr-wordmark">Snow<span>Raven</span></div><div class="sr-tab-title">Map Explorer</div></header>
+    <div class="mk-mx-pills"><span class="on">My Sightings</span><span>Hotspots</span><span>Nearby Lifers</span><span>Media Targets</span></div>
+    <div class="sr-map-explorer-panel"><div class="mk-mx-mapwrap"></div></div>
+    <p class="sr-app-footer">SnowRaven 1.0.75 · Help · Privacy · Accessibility</p>`;
+  P.screen.insertAdjacentHTML('beforeend', barHtml(2));
+  const panel = $('.sr-map-explorer-panel', P.scroll), wrap = $('.mk-mx-mapwrap', P.scroll);
+  const map = makeMap({ base: 'sr-mx-map', scene: 'coast', switcher: true, k: 0.85, cx: 560, cy: 480, name: 'Map' }, 'today');
+  $('.sr-map-corner-row', map.host).remove();
+  wrap.append(map.host);
+  const cluster = h(`<div class="sr-map-fab-cluster"><button type="button" class="sr-map-fab sr-map-fab--std" aria-label="Drop a pin to share a location">${icon('flag')}</button><button type="button" class="sr-map-fab sr-map-fab--std" data-fs aria-label="Enter fullscreen">${icon('maximize2')}</button><button type="button" class="sr-map-fab sr-map-fab--std mk-mx-filters">${icon('sliders', 15)}Filters</button></div>`);
+  wrap.append(cluster);
+  let fs = false, still = false, row = null;
+  const fsBtn = $('[data-fs]', cluster);
+  function setFs(on, byUser) {
+    fs = on; panel.classList.toggle('sr-map-fullscreen-panel', on); P.scroll.classList.toggle('is-locked', on);
+    fsBtn.innerHTML = icon(on ? 'minimize2' : 'maximize2'); fsBtn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
+    if (isNew) { panel.classList.toggle('mk-mx-still', still && !on); $('.mk-map-body', map.host).inert = still && !on; if (row) row.style.display = on ? 'none' : ''; if (byUser && !on && still && row) $('button', row).focus({ preventScroll: true }); if (byUser && on) fsBtn.focus({ preventScroll: true }); }
+  }
+  fsBtn.addEventListener('click', e => { e.stopPropagation(); setFs(!fs, true); });
+  const place = () => {
+    /* The panel is the window less the chrome around it, never under its floor
+       (lib/mapPanelChrome.ts; 340 px today, 300 px on the phone tier in the design). */
+    const bar = $('.sr-navbar', P.screen).offsetHeight;
+    const chrome = $('.sr-header', P.scroll).offsetHeight + $('.mk-mx-pills', P.scroll).offsetHeight + $('.sr-app-footer', P.scroll).offsetHeight + bar;
+    const room = d.h - chrome;
+    panel.style.height = Math.max(floor, room) + 'px';
+    P.scroll.style.paddingBottom = bar + 'px';
+    if (isNew && room < floor) {
+      /* No second line here: the panel is on its floor, and the room goes to the map. */
+      still = true; row = openRow('Open the map', NOTE, 'mkn' + (++uid)); $('p', row).className = 'sr-only'; panel.append(row);
+      $('button', row).addEventListener('click', () => setFs(true, true)); wrap.addEventListener('click', () => { if (!fs && still) setFs(true, true); });
+      setFs(false);
+    }
+    return { room, over: Math.max(0, floor - room) };
+  };
+  return { P, place };
+}
+function explorerView() {
+  const v = h(`<section class="mk-view"><div class="mk-view-head"><div><h2 class="mk-view-title">Map Explorer: the tab-sized map</h2><p class="mk-view-sub" style="margin-top:8px">This map already fills the window and its page does not scroll on most phones, so it stays live in the page. Two changes make that true everywhere on the phone tier.</p></div><ul class="mk-points"><li>The panel’s floor on the phone tier is 300 px on every platform (it was 340 px outside the iPhone app). At 320 x 568 the page scrolled 35 px under the live map; now it does not scroll.</li><li>Where the window still cannot hold the panel (a small phone at large text), the map is a still with the same opener, and it opens in the tab’s own fullscreen. Set Text to 200% at 320 x 568 to see it.</li><li>Its fullscreen and its three round buttons are unchanged. They have 4 px of slack at 320 px and 200% text, so Exit keeps no word here.</li></ul></div><div class="mk-row"></div></section>`);
+  const row = $('.mk-row', v), after = [];
+  const add = (mode, tag, name, capFn) => { const f = explorerFrame(mode); const fr = frame(tag, name, f.P.el, ''); row.append(fr); after.push(() => { const r = f.place(); $('.mk-frame-cap', fr).innerHTML = capFn(r); }); };
+  if (!S.state || S.state === 'today') add('today', 'Today', 'Floor 340 px', r => r.over ? `The panel is on its floor and the page scrolls <b>${Math.round(r.over)} px</b> under a live map. A swipe on the map pans the map, so the page moves only from the header or the footer.` : 'The panel fits and the page does not scroll. Unchanged by this design.');
+  if (!S.state || S.state === 'page') add('new', 'New', 'Floor 300 px, or a still', r => r.over ? `The window cannot hold the panel (<b>${Math.round(r.over)} px</b> short), so the map is a still and opens in the tab’s fullscreen.` : 'The panel fits, the page does not scroll, and the map is live in the page as before.');
+  return { el: v, after };
+}
+
+/* ── The dropdown lists. ── */
+const HOTSPOTS = [['All hotspots', ''], ['Pillar Point Harbor', '63'], ['Fitzgerald Marine Reserve', '41'], ['Pescadero Marsh', '38'], ['Coyote Point', '36'], ['Half Moon Bay State Beach', '29'], ['Edgewood Park', '24'], ['Radio Road Ponds', '22'], ['Pigeon Point Lighthouse', '19'], ['Skyline Ridge', '17'], ['Sharp Park', '14'], ['Bair Island', '12'], ['San Gregorio State Beach', '11'], ['Gazos Creek Road', '9'], ['Purisima Creek Redwoods', '8'], ['Montara State Beach', '8']];
+const NEAR = [['Pillar Point Harbor', '2.4 mi'], ['Fitzgerald Marine Reserve', '4.1 mi'], ['Half Moon Bay State Beach', '5.0 mi'], ['Coyote Point', '9.8 mi'], ['Edgewood Park', '11.2 mi'], ['Pescadero Marsh', '17.6 mi'], ['Pigeon Point Lighthouse', '23.3 mi']];
+function kbdHtml() {
+  const r = (s, pre = '', post = '') => `<div class="mk-kbd-row">${pre}${s.split('').map(c => `<i>${c}</i>`).join('')}${post}</div>`;
+  return `<div class="mk-kbd" aria-hidden="true"><div class="mk-kbd-sug"><span>pill</span><span>pillar</span><span>pillow</span></div>${r('qwertyuiop')}${r('asdfghjkl')}${r('zxcvbnm', '<i class="m">⇧</i>', '<i class="m">⌫</i>')}<div class="mk-kbd-row"><i class="m">123</i><i class="w">space</i><i class="m">search</i></div></div>`;
+}
+function listFrame(kind, mode, kbd) {
+  const isNew = mode === 'new', P = phone(isNew ? 'mk-new' : 'mk-today');
+  const filler = rows([['Western Gull', '61 of 63'], ['Brown Pelican', '58 of 63'], ['Surf Scoter', '49 of 63'], ['Black Turnstone', '44 of 63'], ['Common Raven', '41 of 63'], ['Brandt’s Cormorant', '39 of 63'], ['Heermann’s Gull', '33 of 63'], ['Whimbrel', '30 of 63'], ['Black Oystercatcher', '28 of 63'], ['Pelagic Cormorant', '27 of 63'], ['Sanderling', '24 of 63'], ['Willet', '22 of 63']]);
+  const isHsr = kind === 'hsr';
+  const list = isHsr
+    ? `<ul class="sr-hsr-list" role="listbox" aria-label="Hotspots">${HOTSPOTS.map(([n, c], i) => `<li class="sr-hsr-opt${i === 1 ? ' is-active' : ''}" role="option" aria-selected="${i === 1}">${i ? n : `<em>${n}</em>`}<small>${c ? c + ' checklists' : ''}</small></li>`).join('')}</ul>`
+    : `<div class="sr-tg-apop" role="dialog" aria-label="Measure distances from"><div class="sr-tg-apop-head">Measure distances from</div>
+        <button type="button" class="sr-tg-apop-item">${icon('locate', 14)}<span class="sr-tg-apop-t">My location<span class="sr-tg-apop-sub">Finds where you are now</span></span></button>
+        <button type="button" class="sr-tg-apop-item" aria-current="true">${icon('pin', 14)}<span class="sr-tg-apop-t">Default Location<span class="sr-tg-apop-sub">Set in Settings</span></span></button>
+        <div class="sr-tg-apop-sec">A place</div><div class="sr-tg-apop-search"><div class="mk-field${kbd ? ' is-focus' : ''}"><span class="grow">${kbd ? 'pill' : 'Search by place name'}</span></div><span class="sr-tg-apop-go">${icon('search', 15)}</span></div>
+        <p class="sr-tg-apop-hint">A town, park or address, looked up on OpenStreetMap when you press Search.</p>
+        <div class="sr-tg-apop-sec">Places in this list</div><div class="sr-tg-apop-list">${NEAR.map(([n, m]) => `<button type="button" class="sr-tg-apop-item">${icon('pin', 14)}<span class="sr-tg-apop-t">${n}</span><span class="sr-tg-apop-d">${m}</span></button>`).join('')}</div></div>`;
+  const field = isHsr
+    ? `<span class="mk-label">Hotspot</span><div class="mk-combo"><div class="mk-field${kbd ? ' is-focus' : ''}">${icon('pin', 15)}<span class="grow">${kbd ? 'pill' : 'Pillar Point Harbor'}</span>${icon('chevron', 15)}</div>${list}</div>`
+    : `<div class="mk-combo"><p class="mk-anchor">${icon('pin', 13)} Distances from your <b>Default Location</b>.</p>${list}</div>`;
+  P.scroll.innerHTML = `<header class="sr-header"><div class="sr-wordmark">Snow<span>Raven</span></div><div class="sr-tab-title">${isHsr ? 'Hotspot Reports' : 'Targets'}</div></header>
+    <div class="sr-panel"><section class="mk-card"><h2>${isHsr ? 'Your hotspots' : 'San Mateo County targets'}</h2><p class="mk-meta" style="margin:4px 0 0">${isHsr ? '530 places in your backup, 212 of them public hotspots. Pick one to see its report.' : '37 species reported in the last 14 days that you have not seen in this county.'}</p>${isHsr ? '<p class="mk-meta" style="margin-top:8px">Reports use every checklist you have from the place, whatever its protocol.</p>' : '<p class="mk-meta" style="margin-top:8px">Sorted by the most recent report. Tap a species for its last places.</p>'}<div style="height:${isHsr ? 3.4 : 5.2}rem"></div></section>
+    <section class="mk-card">${field}<div style="height:1px"></div></section><section class="mk-card"><h2>${isHsr ? 'Most reported' : 'Targets'}</h2>${filler}${filler}</section></div>`;
+  P.screen.insertAdjacentHTML('beforeend', barHtml(4));
+  if (kbd) P.screen.insertAdjacentHTML('beforeend', kbdHtml());
+  const combo = $('.mk-combo', P.scroll), pop = $('.sr-hsr-list, .sr-tg-apop', P.scroll);
+  const place = () => {
+    const sTop = P.scroll.getBoundingClientRect().top, bar = $('.sr-navbar', P.screen), k = $('.mk-kbd', P.screen);
+    const visBottom = Math.min(dims().h, (k ? k.getBoundingClientRect().top : bar.getBoundingClientRect().top) - sTop);
+    const comboTop = () => combo.getBoundingClientRect().top - sTop;
+    if (!isNew) { P.scroll.scrollTop += comboTop() - (dims().h - bar.offsetHeight) * (kbd ? 0.3 : 0.62); }
+    else {
+      /* The design: when the room under the field is short, the field goes to
+         the top of the visible area first; then the cap is the room left. */
+      const natural = pop.scrollHeight + 2;
+      let room = visBottom - (pop.getBoundingClientRect().top - sTop) - 8;
+      if (room < natural) { P.scroll.scrollTop += comboTop() - (S.ios ? 62 : 10); room = visBottom - (pop.getBoundingClientRect().top - sTop) - 8; }
+      pop.style.setProperty('--sr-list-fit', Math.max(isHsr ? 66 : 132, Math.floor(room)) + 'px');
+    }
+    const r = pop.getBoundingClientRect(), hidden = Math.max(0, r.bottom - sTop - visBottom);
+    return { h: Math.round(r.height), hidden: Math.round(hidden) };
+  };
+  return { P, place };
+}
+function listsView() {
+  const v = h(`<section class="mk-view"><div class="mk-view-head"><div><h2 class="mk-view-title">Dropdown lists: inside the room that is actually visible</h2><p class="mk-view-sub" style="margin-top:8px">Five lists scroll inside the scrolling page. On the phone tier each one now stops above the bar, or above the keyboard when it is up, and the two that handed a finished swipe to the page keep it. Shown at whichever viewport is selected; the failure measured at HEAD is at 320 x 568.</p></div><ul class="mk-points"><li>When the room under a field is shorter than the list wants, opening the list first brings the field to the top of the visible area.</li><li>The list then takes the room that is left, measured, and never less than one and a half rows, so the next row always shows.</li><li>The Targets chooser was 465.5 px tall with a second scroller inside it. On the phone tier it is one scroller.</li></ul></div><div class="mk-row"></div><div class="mk-row"></div></section>`);
+  const rowsEl = v.querySelectorAll('.mk-row'), after = [];
+  const add = (rowEl, kind, mode, kbd, tag, name, capFn) => { const f = listFrame(kind, mode, kbd); const fr = frame(tag, name, f.P.el, ''); rowEl.append(fr); after.push(() => { const r = f.place(); $('.mk-frame-cap', fr).innerHTML = capFn(r); }); };
+  const capT = r => r.hidden ? `The list is ${r.h} px tall and <b>${r.hidden} px</b> of it is under the bar or below the window.` : `At this size the list fits (${r.h} px); the measured failure is at 320 x 568.`;
+  const capN = r => `Capped at <b>${r.h} px</b>: ${r.hidden ? r.hidden + ' px hidden' : 'all of it is visible'}. It scrolls inside itself and a finished swipe is not handed to the page.`;
+  const one = S.state ? (S.list === 'apop' ? 'apop' : 'hsr') : null;
+  const want = (kind, st, kbd) => !S.state || (one === kind && S.state === st && S.kbd === kbd);
+  if (want('hsr', 'today', false)) add(rowsEl[0], 'hsr', 'today', false, 'Today', 'Hotspot picker', capT);
+  if (want('hsr', 'page', false)) add(rowsEl[0], 'hsr', 'new', false, 'New', 'Hotspot picker', capN);
+  if (want('hsr', 'page', true)) add(rowsEl[0], 'hsr', 'new', true, 'New', 'Hotspot picker, keyboard up', capN);
+  if (want('apop', 'today', false)) add(rowsEl[1], 'apop', 'today', false, 'Today', 'Measure distances from', capT);
+  if (want('apop', 'page', false)) add(rowsEl[1], 'apop', 'new', false, 'New', 'Measure distances from', capN);
+  if (want('apop', 'page', true)) add(rowsEl[1], 'apop', 'new', true, 'New', 'Measure distances from, keyboard up', capN);
+  v.append(h(`<table class="mk-table"><thead><tr><th>List</th><th>Its own cap (phone tier)</th><th>New on the phone tier</th></tr></thead><tbody>
+    <tr><td>Hotspot Reports picker <code>.sr-hsr-list</code></td><td>20rem</td><td>The measured room, up to 20rem. Already keeps a finished swipe.</td></tr>
+    <tr><td>Life Lists region picker <code>.sr-lfl-region-list</code></td><td>18rem</td><td>The measured room, up to 18rem. Already keeps a finished swipe.</td></tr>
+    <tr><td>Targets county picker <code>.sr-tg-combo-list</code></td><td>17rem</td><td>The measured room, up to 17rem. Gains <code>overscroll-behavior: contain</code>.</td></tr>
+    <tr><td>Species picker <code>.sr-combobox-list</code></td><td>260 px, inline today</td><td>The cap moves to the class so a rule can reach it; the measured room, up to 260 px. Gains <code>overscroll-behavior: contain</code>.</td></tr>
+    <tr><td>Targets chooser <code>.sr-tg-apop</code></td><td>none (465.5 px tall), inner list 11.5rem</td><td>One scroller: the chooser takes the measured room and its inner list is released.</td></tr></tbody></table>`));
+  return { el: v, after };
+}
+
+/* ── Render. ── */
+function render() {
+  document.documentElement.dataset.theme = S.theme;
+  document.documentElement.style.setProperty('--sr-text-scale', S.scale);
+  document.body.classList.toggle('mk-single', !!S.state);
+  document.querySelectorAll('[data-ctl]').forEach(g => g.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(String(S[g.dataset.ctl]) === b.dataset.v))));
+  $('#tabs').innerHTML = VIEWS.map(([k, l]) => `<button type="button" data-view="${k}" aria-current="${S.view === k}">${l}</button>`).join('');
+  const stage = $('#stage'); stage.innerHTML = '';
+  const keys = S.view === 'all' ? ['species', 'statistics', 'named', 'weather', 'hotspot', 'explorer', 'lists'] : [S.view];
+  const after = [];
+  keys.forEach(k => { const v = k === 'explorer' ? explorerView() : k === 'lists' ? listsView() : surfaceView(SURF[k] ? k : 'species'); stage.append(v.el); after.push(...v.after); });
+  requestAnimationFrame(() => after.forEach(fn => fn()));
+}
+document.querySelectorAll('[data-ctl]').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const k = g.dataset.ctl; S[k] = k === 'theme' ? b.dataset.v : +b.dataset.v; render(); }));
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.view; render(); });
+render();
+</script>
+</body>
+</html>
