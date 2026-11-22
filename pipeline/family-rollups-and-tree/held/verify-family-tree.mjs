@@ -26,13 +26,23 @@
 //      past its row or the list, and each opened family's Birds of the World
 //      line first in its block, one link, at least the touch target tall
 //      (QA-79, D-55(a)).
+//   5. A FAILED FAMILY ASSET (QA-14, FR-14; schema 8.2 after QA round 2, N1).
+//      On the desktop, once with the asset's chunk aborted and once answered
+//      500: the alert shows the copy module's message verbatim with one Reload
+//      and no Go to Settings, and no table, tree or Not placed group; the chunk
+//      was requested once; the tab hidden and shown again leaves the chunk at
+//      one request, the files-status reads where they were and the alert as it
+//      was; the fault is lifted and Reload pressed, and the chunk is requested
+//      again and the tab comes up with its roster. A unit row cannot prove what
+//      an engine asks for again; this leg is where that is held.
 //
 // Lines starting `MEASURE` are the readings recorded in the run's evidence. The
 // run declares how many configurations each leg measures and fails on a short
 // count. `--expect-broken` forces one defect per leg (a tool natively disabled
 // at its limit, the captions forced on, the panel's Exit hidden, the table held
-// wider than a phone) and must then see a failure in EVERY leg, so the harness
-// is shown able to see what it guards.
+// wider than a phone, the asset's fault left in place across the Reload) and
+// must then see a failure in EVERY leg, so the harness is shown able to see
+// what it guards.
 //
 // SCOPE: schema 17 names more rows than these four legs hold (QA-11, 43, 57,
 // 59, 60, 66, 67, 81, 83, 94, 96, 99's phone leg, and Fit on a roster of 40 or
@@ -40,17 +50,21 @@
 // run's decisions log; they are not legs here yet.
 //
 // HERMETIC: the dist is served with a stubbed backend holding a synthetic
-// backup of real taxonomy names and no key; every eBird-backed path (`/map`,
-// `/checklists`, `/hotspot`) is answered by the stub with a 404 and COUNTED, and
-// the run fails on any (the tab asks eBird nothing). Every other host is refused
-// in the browser and counted.
+// backup of real taxonomy names and no key. Every path a real backend answers
+// by asking a third party (eBird's `/map`, `/checklists` and `/hotspot`, the
+// weather and tide lookups, Nominatim, the Macaulay embed check and the
+// release check) is answered by the stub with a 404 and COUNTED, and the run
+// fails on any, so "no request left the page for a third party" is what it
+// asserts. `/taxonomy/codes`, the tab's one designed codes batch, which a real
+// server answers from its own taxonomy, is counted and reported apart. Every
+// other host is refused in the browser and counted.
 //
 // HELD (schema 17): this file sits in `pipeline/family-rollups-and-tree/held/`
 // until the user approves the `website/` change, then moves to
 // `website/tools/verify/`, where `run.mjs` picks it up. It finds the shared
 // helpers from either place, so it runs unchanged in both:
 //
-//   node pipeline/family-rollups-and-tree/held/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4]
+//   node pipeline/family-rollups-and-tree/held/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5]
 
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -68,7 +82,7 @@ const { chromium, webkit } = requirePlaywright()
 const DIST = resolve(process.argv.slice(2).find(a => !a.startsWith('--')) ?? process.env.SR_VERIFY_DIST ?? join(ROOT, 'frontend/dist'))
 const MODE = process.argv.includes('--expect-broken') ? 'broken' : 'fixed'
 // `--legs=1,3` runs only those legs (a development aid; the gate runs all four).
-const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4').slice(7).split(',').map(Number)
+const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4,5').slice(7).split(',').map(Number)
 
 // -- The synthetic backup: every 8th species of the family asset ---------------
 // Real names, so each is placed; every order the asset has is reached, so the
@@ -103,15 +117,21 @@ const CSV = [HEADER, ...SPECIES.map(([cn, sci], i) => [
 ].map(q).join(','))].join('\n') + '\n'
 const FILES_STATUS = { ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T00:00:00Z' }, ml: null }
 
-/** Requests to an eBird-backed path that reached the stub: the run fails on any. */
-const ebirdBacked = []
+/** Backend paths a real server answers by asking a third party. */
+const THIRD_PARTY = /^\/(map|checklists|hotspot|weather|tide|nominatim|media)(\/|$)|^\/version\/check/
+/** Requests to such a path that reached the stub: the run fails on any. */
+const thirdParty = []
+/** The tab's designed codes batch, answered by a real server from its own taxonomy. */
+const taxonomyCalls = []
 function stubBackend(p, _req, res) {
   if (p === '/settings/files') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(FILES_STATUS)); return true }
   if (p === '/settings/files/ebird') { res.writeHead(200, { 'content-type': 'text/csv' }); res.end(CSV); return true }
   if (p === '/settings/keys') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ebird: null, openweather: null })); return true }
-  if (p.startsWith('/map') || p.startsWith('/checklists') || p.startsWith('/hotspot')) ebirdBacked.push(p)
-  if (p.startsWith('/settings/') || p.startsWith('/weather') || p.startsWith('/tide') || p.startsWith('/map') || p.startsWith('/hotspot')
-      || p.startsWith('/taxonomy') || p.startsWith('/checklists') || p.startsWith('/version')) { res.writeHead(404); res.end('not found'); return true }
+  if (THIRD_PARTY.test(p)) { thirdParty.push(p); res.writeHead(404); res.end('not found'); return true }
+  if (p.startsWith('/taxonomy')) taxonomyCalls.push(p)
+  if (p.startsWith('/settings/') || p.startsWith('/taxonomy') || p.startsWith('/version') || p.startsWith('/stats') || p.startsWith('/health')) {
+    res.writeHead(404); res.end('not found'); return true
+  }
   return false
 }
 let refusedHosts = 0
@@ -142,8 +162,8 @@ const BREAK_TABLE = '.sr-ft-list { min-width: 27rem !important; }'
 // -- Measurement ---------------------------------------------------------------
 
 const failures = []
-const legFailures = [0, 0, 0, 0]
-const legMeasured = [0, 0, 0, 0]
+const legFailures = [0, 0, 0, 0, 0]
+const legMeasured = [0, 0, 0, 0, 0]
 function check(leg, name, ok, detail = '') {
   legMeasured[leg - 1]++
   if (!ok) legFailures[leg - 1]++
@@ -155,13 +175,15 @@ function check(leg, name, ok, detail = '') {
 const SCALES = [1, 1.25, 1.5, 2]
 const ENGINES = [['chromium', chromium], ['webkit', webkit]]
 
-async function open(browser, base, viewport, { scale = 1, css = '', script = '' } = {}) {
+async function open(browser, base, viewport, { scale = 1, css = '', script = '', routes = null, tab = true } = {}) {
   const ctx = await browser.newContext({ viewport, hasTouch: viewport.width <= 640 })
   await ctx.route('**/*', route => {
     if (new URL(route.request().url()).origin === base) return route.continue()
     refusedHosts++
     return route.abort()
   })
+  // Registered after the catch-all, so it wins for what it matches.
+  if (routes) await routes(ctx)
   if (script) await ctx.addInitScript({ content: script })
   const page = await ctx.newPage()
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -169,7 +191,7 @@ async function open(browser, base, viewport, { scale = 1, css = '', script = '' 
   if (await welcome.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)) await dismissWelcome(welcome)
   if (css) await page.addStyleTag({ content: css })
   await setScale(page, scale)
-  await openTab(page)
+  if (tab) await openTab(page)
   return { ctx, page }
 }
 
@@ -179,14 +201,14 @@ async function setScale(page, s) {
   await settle(page)
 }
 
-async function openTab(page) {
+async function openTab(page, { wait = true } = {}) {
   const tab = page.locator('[role="tab"]', { hasText: 'Family Tree' })
   if (await tab.count()) await tab.first().click()
   else {
     await page.locator('.sr-navbar button[aria-haspopup="dialog"]').click()
     await page.locator('[role="dialog"] .sr-nav-item', { hasText: 'Family Tree' }).first().click()
   }
-  await page.waitForSelector('.sr-ft-glance', { timeout: 60_000 })
+  if (wait) await page.waitForSelector('.sr-ft-glance', { timeout: 60_000 })
 }
 
 async function showView(page, name) {
@@ -479,6 +501,86 @@ async function tableLeg(name, browser, base) {
   await ctx.close()
 }
 
+// Leg 5 ------------------------------------------------------------------------
+
+// The message, read from the copy module rather than typed here.
+const FAMILY_DATA_ERROR = /export const FAMILY_DATA_ERROR = "([^"]+)"/.exec(readFileSync(join(ROOT, 'frontend/src/lib/familyTreeCopy.ts'), 'utf8'))?.[1]
+if (!FAMILY_DATA_ERROR) throw new Error('the copy module carries no FAMILY_DATA_ERROR')
+const ASSET_CHUNK = /\/assets\/ebird-families-[^/]+\.js$/
+
+const FAILED = msg => {
+  // The tab's own panel: other mounted tabs carry their own (empty) regions.
+  const panel = document.getElementById('panel-family-tree')
+  const region = panel?.querySelector('[role="alert"].sr-tab-load-alert') ?? null
+  const frame = region?.closest('.sr-tab-load-alert-frame')
+  const buttons = frame ? [...frame.querySelectorAll('button')].filter(b => b.getClientRects().length > 0).map(b => b.textContent.trim()) : []
+  return {
+    text: region?.textContent ?? null,
+    verbatim: region?.textContent === msg,
+    buttons,
+    insideRegion: region ? region.querySelectorAll('button').length : -1,
+    listed: panel ? panel.querySelectorAll('.sr-ft-list, .sr-ft-box, .sr-ft-unplaced, .sr-ft-glance').length : -1,
+  }
+}
+
+async function assetLeg(name, browser, base) {
+  for (const fault of ['abort', '500']) {
+    let faulty = true
+    let chunk = 0
+    const routes = async ctx => {
+      await ctx.route(url => ASSET_CHUNK.test(new URL(url).pathname), route => {
+        chunk++
+        if (!faulty) return route.continue()
+        return fault === 'abort' ? route.abort() : route.fulfill({ status: 500, contentType: 'text/plain', body: 'server error' })
+      })
+    }
+    const { ctx, page } = await open(browser, base, { width: 1280, height: 800 }, { routes, tab: false })
+    let statusReads = 0
+    page.on('request', r => { if (new URL(r.url()).pathname === '/settings/files') statusReads++ })
+    const landing = await page.locator('[role="tab"][aria-selected="true"]').first().textContent()
+    await openTab(page, { wait: false })
+    await page.waitForFunction(m => document.getElementById('panel-family-tree')?.querySelector('[role="alert"].sr-tab-load-alert')?.textContent === m,
+      FAMILY_DATA_ERROR, { timeout: 30_000 }).catch(() => {})
+    await page.waitForTimeout(300)
+    const f1 = await page.evaluate(FAILED, FAMILY_DATA_ERROR)
+    check(5, `${name} chunk ${fault}: the message verbatim, one Reload, nothing listed`,
+      f1.verbatim && f1.buttons.length === 1 && f1.buttons[0] === 'Reload' && f1.insideRegion === 0 && f1.listed === 0,
+      `text "${f1.text}", actions [${f1.buttons.join(', ')}], ${f1.insideRegion} inside the region, ${f1.listed} listed`)
+    check(5, `${name} chunk ${fault}: the chunk was requested once`, chunk === 1, `${chunk} requests`)
+    const reads0 = statusReads
+    // Hidden behind the tab the app opened on (already mounted), then shown again.
+    await page.locator('[role="tab"]', { hasText: landing.trim() }).first().click()
+    await page.waitForTimeout(300)
+    await openTab(page, { wait: false })
+    await page.waitForTimeout(800)
+    const f2 = await page.evaluate(FAILED, FAMILY_DATA_ERROR)
+    check(5, `${name} chunk ${fault}: hidden and shown, still one request, no files-status read, the alert unchanged`,
+      chunk === 1 && statusReads === reads0 && f2.verbatim && f2.buttons.join() === 'Reload' && f2.listed === 0,
+      `${chunk} chunk requests, files-status reads ${reads0} > ${statusReads}, text "${f2.text}"`)
+    // The fault lifted (left in place under --expect-broken), and Reload pressed.
+    if (MODE === 'fixed') faulty = false
+    const before = chunk
+    const reload = page.locator('#panel-family-tree .sr-tab-load-alert-frame').getByRole('button', { name: 'Reload', exact: true })
+    if ((await reload.count()) === 0) {
+      check(5, `${name} chunk ${fault}: after Reload the chunk is requested and the roster comes up`, false, 'no Reload control to press')
+      await ctx.close()
+      continue
+    }
+    await Promise.all([page.waitForEvent('load', { timeout: 30_000 }), reload.click()])
+    const welcome = page.getByRole('dialog', { name: 'Welcome to SnowRaven' })
+    if (await welcome.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)) await dismissWelcome(welcome)
+    await openTab(page, { wait: false })
+    const up = await page.waitForSelector('.sr-ft-glance', { timeout: 20_000 }).then(() => true, () => false)
+    const tile = up ? await page.evaluate(() => document.querySelector('.sr-ft-tile-value')?.textContent) : null
+    const f3 = await page.evaluate(FAILED, FAMILY_DATA_ERROR)
+    check(5, `${name} chunk ${fault}: after Reload the chunk is requested and the roster comes up`,
+      chunk > before && up && Number(tile?.replace(/,/g, '')) === SPECIES.length && f3.text === '',
+      `${chunk - before} new chunk requests, tab up ${up}, species tile ${tile} of ${SPECIES.length}, alert "${f3.text}"`)
+    console.log(`MEASURE ${name} chunk ${fault}: ${before} request before Reload, ${chunk - before} after; files-status reads ${reads0} at the alert, ${statusReads} at the end`)
+    await ctx.close()
+  }
+}
+
 // -- The run --------------------------------------------------------------------
 
 const threshold = await captionThreshold()
@@ -486,8 +588,9 @@ console.log(`built tools-row threshold ${threshold}rem; ${SPECIES.length} specie
 const { base, close } = await serveDist(DIST, { routes: stubBackend, fallback: 'index' })
 const started = Date.now()
 // Per engine: leg 1 eight presses, leg 2 eight settings, leg 3 six checks at
-// each of four scales plus two on the desktop, leg 4 eight settings.
-const EXPECTED = [8, 8, 26, 8].map((n, i) => (LEGS_RUN.includes(i + 1) ? n * ENGINES.length : 0))
+// each of four scales plus two on the desktop, leg 4 eight settings, leg 5
+// four checks for each of two faults.
+const EXPECTED = [8, 8, 26, 8, 8].map((n, i) => (LEGS_RUN.includes(i + 1) ? n * ENGINES.length : 0))
 try {
   for (const [name, engine] of ENGINES) {
     const browser = await engine.launch()
@@ -496,6 +599,7 @@ try {
       if (LEGS_RUN.includes(2)) await captionsLeg(name, browser, base, threshold)
       if (LEGS_RUN.includes(3)) await roundTripLeg(name, browser, base)
       if (LEGS_RUN.includes(4)) await tableLeg(name, browser, base)
+      if (LEGS_RUN.includes(5)) await assetLeg(name, browser, base)
     } finally {
       await browser.close()
     }
@@ -505,16 +609,17 @@ try {
 }
 
 const seconds = Math.round((Date.now() - started) / 1000)
-const LEGS = ['focus at a limit', 'tools row captions', 'still and round trip', 'table at phone widths']
-for (let i = 0; i < 4; i++) {
+const LEGS = ['focus at a limit', 'tools row captions', 'still and round trip', 'table at phone widths', 'a failed family asset']
+for (let i = 0; i < LEGS.length; i++) {
   if (!LEGS_RUN.includes(i + 1)) continue
   const full = legMeasured[i] === EXPECTED[i]
   console.log(`MEASURE leg ${i + 1} (${LEGS[i]}): ${legMeasured[i]} of ${EXPECTED[i]} declared checks measured, ${legFailures[i]} failed`)
   if (!full) failures.push(`leg ${i + 1} measured ${legMeasured[i]} of ${EXPECTED[i]}`)
 }
-const hermetic = ebirdBacked.length === 0
-console.log(`${hermetic ? 'PASS' : 'FAIL'}  no eBird-backed path was asked for  ${ebirdBacked.length} answered by the stub (${[...new Set(ebirdBacked)].slice(0, 5).join(', ')}); ${refusedHosts} requests to other hosts refused in the browser`)
-if (!hermetic) failures.push('an eBird-backed path was asked for')
+const hermetic = thirdParty.length === 0
+console.log(`${hermetic ? 'PASS' : 'FAIL'}  no request left the page for a third party  ${thirdParty.length} backend-forwarded third-party paths answered by the stub (${[...new Set(thirdParty)].slice(0, 5).join(', ')}); ${refusedHosts} requests to other hosts refused in the browser`)
+console.log(`MEASURE the tab's codes batch: ${taxonomyCalls.length} /taxonomy requests across the run, answered by the stub with a 404`)
+if (!hermetic) failures.push('a backend-forwarded third-party path was asked for')
 if (MODE === 'fixed') {
   console.log(`${legMeasured.reduce((a, b) => a + b, 0)} checks in ${seconds} s; ${failures.length ? `FAILED: ${failures.length}` : 'all green'}`)
   process.exit(failures.length ? 1 : 0)
