@@ -234,16 +234,49 @@ describe('the phase gate (QA-13 to QA-15)', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(EBIRD_BACKUP_LOAD_ERROR))
     expect(screen.queryByText('eBird Backup Required')).toBeNull()
   })
-  it('a failed family asset shows its own message, lists nothing as unplaced, and is tried again when the tab is shown again (QA-14)', async () => {
+  it('a failed family asset fills the mounted region with its message and one Reload, lists nothing, and showing the tab again loads nothing (QA-14, schema 8.2)', async () => {
     H.assetFails = 1
-    const r = render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(FAMILY_DATA_ERROR))
-    expect(document.querySelector('.sr-ft-list')).toBeNull()
-    expect(screen.queryByText('Not placed')).toBeNull()
-    r.rerender(<FamilyTreeTab onGoToSettings={() => {}} showing={false} />)
-    r.rerender(<FamilyTreeTab onGoToSettings={() => {}} showing />)
-    await waitFor(() => expect(document.querySelector('.sr-ft-glance')).not.toBeNull())
-    expect(vi.mocked(loadFamilyIndex).mock.calls.length).toBe(2)
+    let release: () => void = () => {}
+    H.getFilesStatus.mockImplementation(() => new Promise(res => { release = () => res(H.files) }))
+    const reload = vi.fn()
+    vi.stubGlobal('location', { ...window.location, reload })
+    try {
+      const r = render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
+      const region = screen.getByRole('alert')
+      expect(region.textContent).toBe('')
+      await act(async () => { release() })
+      await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(FAMILY_DATA_ERROR))
+      expect(screen.getByRole('alert')).toBe(region)
+      // One action, Reload, beside the region; Settings cannot repair an app file.
+      const action = screen.getByRole('button', { name: 'Reload' })
+      expect(region.contains(action)).toBe(false)
+      expect(screen.queryByRole('button', { name: /Go to Settings/ })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+      expect(document.querySelector('.sr-ft-list, .sr-ft-box, .sr-ft-unplaced, .sr-ft-glance')).toBeNull()
+      expect(screen.queryByText('Not placed')).toBeNull()
+      // Hidden and shown again: no load starts.
+      const assetCalls = vi.mocked(loadFamilyIndex).mock.calls.length
+      const statusReads = H.getFilesStatus.mock.calls.length
+      expect(assetCalls).toBe(1)
+      r.rerender(<FamilyTreeTab onGoToSettings={() => {}} showing={false} />)
+      r.rerender(<FamilyTreeTab onGoToSettings={() => {}} showing />)
+      await act(async () => { await new Promise(res => setTimeout(res, 30)) })
+      expect(vi.mocked(loadFamilyIndex).mock.calls.length).toBe(assetCalls)
+      expect(H.getFilesStatus.mock.calls.length).toBe(statusReads)
+      expect(screen.getByRole('alert').textContent).toBe(FAMILY_DATA_ERROR)
+      expect(reload).not.toHaveBeenCalled()
+      fireEvent.click(action)
+      expect(reload).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+  it('the backup\'s own load failure keeps Go to Settings and has no Reload (only the family data reloads)', async () => {
+    H.ebirdNull = true
+    render(<FamilyTreeTab onGoToSettings={() => {}} showing />)
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(EBIRD_BACKUP_LOAD_ERROR))
+    expect(screen.getByRole('button', { name: /Go to Settings/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull()
   })
   it('the alert region exists, empty, while loading (QA-14) and a status names the load (QA-15)', async () => {
     let release: () => void = () => {}

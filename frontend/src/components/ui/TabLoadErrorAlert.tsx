@@ -125,6 +125,16 @@ type Props = {
    * exactly what it was before the prop existed.
    */
   onRetry?: () => void
+  /**
+   * Optional: a failure no setting can repair and only a reload of the page
+   * recovers from (the Family Tree's bundled family data failing to load:
+   * family-rollups-and-tree schema 8.2). When given, the action is ONE
+   * "Reload" button, a sibling of the region like the others, drawn IN PLACE
+   * of "Go to Settings" (a button that goes there would read as the remedy)
+   * and of Retry. Absent, the rendered markup is exactly what it was before
+   * the prop existed (`familyTreeShared.golden.test.tsx` pins it).
+   */
+  onReload?: () => void
 }
 
 type VariantStyles = {
@@ -159,7 +169,7 @@ const VARIANTS: Record<TabLoadErrorVariant, VariantStyles> = {
   },
 }
 
-export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel', onRetry }: Props) {
+export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel', onRetry, onReload }: Props) {
   const v = VARIANTS[variant]
   const showing = message !== null
 
@@ -187,7 +197,11 @@ export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel', 
     </div>
   )
 
-  const action = showing ? (
+  const action = !showing ? null : onReload ? (
+    <Button type="button" onClick={onReload} style={v.button}>
+      Reload
+    </Button>
+  ) : (
     <>
       <Button type="button" onClick={onGoToSettings} style={v.button}>
         {v.buttonLabel}
@@ -198,7 +212,7 @@ export function TabLoadErrorAlert({ message, onGoToSettings, variant = 'panel', 
         </Button>
       ) : null}
     </>
-  ) : null
+  )
 
   return (
     <div className="sr-tab-load-alert-frame" style={showing ? v.frame : undefined}>

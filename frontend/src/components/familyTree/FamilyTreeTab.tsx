@@ -144,7 +144,6 @@ type AssetResult = { ok: true; index: FamilyIndex } | { ok: false }
  */
 function useFamilyTreeLoad(
   filesEpoch: number,
-  retrySeq: number,
   setPhase: Dispatch<SetStateAction<Phase>>,
   /** Advances the Expand all run and clears its partial state (stable). */
   onLoaded: () => void,
@@ -204,7 +203,12 @@ function useFamilyTreeLoad(
     }
     void load()
     return () => { cancelled = true }
-  }, [filesEpoch, retrySeq, setPhase, onLoaded, setCodeRequest, setYear])
+  }, [filesEpoch, setPhase, onLoaded, setCodeRequest, setYear])
+}
+
+/** The alert's Reload for a failed family asset (schema 8.2). */
+function reloadPage(): void {
+  window.location.reload()
 }
 
 export interface FamilyTreeTabProps {
@@ -216,7 +220,6 @@ export interface FamilyTreeTabProps {
 
 export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: FamilyTreeTabProps) {
   const filesEpoch = useFilesEpoch()
-  const [retrySeq, setRetrySeq] = useState(0)
   const [phase, setPhase] = useState<Phase>({ tag: 'loading' })
   const [codeRequest, setCodeRequest] = useState<CodeRequest | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -264,15 +267,13 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
     expandRun.current += 1
     setPartialState(NO_PARTIAL)
   }, [])
-  useFamilyTreeLoad(filesEpoch, retrySeq, setPhase, onLoaded, setCodeRequest, setYear)
+  useFamilyTreeLoad(filesEpoch, setPhase, onLoaded, setCodeRequest, setYear)
 
-  // FR-14: a failed family asset is tried again the next time the tab is shown.
+  // FR-14, schema 8.2 (QA round 2, N1): a failed family asset is terminal for
+  // the session. A dynamic import whose fetch failed stays failed in WebKit and
+  // Chromium, so showing the tab again could only re-read the file status; the
+  // way back is the alert's Reload, the call the app's own error screen makes.
   const familyDataFailed = phase.tag === 'error' && phase.message === FAMILY_DATA_ERROR
-  const wasShowing = useRef(showing)
-  useEffect(() => {
-    if (showing && !wasShowing.current && familyDataFailed) setRetrySeq(s => s + 1)
-    wasShowing.current = showing
-  }, [showing, familyDataFailed])
 
   // -- The taxon-code batch: one post per distinct world roster -------------------
   useEffect(() => {
@@ -493,7 +494,11 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
   if (!ready || model === null) {
     return (
       <div className="sr-ft-tab" data-media="off">
-        <TabLoadErrorAlert message={phase.tag === 'error' ? phase.message : null} onGoToSettings={onGoToSettings} />
+        <TabLoadErrorAlert
+          message={phase.tag === 'error' ? phase.message : null}
+          onGoToSettings={onGoToSettings}
+          onReload={familyDataFailed ? reloadPage : undefined}
+        />
         {phase.tag === 'setup-required' ? header : null}
         {phase.tag === 'setup-required' ? (
           <SetupRequired title={SETUP_TITLE} body={SETUP_BODY} steps={EBIRD_BACKUP_STEPS} onGoToSettings={onGoToSettings} />

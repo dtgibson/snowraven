@@ -25,7 +25,7 @@ export const SETUP_TITLE = 'eBird Backup Required'
 export const SETUP_BODY = "The Family Tree tab loads automatically from your stored eBird backup. You haven't saved one yet."
 export const LOADING_LABEL = 'Loading your family tree'
 /** FR-14: the one constant message for a failed family asset. */
-export const FAMILY_DATA_ERROR = "SnowRaven couldn't load its bird family data."
+export const FAMILY_DATA_ERROR = "SnowRaven couldn't load its bird family data. Reload to try again."
 
 // -- The filter strip ------------------------------------------------------------
 

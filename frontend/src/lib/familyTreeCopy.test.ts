@@ -46,7 +46,7 @@ const PLURAL_AGREEMENT = /(^|[^0-9,.])1 (?:other )?(?:species|entry|entries)\b[^
 describe('the content (the PRD\'s and the design spec\'s sentences, verbatim)', () => {
   it('the phase and state sentences', () => {
     expect(copy.SETUP_BODY).toBe("The Family Tree tab loads automatically from your stored eBird backup. You haven't saved one yet.")
-    expect(copy.FAMILY_DATA_ERROR).toBe("SnowRaven couldn't load its bird family data.")
+    expect(copy.FAMILY_DATA_ERROR).toBe("SnowRaven couldn't load its bird family data. Reload to try again.")
     expect(copy.EMPTY_UNFILTERED).toBe('No countable species in your eBird backup yet.')
     expect(copy.EMPTY_FILTERED).toBe('No species match these filters.')
     expect(copy.FILTER_NOTE).toBe('Family totals are world species and do not change with the filters.')

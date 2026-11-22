@@ -142,8 +142,12 @@ let shared: Promise<FamilyIndex> | null = null
 /**
  * The session's one family index. The JSON is imported lazily, the first time
  * a caller asks, and the index is built once. A rejected or malformed import
- * releases the shared promise, so the next call (the tab shown again) imports
- * again.
+ * releases the shared promise, so a later call asks again; WebKit and Chromium
+ * answer that second `import()` with the same failure and no request, because
+ * a dynamic import whose fetch failed stays failed for the session. A failure
+ * is therefore terminal for the session, and the tab offers Reload (schema 8.2,
+ * QA round 2, N1). The release is kept: harmless in those engines, and right
+ * in one that does fetch again.
  */
 export function loadFamilyIndex(): Promise<FamilyIndex> {
   if (shared !== null) return shared

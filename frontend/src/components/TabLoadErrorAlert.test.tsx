@@ -166,6 +166,7 @@ import { LifeListsTab } from './lifeLists/LifeListsTab'
 import { HotspotReportsTab } from './hotspotReports/HotspotReportsTab'
 import { FamilyTreeTab } from './familyTree/FamilyTreeTab'
 import { FAMILY_TREE_VIEW_SETTING } from '../lib/familyTreeSettings'
+import { TabLoadErrorAlert } from './ui/TabLoadErrorAlert'
 import { notifyFilesChanged } from '../lib/filesChanged'
 import { loadEbirdObservations } from '../lib/observationsCache'
 
@@ -236,6 +237,41 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+})
+
+// -- The optional Reload (family-rollups-and-tree schema 8.2, QA round 2, N1) --
+// Without `onReload` the markup is the shipped markup in every variant and
+// state, pinned byte for byte by `familyTreeShared.golden.test.tsx`; these rows
+// hold what the prop draws when it is given, and the absent case's action.
+describe('the alert\'s optional Reload', () => {
+  const MSG = "SnowRaven couldn't load its bird family data. Reload to try again."
+  for (const variant of ['panel', 'stats'] as const) {
+    it(`${variant}: with onReload, one Reload beside the region, in place of Go to Settings and of Retry`, () => {
+      const reload = vi.fn()
+      const settings = vi.fn()
+      const { container } = render(
+        <TabLoadErrorAlert message={MSG} onGoToSettings={settings} variant={variant} onRetry={vi.fn()} onReload={reload} />,
+      )
+      const region = regionIn(container)!
+      expect(region.textContent).toBe(MSG)
+      expect(region.querySelector('button')).toBeNull()
+      const buttons = [...container.querySelectorAll('.sr-tab-load-alert-frame button')]
+      expect(buttons.map(b => b.textContent)).toEqual(['Reload'])
+      expect(buttons[0].getAttribute('tabindex')).toBe('0')
+      buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      expect(reload).toHaveBeenCalledTimes(1)
+      expect(settings).not.toHaveBeenCalled()
+    })
+    it(`${variant}: without onReload the action is Go to Settings, and idle with onReload draws nothing`, () => {
+      const { container, rerender } = render(<TabLoadErrorAlert message={MSG} onGoToSettings={vi.fn()} variant={variant} />)
+      const buttons = [...container.querySelectorAll('.sr-tab-load-alert-frame button')]
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0].textContent).toMatch(/^Go to Settings/)
+      rerender(<TabLoadErrorAlert message={null} onGoToSettings={vi.fn()} variant={variant} onReload={vi.fn()} />)
+      expect(container.querySelector('button')).toBeNull()
+      expect(regionIn(container)!.textContent).toBe('')
+    })
+  }
 })
 
 describe('the roster covers every tab that can fail to load', () => {
