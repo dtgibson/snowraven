@@ -549,16 +549,19 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
   const tools = (
     <>
       <span className="sr-ft-toolgroup">
-        <Button type="button" className="sr-ft-tool sr-ft-tool--icon sr-touch-target" aria-label={ZOOM_OUT} disabled={atFitNow} onClick={() => zoomBy(1 / ZOOM_STEP, null)}>
+        {/* At its limit a zoom tool is aria-disabled, never natively disabled:
+            it stays focusable and a press is a no-op, so pressing it to its
+            limit by keyboard leaves focus on it (D-38(b), QA-80). */}
+        <Button type="button" className="sr-ft-tool sr-ft-tool--icon sr-touch-target" aria-label={ZOOM_OUT} aria-disabled={atFitNow} onClick={() => { if (!atFitNow) zoomBy(1 / ZOOM_STEP, null) }}>
           <ZoomOut size={15} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
           <span className="cap">{ZOOM_OUT}</span>
         </Button>
         <span className="sr-ft-zoomval" aria-hidden="true">{zoomPercent(k / m.kMax)}</span>
-        <Button type="button" className="sr-ft-tool sr-ft-tool--icon sr-touch-target" aria-label={ZOOM_IN} disabled={atMaxNow} onClick={() => zoomBy(ZOOM_STEP, null)}>
+        <Button type="button" className="sr-ft-tool sr-ft-tool--icon sr-touch-target" aria-label={ZOOM_IN} aria-disabled={atMaxNow} onClick={() => { if (!atMaxNow) zoomBy(ZOOM_STEP, null) }}>
           <ZoomIn size={15} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
           <span className="cap">{ZOOM_IN}</span>
         </Button>
-        <Button type="button" className="sr-ft-tool sr-touch-target" aria-label={FIT_LABEL} disabled={atFitNow && top < 1} onClick={fit}>
+        <Button type="button" className="sr-ft-tool sr-touch-target" aria-label={FIT_LABEL} aria-disabled={atFitNow && top < 1} onClick={() => { if (!(atFitNow && top < 1)) fit() }}>
           <Scan size={14} strokeWidth={2.2} className="sr-ft-tool-glyph" aria-hidden="true" />
           <span className="t">{FIT}</span>
           <span className="cap">{FIT}</span>

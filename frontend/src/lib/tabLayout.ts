@@ -44,8 +44,9 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
  * v1.0.19): the pre-Hotspot-Reports order this constant used to hold is
  * retired, because chaining generations turns the one equality back into a
  * heuristic, so a saved pre-Hotspot-Reports default now reads as a custom order
- * and on such a device Hotspot Reports moves to the end, followed by Family
- * Tree (FR-10 accepts it; Restore defaults puts it back). Not a default for
+ * and on such a device it loads as its saved tabs, then Family Tree, then
+ * Hotspot Reports last (FR-10 as corrected, D-55(d); Restore defaults puts it
+ * back). Not a default for
  * anything; do not read it as one.
  */
 export const PREVIOUS_DEFAULT_TAB_ORDER: readonly ConfigurableTab[] = [

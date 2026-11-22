@@ -114,6 +114,7 @@ describe('the tree and Find (Slice B)', () => {
   })
   it('a family links to Birds of the World, and no family-level Macaulay link is claimed (D-47)', () => {
     sentenceWith('A selected family also links to its account on Birds of the World')
+    sentenceWith("Press a family's row to open it", "under a link to the family's account on Birds of the World")
     expect(BOW_FAMILY_LINK_VERIFIED).toBe(true)
     expect(ML_FAMILY_LINK_VERIFIED).toBe(false)
     expect(/family[^.]*Macaulay|Macaulay[^.]*famil/i.test(PASSAGE.replace(/\s+/g, ' '))).toBe(false)

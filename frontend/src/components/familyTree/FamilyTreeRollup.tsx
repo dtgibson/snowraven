@@ -15,16 +15,18 @@
 // family's ASSET index in a data attribute, which the tab's Find reads.
 
 import { memo, useState } from 'react'
-import { Camera, ChevronRight, Mic, Video } from 'lucide-react'
+import { Camera, ChevronRight, ExternalLink, Mic, Video } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { BirdName } from '../BirdName'
 import { MediaPresenceCell } from '../MediaPresenceCell'
+import { OutboundLink } from '../OutboundLink'
+import { bowFamilyHref } from '../../lib/familyTreeLinks'
 import type { FamilyIndex } from '../../lib/familyTreeAsset'
 import type { FamilyModel, FamilyNode, GenusNode, OrderNode, SortKey, SpeciesLeaf } from '../../lib/familyTreeModel'
 import { sortFamilies } from '../../lib/familyTreeModel'
 import { familyNames, genusNames, nameOf, namingWords, orderNames, type NamesState } from '../../lib/familyTreeNames'
 import {
-  COLUMN_FAMILY, COLUMN_SEEN, DOT_SEPARATOR, barWidth, KIND_COPY, KIND_KEYS, NOT_PLACED_HEADING, NOT_PLACED_ROW, familyRowLabel,
+  BOW_LINK_TEXT, COLUMN_FAMILY, COLUMN_SEEN, DOT_SEPARATOR, barWidth, bowLinkLabel, KIND_COPY, KIND_KEYS, NOT_PLACED_HEADING, NOT_PLACED_ROW, familyRowLabel,
   genusSpecies, itemsLabel, notPlacedReason, notPlacedRowLabel, notPlacedSub, orderFigures, seenOfWorld, share,
 } from '../../lib/familyTreeCopy'
 import type { CSSProperties } from 'react'
@@ -112,6 +114,7 @@ function sameOpenBlock(a: FamilyOpenProps, b: FamilyOpenProps): boolean {
 const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onOpenSpecies, mediaShown, isNew, limit }: FamilyOpenProps) {
   // A single press plays the entrance; rows Expand all mounts arrive without it.
   const [entering] = useState(isNew)
+  const href = bowFamilyHref(index.families[family.family].code)
   const blocks: { g: GenusNode; shown: readonly SpeciesLeaf[] }[] = []
   let left = limit
   for (const g of family.genera) {
@@ -122,6 +125,16 @@ const FamilyOpen = memo(function FamilyOpen({ family, index, names, codeFor, onO
   }
   return (
     <div className={entering ? 'sr-ft-open is-new' : 'sr-ft-open'}>
+      {/* The family's Birds of the World link, the tree readout's own (same
+          builder, flag, guard, text and name; D-55(a), NFR-07). It mounts
+          with the block's frame, outside the species rows a step counts. */}
+      {href !== null ? (
+        <p className="sr-ft-open-links">
+          <OutboundLink href={href} className="sr-ft-out sr-touch-target" aria-label={bowLinkLabel(index.families[family.family].name)}>
+            {BOW_LINK_TEXT}<ExternalLink size={12} strokeWidth={2.2} aria-hidden="true" />
+          </OutboundLink>
+        </p>
+      ) : null}
       {blocks.map(({ g, shown }) => {
         const n = genusNames(index, g.genus)
         const nm = nameOf('genus', n.common, n.scientific, names)

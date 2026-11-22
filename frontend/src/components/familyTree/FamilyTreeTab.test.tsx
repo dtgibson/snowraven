@@ -596,10 +596,13 @@ describe('the tree (FR-55 to FR-70)', () => {
     expect(within(readout).getByText('Genus')).toBeTruthy()
     expect(within(readout).getByText('Family')).toBeTruthy()
   })
-  it('the tools render in the toolbar; Zoom in is disabled at full zoom, and Collapse all closes every branch', async () => {
+  it('the tools render in the toolbar; at its limit a zoom tool is aria-disabled and stays a tab stop (D-38(b), QA-80)', async () => {
     const t = await tree()
     const tools = screen.getByRole('toolbar', { name: 'View tools' })
-    expect((within(tools).getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true)
+    const zoomIn = within(tools).getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement
+    expect(zoomIn.getAttribute('aria-disabled')).toBe('true')
+    expect(zoomIn.disabled).toBe(false)
+    expect(zoomIn.getAttribute('tabindex')).toBe('0')
     fireEvent.click(within(tools).getByRole('button', { name: 'Collapse all' }))
     await waitFor(() => expect([...t.querySelectorAll('[role="treeitem"]')].every(e => e.getAttribute('aria-level') === '1')).toBe(true))
   })
@@ -639,12 +642,93 @@ describe('the tree (FR-55 to FR-70)', () => {
       opener.uninstall()
     }
   })
-  it('no order or genus in either view carries an outside link (QA-49)', async () => {
+  it('each zoom tool pressed to its limit keeps focus, and a press at the limit does nothing (QA-80)', async () => {
+    await tree()
+    const tools = screen.getByRole('toolbar', { name: 'View tools' })
+    for (const name of ['Zoom out', 'Zoom in', 'Fit the whole tree']) {
+      const b = within(tools).getByRole('button', { name }) as HTMLButtonElement
+      b.focus()
+      for (let i = 0; i < 20 && b.getAttribute('aria-disabled') !== 'true'; i++) fireEvent.click(b)
+      await waitFor(() => expect(b.getAttribute('aria-disabled')).toBe('true'))
+      const zoom = document.querySelector('.sr-ft-zoomval')!.textContent
+      fireEvent.click(b)
+      expect(document.querySelector('.sr-ft-zoomval')!.textContent).toBe(zoom)
+      expect(b.disabled).toBe(false)
+      expect(document.activeElement).toBe(b)
+    }
+  })
+  it('no order or genus in either view carries an outside link; a family\'s link is in both (QA-49, D-55(a))', async () => {
     const t = await tree()
     expect(t.querySelector('a')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Table' }))
     await waitFor(() => expect(document.querySelector('.sr-ft-list')).not.toBeNull())
     expect(document.querySelector('.sr-ft-oband a, .sr-ft-genus a, .sr-ft-frow a')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
+    await waitFor(() => expect(document.querySelector('.sr-ft-unplaced .sr-ft-open')).not.toBeNull())
+    // First line of each opened family, never in Not placed.
+    const blocks = [...document.querySelectorAll('.sr-ft-fblock .sr-ft-open')].filter(b => !b.closest('.sr-ft-unplaced'))
+    expect(blocks.length).toBeGreaterThan(0)
+    for (const b of blocks) {
+      expect(b.firstElementChild?.classList.contains('sr-ft-open-links')).toBe(true)
+      expect(b.querySelectorAll('.sr-ft-open-links')).toHaveLength(1)
+      expect(b.querySelectorAll('.sr-ft-open-links a')).toHaveLength(1)
+    }
+    expect(document.querySelector('.sr-ft-unplaced .sr-ft-open-links')).toBeNull()
+  })
+  it('the table holds every level, count and link the tree offers (QA-79\'s set comparison)', async () => {
+    const t = await tree()
+    const items = () => [...t.querySelectorAll('[role="treeitem"]')]
+    const familyLabels = items().filter(e => e.getAttribute('aria-level') === '2').map(e => e.getAttribute('aria-label')!)
+    const genusLabels = items().filter(e => e.getAttribute('aria-level') === '3').map(e => e.getAttribute('aria-label')!)
+    const speciesLabels = items().filter(e => e.getAttribute('aria-level') === '4').map(e => e.getAttribute('aria-label')!)
+    expect(familyLabels.length).toBeGreaterThan(1)
+    // The links the tree offers: a family's readout link, read by selecting each family.
+    const treeLinks = new Set<string>()
+    for (const label of familyLabels) {
+      const item = items().find(e => e.getAttribute('aria-label') === label)!
+      fireEvent.pointerDown(item, { pointerType: 'touch' })
+      fireEvent.click(item)
+      const link = await within(screen.getByRole('region', { name: 'Selected' })).findByRole('link')
+      treeLinks.add(`${link.getAttribute('href')} | ${link.getAttribute('aria-label')}`)
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+    await waitFor(() => expect(document.querySelector('.sr-ft-list')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
+    await waitFor(() => expect(document.querySelectorAll('.sr-ft-fblock .sr-ft-open').length).toBeGreaterThanOrEqual(familyLabels.length))
+    const rowLabels = [...document.querySelectorAll('.sr-ft-frow')].map(r => r.getAttribute('aria-label') ?? '')
+    for (const l of familyLabels) {
+      const names = l.replace(/^Family, /, '')
+      expect(rowLabels.some(r => r.startsWith(`${names}, `)), names).toBe(true)
+    }
+    const genusLines = [...document.querySelectorAll('.sr-ft-genus')].map(g => g.textContent!.replace(/\s+/g, ' '))
+    for (const l of genusLabels) {
+      const m = /^Genus, (.+), (\d+) species$/.exec(l)!
+      const lead = m[1].split(', ')[0]
+      expect(genusLines.some(g => g.includes(lead) && g.includes(`${m[2]} species`)), l).toBe(true)
+    }
+    const rows = [...document.querySelectorAll('.sr-ft-sp')].map(r => r.textContent ?? '')
+    for (const l of speciesLabels) {
+      const lead = l.replace(/^Species, /, '').split(', ')[0]
+      expect(rows.some(r => r.includes(lead)), lead).toBe(true)
+    }
+    const tableLinks = new Set([...document.querySelectorAll('.sr-ft-open-links a')].map(a => `${a.getAttribute('href')} | ${a.getAttribute('aria-label')}`))
+    expect(treeLinks.size).toBeGreaterThan(0)
+    expect(tableLinks).toEqual(treeLinks)
+  })
+  it('the table\'s family link opens its own URL once in the Tauri apps (FR-50)', async () => {
+    const { installTauriOpener } = await import('../../test/tauriOpener')
+    await ready()
+    fireEvent.click(familyRow(/^Ducks, Geese, and Waterfowl/))
+    const link = await screen.findByRole('link', { name: 'Open Ducks, Geese, and Waterfowl on Birds of the World (opens in a new tab)' }) as HTMLAnchorElement
+    expect(link.getAttribute('href')).toBe('https://birdsoftheworld.org/bow/species/anatid1/cur/introduction')
+    expect(link.closest('.sr-ft-open-links')).not.toBeNull()
+    const opener = installTauriOpener()
+    try {
+      expect(fireEvent.click(link)).toBe(false)
+      expect(opener.calls()).toEqual([{ url: link.href, via: 'own' }])
+    } finally {
+      opener.uninstall()
+    }
   })
   it('a change made inside the save pause survives switching to the table and back', async () => {
     const t = await tree()

@@ -15,6 +15,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parseRulesAtAnyDepth } from './cssTopLevelRules'
+import { specificity } from '../test/cssSpecificity'
 
 const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
 const rules = parseRulesAtAnyDepth(css)
@@ -128,5 +129,80 @@ describe('hover and the phone tier', () => {
     expect(phoneAt).toBeGreaterThan(firstTier)
     // ...and inside THAT block, not a later one: no 640px block opens between.
     expect(css.slice(firstTier + 10, phoneAt).includes('@media (max-width: 640px)')).toBe(false)
+  })
+})
+
+// -- The phone full screen's tools row, as a RESOLVED cascade (QA-98; D-55(c)) --
+// The first round shipped the caption-hiding rule three classes deep under a
+// five-class showing rule, so it never applied while its declaration was
+// present. These rows resolve the cascade over every rule that can reach the
+// surface (a chain of class sets, descendant combinators only; a selector this
+// matcher cannot read, such as one with `:is()` or an attribute, is not a
+// candidate, and none of the tools row's own rules has one), under the phone
+// tier, with the container query on and off.
+type Chain = readonly (readonly string[])[]
+const PANEL_TOOL: Chain = [
+  ['sr-ft-host', 'sr-map-fs-panel'], ['sr-ft-toolbar', 'sr-ctl-row'], ['sr-ft-tools'], ['sr-ft-tool', 'sr-touch-target'],
+]
+const CAP: Chain = [...PANEL_TOOL, ['cap']]
+const PLAIN = /^(\.[a-zA-Z0-9_-]+)+$/
+function matches(sel: string, chain: Chain): boolean {
+  const compounds = sel.trim().split(/\s+/)
+  if (!compounds.every(c => PLAIN.test(c))) return false
+  const classes = (c: string) => c.split('.').filter(Boolean)
+  const subject = classes(compounds[compounds.length - 1])
+  const last = chain[chain.length - 1]
+  if (!subject.every(c => last.includes(c))) return false
+  let at = chain.length - 2
+  for (let i = compounds.length - 2; i >= 0; i--) {
+    const want = classes(compounds[i])
+    while (at >= 0 && !want.every(c => chain[at].includes(c))) at--
+    if (at < 0) return false
+    at--
+  }
+  return true
+}
+function cmpSpec(a: readonly number[], b: readonly number[]): number {
+  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2]
+}
+function resolve(chain: Chain, prop: string, narrow: boolean): string | null {
+  let best: { spec: [number, number, number]; order: number; value: string } | null = null
+  rules.forEach((r, order) => {
+    const active = r.atRules.every(a =>
+      /max-width:\s*640px/.test(a) || (/@container sr-ft-tools/.test(a) && narrow) || /^@layer/.test(a))
+    if (!active || r.atRules.some(a => /@container sr-ft-tools/.test(a)) && !narrow) return
+    const value = decl(r.body, prop)
+    if (value === null) return
+    for (const sel of r.selector.split(',')) {
+      if (!matches(sel, chain)) continue
+      const spec = specificity(sel.trim())
+      const beats = best === null || cmpSpec(spec, best.spec) > 0 || (cmpSpec(spec, best.spec) === 0 && order >= best.order)
+      if (beats) best = { spec, order, value }
+    }
+  })
+  return best === null ? null : (best as { value: string }).value
+}
+
+describe('the phone full screen\'s tools row resolves as designed (QA-98, D-55(c))', () => {
+  it('the captions drop under 20.75rem of row and show above it', () => {
+    expect(resolve(CAP, 'display', true)).toBe('none')
+    expect(resolve(CAP, 'display', false)).toBe('block')
+  })
+  it('a glyph-only cell is max(44px, 2.25rem) tall; a captioned one 3rem', () => {
+    expect(resolve(PANEL_TOOL, 'min-height', true)).toBe('max(44px, 2.25rem)')
+    expect(resolve(PANEL_TOOL, 'min-height', false)).toBe('3rem')
+  })
+  it('the threshold is 20.75rem, inside the phone tier', () => {
+    const q = rules.filter(r => r.atRules.some(a => /@container sr-ft-tools/.test(a)))
+    expect(q.length).toBe(2)
+    for (const r of q) {
+      expect(r.atRules.some(a => /\(width < 20\.75rem\)/.test(a))).toBe(true)
+      expect(r.atRules.some(a => /max-width:\s*640px/.test(a))).toBe(true)
+    }
+  })
+  it('the matcher can fail: the first round\'s three-class rule loses to the showing rule', () => {
+    expect(matches('.sr-ft-tools .sr-ft-tool .cap', CAP)).toBe(true)
+    expect(specificity('.sr-ft-tools .sr-ft-tool .cap')[1]).toBeLessThan(specificity('.sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .cap')[1])
+    expect(matches('.sr-ft-other .cap', CAP)).toBe(false)
   })
 })

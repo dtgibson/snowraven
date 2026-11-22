@@ -6987,6 +6987,9 @@ select:focus-visible {
 .sr-ft-sp .sr-birdname { width: 100%; max-width: 100%; }
 .sr-ft-sp .sr-birdname-row { flex-wrap: wrap; }
 .sr-ft-sp .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
+/* The family's Birds of the World line, first in its open block (D-55(a)): the
+   readout's `.sr-ft-out` register on a wrapping line of its own. */
+.sr-ft-open-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 10px 0 2px; }
 .sr-ft-reason { font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted); margin: 0; padding: 10px 0 6px; max-width: 64ch; }
 .sr-ft-empty { padding: 34px 18px 36px; font-size: 0.8125rem; color: var(--sr-text-muted); text-align: center; margin: 0; }
 .sr-ft-tablefoot { padding: 10px 18px 12px; border-top: 1px solid var(--sr-border-subtle); }
@@ -7025,7 +7028,7 @@ select:focus-visible {
 .sr-ft-edges .e-dot { fill: var(--sr-border-input); stroke: none; }
 .sr-ft-edges .e-line { fill: none; stroke: var(--sr-border-medium); stroke-width: 1.25; }
 .sr-ft-edges .e-path { fill: none; stroke: var(--sr-accent); stroke-width: 2; stroke-linecap: round; }
-.sr-ft-node { position: absolute; display: flex; align-items: center; min-width: 0; font-size: 0.8125rem; line-height: 1.2; color: var(--sr-text); white-space: nowrap; }
+.sr-ft-node { position: absolute; display: flex; align-items: center; min-width: 0; font-size: 0.84375rem; line-height: 1.2; color: var(--sr-text); white-space: nowrap; }
 .sr-ft-chip { display: inline-flex; align-items: center; gap: 4px; min-width: 0; height: 100%; padding: 0 7px 0 2px; border-radius: 6px; transition: background-color 120ms ease-out; }
 .sr-ft-node--s { padding: 0 6px; border-radius: 6px; transition: background-color 120ms ease-out; }
 .sr-ft-tw { flex: none; width: 1rem; height: 1rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--sr-text-muted); }
@@ -7185,6 +7188,8 @@ select:focus-visible {
   .sr-ft-tools .sr-ft-tool--icon { width: 2.75rem; }
   .sr-ft-readout { padding: 12px 12px 14px; }
   .sr-ft-treefoot { padding: 10px 12px 12px; }
+  .sr-ft-open-links { padding-top: 0; }
+  .sr-ft-open-links .sr-ft-out { align-items: center; }
   /* The still (design-spec 10.1): the tree drawn once, cut by a box no taller
      than the window, taking no pan of its own, so a swipe on it moves the page
      and a press opens full screen. A fade covers the bottom edge only where
@@ -7206,9 +7211,14 @@ select:focus-visible {
   .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool { flex: 1 1 0; min-width: 0; width: auto; min-height: 3rem; flex-direction: column; gap: 3px; padding: 5px 1px 4px; line-height: 1.15; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .t { display: none; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .cap { display: block; font-size: 0.625rem; font-weight: 600; }
-  @container sr-ft-tools (width < 19.5rem) {
-    .sr-ft-tools .sr-ft-tool .cap { display: none; }
-    .sr-ft-tools .sr-ft-tool { min-height: max(44px, 2.25rem); }
+  /* Under 20.75rem of row (six captions need 6 x 2.98rem + 44px, the widest
+     being "Zoom out"; D-55(c)) the cells drop their captions. The selectors
+     repeat the showing rules' compound in full, so at equal specificity and
+     later in source these win by construction (QA-98's first-round defect was
+     this rule written three classes deep under a five-class showing rule). */
+  @container sr-ft-tools (width < 20.75rem) {
+    .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .cap { display: none; }
+    .sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool { min-height: max(44px, 2.25rem); }
   }
   .sr-ft-host.sr-map-fs-panel .sr-ft-readout { min-height: min(6.5rem, 20%); }
   /* The county panel's rows stack on a phone, and the action slot takes its own
