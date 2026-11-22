@@ -635,7 +635,10 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
             ) : null}
             {fsToggleShown && !stillTier ? fsToggleButton : null}
           </div>
-          {view === 'diagram' && !empty && !fsExpanded ? (
+          {/* Kept mounted while expanded and not drawn there (the panel's
+              rule), so on the way out the page has its height at once and the
+              hook's restored scroll offset is not clamped short. */}
+          {view === 'diagram' && !empty ? (
             <ChartViewTip page="family-tree" body={TREE_TIP_BODY} label={TREE_TIP_LABEL} />
           ) : null}
           {empty ? (

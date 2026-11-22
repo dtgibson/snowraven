@@ -7111,6 +7111,8 @@ select:focus-visible {
    marks, the focus frame) has a nearer positioned ancestor. */
 .sr-ft-host.sr-map-fs-panel { display: flex; flex-direction: column; container-type: size; container-name: sr-ft-panel; }
 .sr-ft-host.sr-map-fs-panel > .sr-ft-toolbar { flex: none; background: var(--sr-surface); }
+/* The rotate note is never shown in full screen (design-spec 10.3). */
+.sr-ft-host.sr-map-fs-panel > .sr-chart-tip-wrap { display: none; }
 .sr-ft-host.sr-map-fs-panel > .sr-ft-treeview { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .sr-ft-host.sr-map-fs-panel .sr-ft-boxwrap { flex: 1 1 0; min-height: 30%; }
 .sr-ft-host.sr-map-fs-panel .sr-ft-box { height: 100%; }
@@ -7197,6 +7199,7 @@ select:focus-visible {
      alone below. The caption sizes itself, so the control row's text floor on
      the button never reaches it. */
   .sr-ft-host.sr-map-fs-panel .sr-ft-fsbtn { width: auto; min-height: 2.75rem; padding: 0 16px 0 13px; gap: 7px; }
+  .sr-ft-host.sr-map-fs-panel .sr-ft-find { flex: 1 1 11rem; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-tools { flex: 1 1 100%; flex-wrap: nowrap; gap: 4px; margin-left: 0; container-type: inline-size; container-name: sr-ft-tools; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-toolgroup { display: contents; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-zoomval { display: none; }
