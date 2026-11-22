@@ -402,12 +402,17 @@ italic at 0.71875rem `--sr-text-gray`.
   learned once and works everywhere it appears. On an embedded map it joins a
   `.sr-map-corner-row` holding the share button first, then the toggle; the
   Map Explorer's fuller cluster keeps its location button, and a map that is a
-  location INPUT rather than a data view gets no row at all. **The exit is the
-  same button in the same corner in its other state:** it does not move, does not
-  become an X, does not gain a label, and does not change size on expanding -- a
-  toggle whose exit moves is two controls wearing one name, and a control that
-  grows under the finger that just pressed it is a second state change nobody
-  asked for. Expanding is a class swap on the map's own container, so it is
+  location INPUT rather than a data view gets no row in the page (on the phone
+  tier its fullscreen holds Exit alone). **Wherever the toggle is the control
+  that was pressed to expand (every width above the phone tier, and the Map
+  Explorer at every width), the exit is the same button in the same corner in
+  its other state:** it does not move, does not become an X, does not gain a
+  label, and does not change size on expanding -- a toggle whose exit moves is
+  two controls wearing one name, and a control that grows under the finger that
+  just pressed it is a second state change nobody asked for. On the phone tier
+  an embedded map is opened from the row under its still and its corner row is
+  not drawn until it opens, so neither reason applies there and Exit carries
+  its word (the next pattern). Expanding is a class swap on the map's own container, so it is
   literally the same map: same pins, same base map, same centre and zoom, an open
   popup still open, a dropped pin still dropped. **No scrim** -- there is nothing
   behind to dim, a scrim is a modal gesture on something that is not a modal, and
@@ -415,10 +420,80 @@ italic at 0.71875rem `--sr-text-gray`.
   expanded, the clip stays, and the ground is opaque. Nothing animates but the
   corner row's entrance, because a scaling live canvas tears and a transform on
   the panel would break `position: fixed`. Escape exits and returns focus to the
-  toggle; Tab stays inside; expanded, the map takes the scroll wheel and a
-  one-finger pan, because the page it was sharing gestures with is no longer
-  behind it. Controls that sit BESIDE a map rather than on it stay on the page:
+  toggle (to the opener on the phone tier); Tab stays inside; expanded, the map
+  takes the scroll wheel and a one-finger pan, because the page it was sharing
+  gestures with is no longer behind it. Controls that sit BESIDE a map rather than on it stay on the page:
   they are set before expanding, not duplicated into the overlay.
+- **A map inside a scrolling page on a phone: the still, its opener, and the
+  fullscreen it opens.** On the phone tier (`(max-width: 640px)`, a width test
+  and nothing else) nothing half-visible can be panned in the page. **The still**
+  is the same live map made non-interactive, never a picture or a remount: its
+  map subtree sits in one `.sr-map-still-body` that is `inert` and takes no
+  pointer, so a swipe that starts on it moves the page. Zoom, the base map
+  switcher, the corner row and the cooperative-gestures hint are not drawn (a
+  control drawn where it cannot be pressed reads as broken); the map and its
+  credits are, the credits drawn open because their "i" cannot be pressed
+  there. The still keeps the surface's phone height, is `role="img"` with a short
+  name in the `Map showing ...` family, and is not a tab stop. A press anywhere
+  on it opens the map; a press on a pin opens the map and chooses nothing.
+  **The opener row** (`.sr-fs-open-row`), one register for every surface that
+  opens this way: a full-width accent button through `Button`
+  (`sr-btn-accent sr-fs-open-btn sr-touch-target`), the `Maximize2` glyph sized
+  in rem by `.sr-fs-open-glyph`, then the label (`Open the map`), 2.75rem
+  minimum height, radius 8px, 0.875rem / 600; under it one helper line,
+  `.sr-fs-open-note`, 0.75rem muted, wired by `aria-describedby`
+  (`It opens in fullscreen, where it pans and zooms.`). The row sits AFTER the
+  map's container, outside the box that expands, never on the map, where it
+  would cover the credits or the data; it is in the layout from the first frame
+  the container is, so nothing shifts when a lazy map arrives, and it stays
+  mounted while the map is open so focus has somewhere to return. The accent is
+  spent here on purpose, because on a phone it is the only way to use the map.
+  Its hover is inside `@media (hover: hover)`, and it cancels the ungated
+  `.sr-btn-accent:hover` for itself (a dark-theme twin at the same weight).
+  **Opened on the phone tier**, the panel is the Map fullscreen pattern above,
+  plus four things. The bottom tab bar is hidden while any panel is expanded:
+  the shared hook sets `data-sr-fs-open` on `<html>` and one rule hides
+  `.sr-navbar` with `visibility: hidden; transition-property: none`, keeping its
+  box, so a surface on the hook needs no `z-index`, no bar handling and no width
+  test. Exit is the toggle's own button and `Minimize2` glyph as a pill carrying
+  the word `Exit` (0.875rem / 600; accessible name still `Exit fullscreen`). Both
+  corner controls are 2.75rem tall while expanded, the Named Birds card's
+  compact pair included (its 40px density is for the in-card map). The corner
+  row stands at `calc(20px + 3rem)` plus the bottom inset, so the open credits
+  and the buttons never share a band, and in the apps the credits take the
+  bottom inset too. The base map switcher is bounded at the zoom group's painted
+  edge (`max-width: calc(100% - 8px - 10px - 29px - 2px) !important`, beating
+  the switcher's inline style) and nowhere else. **Exit exists in every state
+  the panel can open in**, loading and failed included: until the map's own
+  corner row has drawn, `MapExitStandIn` draws the same Exit in the same place,
+  and the row takes the focus across when it arrives. Exit and Escape return
+  focus to the opener and the page to where it was. **A map that is a location
+  input** (the Weather picker) keeps its fields on the page so it can be
+  completed with no map, says `Open the map to drop a pin, or type coordinates
+  below.` under the still, and in fullscreen shows one top-centre statement that
+  takes no pointer (`Tap the map to drop a pin.`, then `Drag the pin to
+  fine-tune. Exit when it is in place.`). **A tab-sized map** (the Map Explorer)
+  stays live wherever its panel fits the window (its phone floor is 300px) and
+  takes the still, with the opener inside the panel, only where the panel sits
+  on its floor; its exit stays the icon-only disc, because the cluster's three
+  discs have 4px of slack at 320px and 200% text. Above the phone tier and in a
+  phone's landscape width none of this applies: the map is live in the page with
+  its corner toggle.
+- **A list opened from a field keeps to the visible room on a phone.** On the
+  phone tier a dropdown list that opens under its field (the hotspot, region,
+  county and species pickers, the Targets distance chooser) takes the smaller
+  of its own cap and the room actually visible under the field, down to the top
+  of the bottom bar or of the on-screen keyboard (`visualViewport`), less 8px,
+  measured by `lib/useListFit.ts` while the list is open and re-measured only
+  when the visible area changes, never on page scroll. When that room is short,
+  opening first brings the field to the top of the visible area with an instant
+  scroll; when there is not enough either way, the list keeps a floor of one and
+  a half option rows measured from its first option, so one whole row always
+  shows. A list is one scroller (a nested inner list is released) and carries
+  `overscroll-behavior: contain`, so a swipe at its end is not handed to the
+  page. The page is not locked while a list is open, and the list is not a
+  bottom sheet, which a fixed-bottom panel behind the iOS keyboard would defeat.
+  Above the tier each list keeps its cap.
 - **Landing chip (an arrival from outside the app says so at once):** when a
   link from outside the app (a home-screen widget tap) lands on the map, the
   map's top-center loading chip (`.sr-map-loading-chip`, the statement slot:
