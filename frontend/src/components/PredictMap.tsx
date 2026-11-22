@@ -2,34 +2,61 @@
 // into its own module so it (and maplibre-gl) load only when the user opens
 // Predict, keeping the always-mounted Weather tab's first paint light.
 
-import { useEffect } from 'react'
+import { useEffect, type RefObject } from 'react'
 import { Marker, useMap } from 'react-map-gl/maplibre'
 import type { MapMouseEvent } from 'maplibre-gl'
 import { SnowMap } from './SnowMap'
+import { MapCornerControls } from './map/MapCornerControls'
+import { useMapFullscreenContext } from '../lib/useMapFullscreen'
+import { PICKER_NOTE_NO_PIN, PICKER_NOTE_PIN } from '../lib/mapStillCopy'
+import { continuesOpeningPress, type OpeningPress } from '../lib/mapOpeningTap'
 
 export interface LatLng { lat: number; lng: number }
 
-// Responsive map height: 180px on phones (the audited-fine floor), growing to
-// ~280px on wide screens so the picker isn't cramped vertically in a roomy card.
-// Shared so the Suspense fallback in WeatherForecastPanel stays in lockstep.
-export const PREDICT_MAP_HEIGHT = 'clamp(180px, 28vw, 280px)'
+// The map's box is its host's `.sr-wx-pick-map` container (WeatherForecastPanel):
+// 180px on phones (the audited-fine floor), growing to ~280px on wide screens.
+// It moved off this file's inline style so the fullscreen panel class can size
+// it (map-scroll-on-phones D-12; maps.md trap c). The map fills it.
+const MAP_STYLE = { height: '100%', width: '100%' } as const
+
+/** The top-centre statement while the picker is expanded (D-12): plain text,
+ *  not a live region, taking no pointer. Drawn only inside `.sr-map-fs-panel`. */
+function PickerNote({ hasPin }: { hasPin: boolean }) {
+  const fs = useMapFullscreenContext()
+  if (!fs?.expanded) return null
+  return (
+    <div className="sr-map-note">
+      <span>{hasPin ? PICKER_NOTE_PIN : PICKER_NOTE_NO_PIN}</span>
+    </div>
+  )
+}
 
 interface Props {
   coord: LatLng | null
   onPick: (c: LatLng) => void
+  /** The press that opened the picker in fullscreen, recorded by its host
+   *  (WeatherForecastPanel). A tap that continues it is the second tap of the
+   *  opening double tap and drops no pin (QA round 1). */
+  openPress?: RefObject<OpeningPress | null>
 }
 
 // Binds map click → pin placement, recenters when the coord changes from search
 // or current-location, and renders the draggable marker.
-function Pin({ coord, onPick }: Props) {
+function Pin({ coord, onPick, openPress }: Props) {
   const map = useMap().current
 
   useEffect(() => {
     if (!map) return
-    const handler = (e: MapMouseEvent) => onPick({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+    const handler = (e: MapMouseEvent) => {
+      // The second tap of the double tap that opened the map lands on the map
+      // it just opened: it is the rest of that gesture, not a pick (QA round 1:
+      // 16 of 16 runs dropped a pin there). A deliberate tap drops one.
+      if (continuesOpeningPress(openPress?.current, e.originalEvent)) return
+      onPick({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+    }
     map.on('click', handler)
     return () => { map.off('click', handler) }
-  }, [map, onPick])
+  }, [map, onPick, openPress])
 
   useEffect(() => {
     if (map && coord) map.flyTo({ center: [coord.lng, coord.lat], duration: 500 })
@@ -52,14 +79,19 @@ function Pin({ coord, onPick }: Props) {
   )
 }
 
-export function PredictMap({ coord, onPick }: Props) {
+export function PredictMap({ coord, onPick, openPress }: Props) {
   return (
     <SnowMap
       initialViewState={{ longitude: coord?.lng ?? -98, latitude: coord?.lat ?? 39, zoom: coord ? 11 : 3 }}
-      style={{ height: PREDICT_MAP_HEIGHT, width: '100%', borderRadius: 9, overflow: 'hidden', border: '1px solid var(--sr-border-input)' }}
+      style={MAP_STYLE}
       scrollZoom={false}
     >
-      <Pin coord={coord} onPick={onPick} />
+      <Pin coord={coord} onPick={onPick} openPress={openPress} />
+      <PickerNote hasPin={coord !== null} />
+      {/* Exit alone, and only while expanded: a location input has no row in
+          the page and no share pin (D-12, D-13's sibling). The row also owns
+          the resize on the class swap and the gesture posture release. */}
+      <MapCornerControls compact={false} share={false} fsOnly />
     </SnowMap>
   )
 }

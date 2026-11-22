@@ -1,6 +1,9 @@
-// The bottom-right corner row on the four embedded map mounts: the share-pin
-// drop button, then the fullscreen toggle, in that order left to right, matching
-// the Map Explorer's shipped cluster so a user learns the vocabulary once.
+// The bottom-right corner row on the embedded map mounts: the share-pin drop
+// button, then the fullscreen toggle, in that order left to right, matching the
+// Map Explorer's shipped cluster so a user learns the vocabulary once. The
+// Weather location picker and the Hotspot Reports map (map-scroll-on-phones
+// D-12, D-13) carry the row too, with no share pin, and only while expanded:
+// above the phone tier they are the plain maps they were designed as.
 //
 // MOUNTED AS A <SnowMap> CHILD, which is what gives it useMap() access to the
 // live MaplibreMap for the resize and gesture effects. That co-location is the
@@ -15,19 +18,29 @@
 // `lazy(() => import('./SightingsMap'))`. entryChunk.test.ts is the live guard.
 
 import { Button } from '../ui/Button'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useMap } from 'react-map-gl/maplibre'
 import { SharePin } from './SharePin'
+import { StillCredits } from './StillCredits'
 import { useMapFullscreenContext } from '../../lib/useMapFullscreen'
+import { IN_PLACE_ROW_CLASS, useMapExitStandIn } from '../../lib/mapExitStandIn'
+import { EXIT_FULLSCREEN_LABEL, EXIT_WORD } from '../../lib/mapStillCopy'
 
-export function MapCornerControls({ compact, sharePinResetKey }: {
+export function MapCornerControls({ compact, share, fsOnly, sharePinResetKey }: {
   /** Density, forwarded to SharePin and to the toggle's size modifier. REQUIRED,
    *  never defaulted (the MediaFrame precedent the share pin already follows).
    *  The modifier does NOT change when the map expands: a control that grows
    *  under the finger that just pressed it is a second state change nobody
    *  asked for. */
   compact: boolean
+  /** Whether this map has a share pin. REQUIRED, never defaulted: false on the
+   *  Weather picker and the Hotspot Reports map, which have none. */
+  share: boolean
+  /** The row exists only while the map is expanded (`.sr-map-corner-row--fs-only`
+   *  is `display: none` outside `.sr-map-fs-panel`). True on the two maps that
+   *  have no corner row in the page. REQUIRED, never defaulted. */
+  fsOnly: boolean
   /** Remounts ONLY the share pin when the entity behind the map changes, exactly
    *  as the shipped call sites did. Species Detail's map keeps its JSX position
    *  across a species change, so nothing unmounts and a stale pin would survive. */
@@ -41,9 +54,38 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
   // cheap way to keep both.
   const fs = useMapFullscreenContext()
   const expanded = fs?.expanded ?? false
+  const still = fs?.still ?? false
   const registerToggle = fs?.registerToggle
   const onToggle = fs?.toggle
   const map = useMap().current
+
+  // THE STAND-IN (D-38, M-1). A host that can open its panel before this map
+  // has drawn wraps the map subtree in components/ui/MapExitStandIn, which draws
+  // this same exit until this row arrives. The toggle reports itself in a
+  // LAYOUT effect, after its ref has attached and before paint: the stand-in
+  // hands it the focus if it held it, then leaves in the render the report
+  // causes, so no frame shows two exits or none. The ref is a local callback
+  // that also registers with the hook exactly as `registerToggle` alone did.
+  const standIn = useMapExitStandIn()
+  const reportExit = standIn?.reportExit
+  const toggleRef = useRef<HTMLButtonElement | null>(null)
+  const attachToggle = useCallback((el: HTMLButtonElement | null) => {
+    toggleRef.current = el
+    registerToggle?.(el)
+  }, [registerToggle])
+  const hasToggle = onToggle !== undefined
+  useLayoutEffect(() => {
+    if (!reportExit || !hasToggle) return
+    reportExit(toggleRef.current)
+    return () => reportExit(null)
+  }, [reportExit, hasToggle])
+  // A row that mounts into a panel the stand-in is holding OPEN arrives in
+  // place: the 150 ms entrance would otherwise fade it in from nothing over the
+  // spot the stand-in just left, a visible blink of the one exit. Read once at
+  // mount and cleared on collapse (during render, React's alternative to an
+  // effect that sets state), so the next open animates as at HEAD.
+  const [inPlace, setInPlace] = useState(() => expanded && (standIn?.standing ?? false))
+  if (inPlace && !expanded) setInPlace(false)
 
   // The share button portals in here. `display: contents` erases the slot's own
   // box, so the button becomes the row's FIRST flex item: DOM order equals
@@ -104,16 +146,18 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
     }
   }, [expanded, map])
 
-  const label = expanded ? 'Exit fullscreen' : 'Enter fullscreen'
+  const label = expanded ? EXIT_FULLSCREEN_LABEL : 'Enter fullscreen'
+
+  const rowClass = `sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}${fsOnly ? ' sr-map-corner-row--fs-only' : ''}${inPlace ? ` ${IN_PLACE_ROW_CLASS}` : ''}`
 
   return (
     <>
-      <div className={`sr-map-corner-row${compact ? ' sr-map-corner-row--compact' : ''}`}>
-        <div className="sr-map-fab-slot" ref={setSlot} />
+      <div className={rowClass}>
+        {share && <div className="sr-map-fab-slot" ref={setSlot} />}
         {onToggle && (
           <Button
             type="button"
-            ref={registerToggle}
+            ref={attachToggle}
             // Button's inherited tab stop is required here: WebKit's default
             // mode skips a plain unmarked button, and this control's whole job is
             // entering fullscreen on the shipped Mac and iOS apps.
@@ -129,10 +173,20 @@ export function MapCornerControls({ compact, sharePinResetKey }: {
             {expanded
               ? <Minimize2 size={17} strokeWidth={2.2} aria-hidden />
               : <Maximize2 size={17} strokeWidth={2.2} aria-hidden />}
+            {/* The visible word, rendered only while expanded and drawn only on
+                the phone tier (`.sr-map-fs-panel .sr-map-exit-label`, D-10):
+                there the control that opened the map was the button under the
+                still, so the exit is a new control and may carry its word.
+                Above the tier it stays `display: none` and the toggle is HEAD's
+                disc. The accessible name above is unchanged and contains it. */}
+            {expanded && <span className="sr-map-exit-label">{EXIT_WORD}</span>}
           </Button>
         )}
       </div>
-      <SharePin key={sharePinResetKey} compact={compact} buttonHost={slot} />
+      {share && <SharePin key={sharePinResetKey} compact={compact} buttonHost={slot} />}
+      {/* The credits on a still are drawn open: the "i" that would open them
+          cannot be pressed there (D-17). */}
+      <StillCredits still={still} />
     </>
   )
 }

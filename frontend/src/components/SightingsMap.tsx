@@ -219,7 +219,7 @@ export function SightingsMap({
           with no new prop on this component at all. The toggle appears only when
           a host has wrapped the map in a MapFullscreenProvider; without one this
           renders the share button and nothing else, exactly as before. */}
-      <MapCornerControls compact={compact} sharePinResetKey={sharePinResetKey} />
+      <MapCornerControls compact={compact} share fsOnly={false} sharePinResetKey={sharePinResetKey} />
     </SnowMap>
   )
 }

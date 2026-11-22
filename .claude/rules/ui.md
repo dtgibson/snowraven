@@ -10,6 +10,7 @@ paths:
   - "frontend/src/lib/pinnedLabels*.ts"
   - "frontend/src/lib/calendarOverlays*.ts"
   - "frontend/src/lib/useIsPhone.ts"
+  - "frontend/src/lib/useListFit*.ts"
   - "frontend/src/App.tsx"
   - "frontend/src/lib/mapExplorerFormat.ts"
   - "frontend/src/lib/inlineStyleShorthand.test.ts"

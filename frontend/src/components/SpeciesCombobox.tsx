@@ -23,6 +23,7 @@
 
 import { Button } from './ui/Button'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useListFit } from '../lib/useListFit'
 import { Search, ChevronDown, Check } from 'lucide-react'
 import {
   highlightOnCodeArrival, matchesSpeciesQuery, normalizeSpeciesQuery, rankSpeciesMatches,
@@ -60,6 +61,11 @@ export function SpeciesCombobox({
   const [activeIdx, setActiveIdx] = useState(-1)
 
   const rootRef = useRef<HTMLDivElement>(null)
+  // On the phone tier the open list keeps to the room that is visible under
+  // the field (lib/useListFit.ts, map-scroll-on-phones D-15). The list node is
+  // also held as STATE for that measurement (ui.md v1.0.17).
+  const [fitList, setFitList] = useState<HTMLDivElement | null>(null)
+  useListFit(open, undefined, fitList)
 
   const uid = useId()
   const listboxId = `${uid}-listbox`
@@ -276,6 +282,7 @@ export function SpeciesCombobox({
            drift; the global reduced-motion rule makes it an instant appear.
            Close stays instant removal, no exit animation. */
         <div
+          ref={setFitList}
           className="sr-combobox-list"
           role="listbox"
           id={listboxId}
@@ -286,7 +293,9 @@ export function SpeciesCombobox({
             border: '1.5px solid var(--sr-accent)',
             borderTop: 'none', borderRadius: `0 0 ${radius}px ${radius}px`,
             boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-            maxHeight: 260, overflowY: 'auto', zIndex: 1200,
+            // The 260px cap is `.sr-combobox-list`'s now (globals.css), so the
+            // phone tier can fit it to the visible room (D-15).
+            overflowY: 'auto', zIndex: 1200,
           }}
         >
           {rows.length === 0 ? (

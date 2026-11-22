@@ -18,6 +18,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { useListFit } from '../../lib/useListFit'
 import { US_STATE_NAMES } from '../../lib/countyBoundaries'
 import type { CountyChoice } from '../../lib/targets/targetsCounties'
 import {
@@ -42,6 +43,11 @@ export function TargetsCountyPicker({ choices, selected, onSelect }: Props) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(-1)
   const rootRef = useRef<HTMLDivElement>(null)
+  // On the phone tier the open list keeps to the room that is visible under
+  // the field (lib/useListFit.ts, map-scroll-on-phones D-15). The list node is
+  // also held as STATE for that measurement (ui.md v1.0.17).
+  const [fitList, setFitList] = useState<HTMLDivElement | null>(null)
+  useListFit(open, undefined, fitList)
   const inputRef = useRef<HTMLInputElement>(null)
   const uid = useId()
   const listId = `${uid}-list`
@@ -140,7 +146,7 @@ export function TargetsCountyPicker({ choices, selected, onSelect }: Props) {
         </Button>
       </div>
       {open ? (
-        <div className="sr-tg-combo-list" role="listbox" id={listId} aria-label={COUNTY_LIST_LABEL}>
+        <div ref={setFitList} className="sr-tg-combo-list" role="listbox" id={listId} aria-label={COUNTY_LIST_LABEL}>
           {shown.length === 0 ? (
             <div className="sr-tg-combo-empty">{COUNTY_NO_MATCH}</div>
           ) : shown.map(({ c }, i) => (

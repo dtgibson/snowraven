@@ -11,9 +11,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { useEffect, useRef, useState } from 'react'
-import { useMapFullscreen, MAP_FS_PANEL_CLASS, MapTabShowingProvider } from './useMapFullscreen'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useMapFullscreen, MAP_FS_PANEL_CLASS, MAP_STILL_CLASS, FS_OPEN_ATTR, MapTabShowingProvider } from './useMapFullscreen'
 import { useFocusTrap } from './useFocusTrap'
+import { FsOpenRow } from '../components/ui/FsOpenRow'
 
 /**
  * A stand-in host with the shape all three real ones share: a container div
@@ -610,5 +611,240 @@ describe('leaving the host tab releases the lock and collapses the map (FR-28, Q
     render(<Host baseClass="sr-geo-map" />)
     fireEvent.click(toggle())
     expect(expandedNow()).toBe(true)
+  })
+})
+
+
+// ── map-scroll-on-phones: the phone tier (D-07, D-08, D-11) ──────────────────
+//
+// A host in the shape every real one now takes: `hostClassName` and the still's
+// three attributes on the container, the ONE inert wrapper, and the opener row
+// after the container. The tier is the `(max-width:640px)` media store the hook
+// reads through `useIsPhone`, stubbed here because jsdom has no `matchMedia`
+// (with none, the store answers false: the above-the-tier rows below run on that).
+
+function PhoneHost({ tab = true, label }: { tab?: boolean; label?: string }) {
+  // The tab-showing input is read from ABOVE the component that calls the hook,
+  // as App.tsx provides it around each host's panel.
+  return <MapTabShowingProvider value={tab}><PhoneMap label={label} /></MapTabShowingProvider>
+}
+
+/** What a real engine does at LAYOUT, after the commit and before any passive
+ *  effect: the container has left the flow, the page is shorter, and its offset
+ *  is clamped to the new end. jsdom has no layout and never clamps, which is why
+ *  QA round 1's F-1 went unseen here; a row sets this to model it. A layout
+ *  effect declared AFTER the hook call runs before the hook's passive effects,
+ *  exactly as the browser's layout does. */
+let onPanelLayout: ((expanded: boolean) => void) | null = null
+
+function PhoneMap({ label = 'Map showing sighting locations' }: { label?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-map-container' })
+  const { hostClassName, still, open, expanded, toggle: onToggle, registerToggle } = fs
+  useLayoutEffect(() => { onPanelLayout?.(expanded) }, [expanded])
+  return (
+    <>
+      <button type="button">before the map</button>
+      <div ref={ref} className={hostClassName} data-testid="container"
+        role={still ? 'img' : undefined} aria-label={still ? label : undefined}
+        onClick={still ? open : undefined}>
+        <div className="sr-map-still-body" inert={still} data-testid="body">
+          <button type="button">Base map</button>
+          <button type="button" ref={registerToggle} className="sr-map-fab sr-map-fullscreen-btn"
+            aria-label={expanded ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={onToggle}>t</button>
+        </div>
+      </div>
+      <FsOpenRow fs={fs} label="Open the map" note="It opens in fullscreen, where it pans and zooms." />
+    </>
+  )
+}
+
+function stubTier(matches: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches, media: query, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  }))
+}
+
+const opener = () => screen.getByRole('button', { name: 'Open the map' })
+const exitBtn = () => screen.getByRole('button', { name: 'Exit fullscreen' })
+
+describe('the phone tier: the still, the opener and the bar (map-scroll-on-phones)', () => {
+  beforeEach(() => { stubTier(true) })
+  afterEach(() => { vi.unstubAllGlobals(); document.documentElement.removeAttribute(FS_OPEN_ATTR) })
+
+  it('is a still on the tier: the still class, a named picture, an inert body, and the opener after it', () => {
+    render(<PhoneHost />)
+    expect(container().className).toBe(`sr-map-container ${MAP_STILL_CLASS}`)
+    expect(container().getAttribute('role')).toBe('img')
+    expect(container().getAttribute('aria-label')).toBe('Map showing sighting locations')
+    // The LITERAL attribute (ui.md v0.5.87: React 19 omits inert={false}).
+    expect(screen.getByTestId('body').hasAttribute('inert')).toBe(true)
+    // The opener is described by its helper line, and is the container's next sibling.
+    const note = document.getElementById(opener().getAttribute('aria-describedby')!)
+    expect(note?.textContent).toBe('It opens in fullscreen, where it pans and zooms.')
+    expect(container().nextElementSibling?.contains(opener())).toBe(true)
+  })
+
+  it('opens from the opener and from a press on the still, and a second press does not close it', () => {
+    render(<PhoneHost />)
+    fireEvent.click(opener())
+    expect(expandedNow()).toBe(true)
+    fireEvent.click(opener())
+    expect(expandedNow()).toBe(true)
+    cleanup()
+    render(<PhoneHost />)
+    fireEvent.click(container())
+    expect(expandedNow()).toBe(true)
+    // Expanded, the container is not a still: no still class, no picture role,
+    // no inert body, so the map inside is live.
+    expect(container().className).toBe(`sr-map-container ${MAP_FS_PANEL_CLASS}`)
+    expect(container().hasAttribute('role')).toBe(false)
+    expect(screen.getByTestId('body').hasAttribute('inert')).toBe(false)
+    // The opener stays mounted behind the panel, so focus has somewhere to return to.
+    expect(opener()).toBeTruthy()
+  })
+
+  it('sets the bar attribute on the root in the commit that expands, and clears it on exit', () => {
+    render(<PhoneHost />)
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(false)
+    fireEvent.click(opener())
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(true)
+    fireEvent.click(exitBtn())
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(false)
+  })
+
+  it('counts consumers, so one collapsing cannot clear another\'s attribute', () => {
+    render(<><PhoneHost label="one" /><PhoneHost label="two" /></>)
+    const [o1, o2] = screen.getAllByRole('button', { name: 'Open the map' })
+    fireEvent.click(o1)
+    fireEvent.click(o2)
+    const exits = screen.getAllByRole('button', { name: 'Exit fullscreen' })
+    fireEvent.click(exits[0])
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(true)
+    fireEvent.click(exits[1])
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(false)
+  })
+
+  it('a derived collapse (the tab hidden) clears it too, and a host unmount does', () => {
+    const { rerender, unmount } = render(<PhoneHost />)
+    fireEvent.click(opener())
+    rerender(<PhoneHost tab={false} />)
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(false)
+    rerender(<PhoneHost />)
+    fireEvent.click(opener())
+    unmount()
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(false)
+  })
+
+  it('focus lands on Exit when the map opens from outside it, and back on the opener after Exit and after Escape', () => {
+    render(<PhoneHost />)
+    opener().focus()
+    fireEvent.click(opener())
+    expect(document.activeElement).toBe(exitBtn())
+    fireEvent.click(exitBtn())
+    expect(document.activeElement).toBe(opener())
+    fireEvent.click(opener())
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(expandedNow()).toBe(false)
+    expect(document.activeElement).toBe(opener())
+  })
+
+  it('a collapse the user did not make (the tab hidden) moves no focus', () => {
+    const { rerender } = render(<PhoneHost />)
+    opener().focus()
+    fireEvent.click(opener())
+    const exit = exitBtn()
+    expect(document.activeElement).toBe(exit)
+    rerender(<PhoneHost tab={false} />)
+    // Not moved to the opener: the user changed tabs, not the map.
+    expect(document.activeElement).not.toBe(opener())
+    expect(document.activeElement).toBe(exit)
+  })
+
+  it('puts the page back where it was after a user exit, and only then, the page at its maximum scroll included', () => {
+    // The page is at its end (500). While the container is out of the flow its
+    // end is 230, and the engine clamps at LAYOUT, before any passive effect
+    // (QA round 1, F-1: a reading taken in the lock effect was the clamped one,
+    // so the page came back short by the container's height).
+    let y = 500
+    const scrollTo = vi.fn((_x: number, ny: number) => { y = ny })
+    vi.stubGlobal('scrollTo', scrollTo)
+    const desc = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+    onPanelLayout = expanded => { if (expanded) y = Math.min(y, 230) }
+    try {
+      const { rerender } = render(<PhoneHost />)
+      fireEvent.click(opener())
+      expect(y).toBe(230)
+      fireEvent.click(exitBtn())
+      expect(scrollTo).toHaveBeenCalledTimes(1)
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 500)
+      // Escape is a user exit too, from the same clamped place.
+      fireEvent.click(opener())
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(scrollTo).toHaveBeenCalledTimes(2)
+      expect(y).toBe(500)
+      // A derived collapse leaves the page alone.
+      fireEvent.click(opener())
+      rerender(<PhoneHost tab={false} />)
+      expect(scrollTo).toHaveBeenCalledTimes(2)
+      expect(y).toBe(230)
+    } finally {
+      onPanelLayout = null
+      if (desc) Object.defineProperty(window, 'scrollY', desc)
+      else delete (window as { scrollY?: number }).scrollY
+    }
+  })
+})
+
+describe('above the phone tier the host is HEAD\'s (map-scroll-on-phones)', () => {
+  beforeEach(() => { stubTier(false) })
+  afterEach(() => { vi.unstubAllGlobals(); document.documentElement.removeAttribute(FS_OPEN_ATTR) })
+
+  it('no still class, no picture role, no inert body and no opener', () => {
+    render(<PhoneHost />)
+    expect(container().className).toBe('sr-map-container')
+    expect(container().hasAttribute('role')).toBe(false)
+    expect(screen.getByTestId('body').hasAttribute('inert')).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Open the map' })).toBeNull()
+  })
+
+  it('the corner toggle stays the control: focus stays on it through a round trip', () => {
+    render(<PhoneHost />)
+    const t = screen.getByRole('button', { name: 'Enter fullscreen' })
+    t.focus()
+    fireEvent.click(t)
+    expect(document.activeElement).toBe(exitBtn())
+    fireEvent.click(exitBtn())
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Enter fullscreen' }))
+  })
+
+  it('the toggle that opens records the page\'s place at its press too, so a clamped page comes back whole', () => {
+    let y = 500
+    const scrollTo = vi.fn((_x: number, ny: number) => { y = ny })
+    vi.stubGlobal('scrollTo', scrollTo)
+    const desc = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+    onPanelLayout = expanded => { if (expanded) y = Math.min(y, 230) }
+    try {
+      render(<PhoneHost />)
+      fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }))
+      expect(y).toBe(230)
+      fireEvent.click(exitBtn())
+      expect(scrollTo).toHaveBeenCalledTimes(1)
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 500)
+    } finally {
+      onPanelLayout = null
+      if (desc) Object.defineProperty(window, 'scrollY', desc)
+      else delete (window as { scrollY?: number }).scrollY
+    }
+  })
+
+  it('still marks the root while expanded: the stylesheet, not the hook, knows there is no bar here', () => {
+    render(<PhoneHost />)
+    fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }))
+    expect(document.documentElement.hasAttribute(FS_OPEN_ATTR)).toBe(true)
   })
 })

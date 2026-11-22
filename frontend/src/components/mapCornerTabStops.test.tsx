@@ -202,7 +202,7 @@ function EmbeddedHost() {
   const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-map-container' })
   return (
     <div ref={ref} className={fs.className}>
-      <MapFullscreenProvider value={fs}><MapCornerControls compact={false} /></MapFullscreenProvider>
+      <MapFullscreenProvider value={fs}><MapCornerControls compact={false} share fsOnly={false} /></MapFullscreenProvider>
     </div>
   )
 }

@@ -357,14 +357,30 @@ describe('density 3 — the phone bottom bar', () => {
     expect(bar.style.getPropertyValue('--sr-navbar-cells')).toBe('2')
   })
 
-  it('publishes its measured height while mounted, and takes it back on unmount', () => {
+  it('publishes its measured height while mounted, follows a padding-only change, and takes it back on unmount', () => {
     // The bar is fixed, so the page needs the number to clear it and the map
     // panel needs it added to the chrome. A stale value after a density flip
     // would leave dead space at the bottom of every tab.
+    let h = 57
     const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({ height: 57, width: 390, top: 0, bottom: 57, left: 0, right: 390, x: 0, y: 0, toJSON: () => ({}) } as DOMRect)
+      .mockImplementation(() => ({ height: h, width: 390, top: 0, bottom: h, left: 0, right: 390, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect)
+    // An engine reports a change of PADDING alone only to an observation of the
+    // border box; the content box did not change (map-scroll-on-phones D-34).
+    const observations: Array<{ cb: ResizeObserverCallback; box: string | undefined }> = []
+    ;(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+      readonly cb: ResizeObserverCallback
+      constructor(cb: ResizeObserverCallback) { this.cb = cb }
+      observe(_el: Element, options?: ResizeObserverOptions) { observations.push({ cb: this.cb, box: options?.box }) }
+      unobserve() {}
+      disconnect() {}
+    }
     const { unmount } = phone()
     expect(document.documentElement.style.getPropertyValue('--sr-navbar-h')).toBe('57px')
+    // The Android bottom inset lands after first paint: the bar's bottom padding
+    // grows by 30px (6px plus a 24px inset) and its content box does not.
+    h = 86.5
+    act(() => { for (const o of observations) if (o.box === 'border-box') o.cb([], {} as ResizeObserver) })
+    expect(document.documentElement.style.getPropertyValue('--sr-navbar-h')).toBe('87px')
     unmount()
     expect(document.documentElement.style.getPropertyValue('--sr-navbar-h')).toBe('')
     rect.mockRestore()

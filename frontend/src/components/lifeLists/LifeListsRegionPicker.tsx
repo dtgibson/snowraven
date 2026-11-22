@@ -20,9 +20,10 @@
 // epoch). With no choice in the backup the input and chevron take native
 // `disabled` (FR-08): nothing needs reading at the control (ui.md).
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { useListFit } from '../../lib/useListFit'
 import type { RegionChoice, RegionChoices, RegionLevel, RegionRef } from '../../lib/lifeListsRegion'
 import {
   EVERYWHERE_LABEL, REGION_CHEVRON_LABEL, REGION_CONTROL_LABEL, REGION_GROUP_LABELS, REGION_LIST_LABEL,
@@ -53,6 +54,12 @@ export function LifeListsRegionPicker({ choices, selected, onSelect }: LifeLists
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  // On the phone tier the open list keeps to the room that is visible under
+  // the field (lib/useListFit.ts, map-scroll-on-phones D-15). The list node is
+  // also held as STATE for that measurement (ui.md v1.0.17).
+  const [fitList, setFitList] = useState<HTMLDivElement | null>(null)
+  const setListRef = useCallback((el: HTMLDivElement | null) => { listRef.current = el; setFitList(el) }, [])
+  useListFit(open, undefined, fitList)
   const uid = useId()
   const labelId = `${uid}-region-label`
   const listId = `${uid}-region-list`
@@ -227,7 +234,7 @@ export function LifeListsRegionPicker({ choices, selected, onSelect }: LifeLists
         </div>
         {open ? (
           <div
-            ref={listRef}
+            ref={setListRef}
             className="sr-lfl-region-list"
             role="listbox"
             id={listId}

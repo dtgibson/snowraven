@@ -66,7 +66,8 @@
 // The scoped version turned out to need no knowledge it cannot have — see
 // `measureMapPanelChrome` — so it is the one that ships.
 
-import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { flushSync } from 'react-dom'
 
 /** The custom property the stylesheet's `calc(100dvh - …)` reads. */
 export const MAP_CHROME_VAR = '--sr-map-chrome'
@@ -210,6 +211,25 @@ export function chromeBoxes(main: HTMLElement): Element[] {
  *
  * The write is guarded on the value having changed, so a genuine chrome change
  * costs one property write and a settled layout costs none.
+ *
+ * THE ANDROID INSETS ARRIVE AFTER FIRST PAINT, AND NO OBSERVED BOX RESIZES WHEN
+ * THEY DO (map-scroll-on-phones QA round 1, F-3). MainActivity.kt writes
+ * `--sr-inset-*` as style properties on <html> from a native callback; the body's
+ * new top padding moves <main> down, and the bar's and the footer's new bottom
+ * padding grow their border boxes, but none of that changes a CONTENT box, which
+ * is all the observer above reports. Measured with the Android class modelled
+ * at 390 x 844 (32px top, 24px bottom): the chrome stayed 231px while it had
+ * become 317px, and the page scrolled 56px under the live map. So a
+ * MutationObserver on <html>'s `style` attribute, the
+ * one place the insets are written, re-measures when they land. It cannot loop:
+ * the measurement writes on <main>, never on <html>. Other writes there (the
+ * text scale, the bar height TabNav publishes) cost one measurement that
+ * usually writes nothing. Not observed instead: <body>'s border box, which
+ * would see the top inset too but also grows with the panel, so publishing a
+ * value would re-trigger a shallow observation in the same frame and raise
+ * ResizeObserver's loop error. The iPhone app's insets are `env()`, laid out
+ * before the first measurement here; a rotation that changes them also changes
+ * the width, which the observer above sees.
  */
 export function useMapPanelChrome(
   mainRef: RefObject<HTMLElement | null>,
@@ -232,7 +252,11 @@ export function useMapPanelChrome(
   // fallback constant's and then correcting.
   useLayoutEffect(() => {
     measure()
-    if (typeof ResizeObserver === 'undefined') return
+    // The insets landing on <html> (see above). jsdom has MutationObserver, so
+    // this half runs under test even where ResizeObserver does not.
+    const insets = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure)
+    insets?.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
+    if (typeof ResizeObserver === 'undefined') return () => insets?.disconnect()
     const ro = new ResizeObserver(measure)
     const main = mainRef.current
     if (main) for (const el of chromeBoxes(main)) ro.observe(el)
@@ -241,6 +265,56 @@ export function useMapPanelChrome(
     // arrival and departure re-run this effect and rebuild the observer. A ref
     // would have left the observer watching an element that had unmounted.
     if (navBar) ro.observe(navBar)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); insets?.disconnect() }
   }, [measure, mainRef, navBar])
+}
+
+/**
+ * Whether the Map Explorer panel is ON ITS FLOOR: its rendered height is its
+ * computed `min-height`, which happens only when the window less the chrome is
+ * shorter than the floor, so the panel cannot fit and the page scrolls under it
+ * (map-scroll-on-phones D-14). `null` when the reading is unusable (a hidden tab
+ * reads 0 high, jsdom reads `NaN`), so the last good answer stands.
+ *
+ * At exactly the floor the panel fits and this still says "on the floor"; that
+ * case costs a still where a live map would have fitted to the pixel, which is
+ * the safe direction, and it is the form the design named as acceptable.
+ *
+ * CAN THE THING DECIDED MOVE THE THING MEASURED? No, and that is the property to
+ * keep (maps.md v0.5.91). The panel's height comes from the stylesheet,
+ * `calc(100dvh - var(--sr-map-chrome))` floored by `min-height`, with
+ * `overflow: hidden`, so nothing inside it (the still, the opener row the still
+ * adds) can change it; and `--sr-map-chrome` is measured from the boxes AROUND
+ * `<main>`, none of which the still touches.
+ */
+export function panelOnFloor(height: number, minHeight: number): boolean | null {
+  if (!Number.isFinite(height) || !Number.isFinite(minHeight)) return null
+  if (height <= 0 || minHeight <= 0) return null
+  return height <= minHeight + 0.5
+}
+
+/**
+ * `panelOnFloor` for a live panel, as a boolean that changes state only when it
+ * flips. A ResizeObserver on the panel, never a `window` `resize` listener
+ * (ui.md): the panel resizes when the window, the chrome or the text scale does.
+ * The state update is flushed inside the observer callback, which runs after
+ * layout and before paint, so the frame that changes the answer also paints it.
+ *
+ * While `enabled` is false (above the phone tier, or the tab's own fullscreen,
+ * where the panel is a different box with no floor) nothing is read and the last
+ * answer is KEPT, so leaving fullscreen shows the still in the same commit that
+ * brings the panel back, and focus has an opener to return to.
+ */
+export function usePanelOnFloor(panel: HTMLElement | null, enabled: boolean): boolean {
+  const [onFloor, setOnFloor] = useState(false)
+  useLayoutEffect(() => {
+    if (!enabled || !panel || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const next = panelOnFloor(panel.getBoundingClientRect().height, parseFloat(getComputedStyle(panel).minHeight))
+      if (next !== null) flushSync(() => setOnFloor(next))
+    })
+    ro.observe(panel)
+    return () => ro.disconnect()
+  }, [panel, enabled])
+  return enabled && onFloor
 }

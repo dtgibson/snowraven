@@ -5,7 +5,7 @@
 // Nominatim). See pipeline/weather-current-predict/design-spec.md.
 
 import { Button } from './ui/Button'
-import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Navigation, Search, Loader2, ClipboardCopy, Check, AlertCircle, CalendarDays } from 'lucide-react'
 import { transport } from '../lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from '../lib/offlineMessage'
@@ -27,6 +27,11 @@ import type { WeatherAtResponse, WeatherSummary } from '../lib/forecastSlice'
 import type { TideAtResponse, TideReadingSummary } from '../lib/tide'
 import type { GeoSearchResult } from '../lib/tauri/nominatimService'
 import type { LatLng } from './PredictMap'
+import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
+import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
+import { OPEN_MAP_LABEL, OPEN_PICKER_NOTE, PICKER_PAGE_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
+import { openingPressOf, type OpeningPress, type TapPoint } from '../lib/mapOpeningTap'
 
 const PredictMap = lazy(() => import('./PredictMap').then(m => ({ default: m.PredictMap })))
 // The Weather/tide Planner's chart is the only module in the feature that
@@ -35,10 +40,12 @@ const PredictMap = lazy(() => import('./PredictMap').then(m => ({ default: m.Pre
 // as soon as the plan arrives; the chart chunk resolving later never delays it.
 const PlanChart = lazy(() => import('./PlanChart').then(m => ({ default: m.PlanChart })))
 
-// Mirror of PredictMap's PREDICT_MAP_HEIGHT — kept as a local literal (not a
-// static import) so the lazy PredictMap chunk (and maplibre-gl) is NOT pulled
-// into the Weather tab's initial bundle. Keep the two values in lockstep.
-const PREDICT_MAP_HEIGHT = 'clamp(180px, 28vw, 280px)'
+// The picker's box is `.sr-wx-pick-map` in globals.css (map-scroll-on-phones
+// D-12): the size that used to be an inline `clamp(180px, 28vw, 280px)`, lifted
+// to a class with the same values so the fullscreen panel class can size it (an
+// inline declaration can never be beaten by a class, maps.md trap c). It is on
+// the container this panel owns, so the Suspense fallback and the map share one
+// box by construction rather than by two hand-kept literals.
 
 
 const MONO = 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace'
@@ -217,6 +224,34 @@ export interface WeatherForecastPanelProps {
 
 export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProps = {}) {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
+  // The Plan location picker's fullscreen (map-scroll-on-phones D-12). On the
+  // phone tier the picker is a still showing the chosen place and the pin is
+  // dropped and dragged in fullscreen; above the tier it is HEAD's in-page
+  // picker and never expands (its corner row exists only while expanded).
+  // `active` is the form being open: the picker's subtree unmounts on any other
+  // phase, which this hook at the panel's top level would not otherwise see.
+  const pickMapRef = useRef<HTMLDivElement>(null)
+  const pickFs = useMapFullscreen({
+    containerRef: pickMapRef,
+    baseClass: 'sr-wx-pick-map',
+    active: phase.kind === 'predict',
+  })
+  // The press that opened the picker (QA round 1): its point and its event
+  // time, which PredictMap reads to tell the second tap of a double tap on the
+  // still or the opener from a tap meant for the map (lib/mapOpeningTap.ts).
+  // Both open paths hand `open` their click event; the shared hook's `open`
+  // ignores it, so only this host reads it, and nothing above the tier records
+  // one (there is no still and no opener there).
+  const pickerPress = useRef<OpeningPress | null>(null)
+  const { open: openPickMap, stillTier: pickStillTier, registerOpener: pickRegisterOpener } = pickFs
+  const openPicker = useCallback((e?: TapPoint & { detail: number }) => {
+    pickerPress.current = e ? openingPressOf(e) : null
+    openPickMap()
+  }, [openPickMap])
+  const pickerOpener = useMemo(
+    () => ({ stillTier: pickStillTier, open: openPicker, registerOpener: pickRegisterOpener }),
+    [pickStillTier, openPicker, pickRegisterOpener],
+  )
   // The Days in view choice (wide tier): read once from the storage seam,
   // validated, written on every change, device-local and never synced (the
   // chartTipDismissed precedent, D4-15).
@@ -540,10 +575,31 @@ export function WeatherForecastPanel({ onPlanVisible }: WeatherForecastPanelProp
             </Button>
           </div>
 
-          <Suspense fallback={<div style={{ height: PREDICT_MAP_HEIGHT, borderRadius: 9, border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
-            <PredictMap coord={coord} onPick={setCoord} />
-          </Suspense>
-          <p style={{ margin: '7px 0 0', fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Tap the map to drop a pin, drag to fine-tune, or type coordinates below.</p>
+          <div
+            ref={pickMapRef}
+            className={pickFs.hostClassName}
+            role={pickFs.still ? 'img' : undefined}
+            aria-label={pickFs.still ? STILL_NAMES.picker : undefined}
+            onClick={pickFs.still ? pickerOpener.open : undefined}
+          >
+            <div className="sr-map-still-body" inert={pickFs.still}>
+              <MapFullscreenProvider value={pickFs}>
+                {/* The Exit while the map has not drawn (D-38, M-1), the lazy
+                    chunk's fallback included. */}
+                <MapExitStandIn compact={false}>
+                <Suspense fallback={<div style={{ height: '100%', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
+                  <PredictMap coord={coord} onPick={setCoord} openPress={pickerPress} />
+                </Suspense>
+                </MapExitStandIn>
+              </MapFullscreenProvider>
+            </div>
+          </div>
+          {/* On the phone tier the opener's helper line takes the place of the
+              page's line; the place search and the two coordinate fields below
+              still complete the picker with the map never opened. */}
+          {pickFs.stillTier
+            ? <FsOpenRow fs={pickerOpener} label={OPEN_MAP_LABEL} note={OPEN_PICKER_NOTE} />
+            : <p style={{ margin: '7px 0 0', fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{PICKER_PAGE_NOTE}</p>}
 
           <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '12px', marginTop: 12 }}>
             <div>

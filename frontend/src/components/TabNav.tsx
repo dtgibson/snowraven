@@ -736,6 +736,13 @@ function NavBottomBar({ items, activeTab, onSelect, navBarRef, inert, onOpenPale
  *
  * Written on <html> — the same place --sr-text-scale lives — and reset on unmount
  * so a density flip back to the rail cannot leave stale padding behind.
+ *
+ * The observer watches the BORDER box, the box `getBoundingClientRect` measures
+ * (map-scroll-on-phones D-34). The bar's bottom padding carries the home
+ * indicator or the Android navigation bar, and on Android that inset lands after
+ * first paint (MainActivity.kt), so with the default content-box observation the
+ * padding grew, nothing fired, and the published height stayed 30px short of the
+ * bar (57px against 86.5px, modelled): the last 30px of every tab sat under it.
  */
 function useNavBarHeight(barRef: RefObject<HTMLElement | null>): void {
   const published = useRef<number | null>(null)
@@ -754,7 +761,7 @@ function useNavBarHeight(barRef: RefObject<HTMLElement | null>): void {
     let ro: ResizeObserver | undefined
     if (typeof ResizeObserver !== 'undefined' && barRef.current) {
       ro = new ResizeObserver(measure)
-      ro.observe(barRef.current)
+      ro.observe(barRef.current, { box: 'border-box' })
     }
     return () => {
       ro?.disconnect()

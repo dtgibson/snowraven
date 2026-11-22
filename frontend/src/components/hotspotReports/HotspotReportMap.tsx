@@ -5,10 +5,15 @@
 // without coordinates load no map chunk and no tile.
 //
 // A PLAIN map, by the user's decision at the design review: one non-interactive
-// marker, no popup, no corner controls (no share, fullscreen or location
-// button), only the zoom control and the compact attribution every `<SnowMap>`
-// draws, and the gesture posture of the app's other in-page maps (scroll zoom
-// off, cooperative gestures on).
+// marker, no popup, no share or location button, only the zoom control and the
+// compact attribution every `<SnowMap>` draws, and the gesture posture of the
+// app's other in-page maps (scroll zoom off, cooperative gestures on). ABOVE
+// THE PHONE TIER that is still the whole of it. On the phone tier the map is a
+// still with an opener (map-scroll-on-phones D-13, narrowing hotspot-reports
+// D-01 to that tier), and its fullscreen holds Exit, zoom and the credits and
+// nothing else: the corner row below carries no share pin and exists only while
+// expanded. The box itself, and its name, belong to the host (HotspotReport.tsx),
+// which holds it through this lazy chunk.
 //
 // ONE INSTANCE PER RUN OF SELECTIONS WITH COORDINATES: a change of location
 // moves the marker by props and re-centers with `jumpTo` (no animation, because
@@ -19,8 +24,8 @@
 import { useEffect } from 'react'
 import { Marker, useMap } from 'react-map-gl/maplibre'
 import { SnowMap } from '../SnowMap'
+import { MapCornerControls } from '../map/MapCornerControls'
 import { neutralizeMarkerWrapper } from '../../lib/mapPins'
-import { mapLabel } from '../../lib/hotspotReportsCopy'
 
 /** The zoom a report opens at: a hotspot's own scale, a few streets around it. */
 const REPORT_MAP_ZOOM = 13
@@ -36,30 +41,30 @@ function Recenter({ lat, lng }: { lat: number; lng: number }) {
   return null
 }
 
-export function HotspotReportMap({ lat, lng, name }: { lat: number; lng: number; name: string }) {
+export function HotspotReportMap({ lat, lng }: { lat: number; lng: number }) {
   return (
-    <div className="sr-hsr-map" role="group" aria-label={mapLabel(name)}>
-      <SnowMap
-        initialViewState={{ longitude: lng, latitude: lat, zoom: REPORT_MAP_ZOOM }}
-        style={MAP_STYLE}
-        scrollZoom={false}
-        cooperativeGestures
-      >
-        <Recenter lat={lat} lng={lng} />
-        {/* Not a target: the wrapper is demoted to presentation, the pin is
-            decorative and takes no pointer, and nothing opens on a press. The
-            fill reads the map's own pin tokens; the centre is the theme-neutral
-            white the pin glyph contrast was measured against (globals.css). */}
-        <Marker longitude={lng} latitude={lat} anchor="bottom" ref={neutralizeMarkerWrapper}>
-          <svg className="sr-hsr-pin" viewBox="0 0 28 40" width="24" height="34" aria-hidden="true" focusable="false">
-            <path
-              d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z"
-              className="sr-hsr-pin-body"
-            />
-            <circle cx="14" cy="14" r="5" className="sr-hsr-pin-dot" />
-          </svg>
-        </Marker>
-      </SnowMap>
-    </div>
+    <SnowMap
+      initialViewState={{ longitude: lng, latitude: lat, zoom: REPORT_MAP_ZOOM }}
+      style={MAP_STYLE}
+      scrollZoom={false}
+      cooperativeGestures
+    >
+      <Recenter lat={lat} lng={lng} />
+      {/* Not a target: the wrapper is demoted to presentation, the pin is
+          decorative and takes no pointer, and nothing opens on a press. The
+          fill reads the map's own pin tokens; the centre is the theme-neutral
+          white the pin glyph contrast was measured against (globals.css). */}
+      <Marker longitude={lng} latitude={lat} anchor="bottom" ref={neutralizeMarkerWrapper}>
+        <svg className="sr-hsr-pin" viewBox="0 0 28 40" width="24" height="34" aria-hidden="true" focusable="false">
+          <path
+            d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z"
+            className="sr-hsr-pin-body"
+          />
+          <circle cx="14" cy="14" r="5" className="sr-hsr-pin-dot" />
+        </svg>
+      </Marker>
+      {/* Exit alone, and only while expanded (fsOnly): no share pin here. */}
+      <MapCornerControls compact={false} share={false} fsOnly />
+    </SnowMap>
   )
 }

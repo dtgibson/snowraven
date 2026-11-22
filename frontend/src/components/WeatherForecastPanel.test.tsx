@@ -2,8 +2,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 
-// Mock the map so maplibre never loads in jsdom.
-vi.mock('./PredictMap', () => ({ PredictMap: () => <div data-testid="predict-map" /> }))
+// Mock the map so maplibre never loads in jsdom. It keeps the last props it was
+// rendered with, so a row can read what the host hands the map.
+// It carries the REAL corner row the real map mounts (Exit only, and only while
+// expanded) inside the readiness gate (test/mapReadiness.tsx), which is 'ready'
+// unless a row says otherwise (map-scroll-on-phones D-38).
+const predictMap = vi.hoisted(() => ({ props: null as null | { openPress?: { current: unknown } } }))
+vi.mock('./PredictMap', async () => {
+  const { MapReadinessGate } = await import('../test/MapReadinessGate')
+  const { MapCornerControls } = await import('./map/MapCornerControls')
+  return {
+    PredictMap: (p: { openPress?: { current: unknown } }) => {
+      predictMap.props = p
+      return (
+        <MapReadinessGate>
+          <div data-testid="predict-map"><MapCornerControls compact={false} share={false} fsOnly /></div>
+        </MapReadinessGate>
+      )
+    },
+  }
+})
+// The corner row reads the map instance; there is none here, so its effects bail.
+vi.mock('react-map-gl/maplibre', () => ({ useMap: () => ({ current: undefined }) }))
 vi.mock('../lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) }))
 
 const getMock = vi.fn()
@@ -45,6 +65,11 @@ vi.mock('../lib/platformGates', async (importOriginal) => ({
 }))
 
 import { WeatherForecastPanel } from './WeatherForecastPanel'
+import { installExactMatchMedia, PHONE_MEDIA_QUERY, type ExactMatchMediaStub } from '../test/matchMedia'
+import {
+  expectDrawnExitOnly, expectOneExitUntilAndAfterDrawn, expectRetryInFullscreen, resetMapReadiness, setMapReadiness,
+  type MapReadiness,
+} from '../test/mapReadiness'
 import { PLAN_COPY } from '../lib/planCopy'
 
 const WEATHER_CURRENT = {
@@ -103,6 +128,37 @@ describe('WeatherForecastPanel', () => {
     expect(container.textContent).not.toMatch(/where you are/)
     expect(screen.queryByRole('button', { name: /current weather and tide/i })).toBeNull()
     expect(screen.getByRole('button', { name: PLAN_COPY.entryAria })).toBeTruthy()
+  })
+
+  // map-scroll-on-phones QA round 1, item 5: the second tap of a double tap on
+  // the opener or the still dropped a pin on the map the first tap had opened.
+  // The map ignores a tap that continues the press that opened it
+  // (mapFullscreenWiring.test.tsx); this is the host's half: it records that
+  // press from a tap on either opening path, and none from the keyboard.
+  it('on the phone tier the picker hands its map the press that opened it, from a tap, never from the keyboard', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true, media: query, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    }))
+    try {
+      getCurrentLocationMock.mockRejectedValue({ code: 'unavailable' })
+      render(<WeatherForecastPanel />)
+      fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
+      const opener = await waitFor(() => screen.getByRole('button', { name: 'Open the map' }))
+      await waitFor(() => expect(predictMap.props).toBeTruthy())
+      const press = () => predictMap.props?.openPress?.current
+      fireEvent.click(opener, { clientX: 120, clientY: 400, detail: 1 })
+      expect(press()).toMatchObject({ x: 120, y: 400 })
+      fireEvent.keyDown(document, { key: 'Escape' })
+      fireEvent.click(screen.getByRole('img', { name: 'Map showing the chosen place' }), { clientX: 160, clientY: 300, detail: 1 })
+      expect(press()).toMatchObject({ x: 160, y: 300 })
+      fireEvent.keyDown(document, { key: 'Escape' })
+      fireEvent.click(opener, { clientX: 120, clientY: 400, detail: 0 })
+      expect(press()).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('Current: shows live weather + tide summary', async () => {
@@ -171,5 +227,44 @@ describe('WeatherForecastPanel', () => {
     const cue = screen.getByText(/showing the last loaded result/i)
     expect(cue).toBeTruthy()
     expect(cue.textContent).toContain('2026')
+  })
+})
+
+// ── map-scroll-on-phones D-38 (the security review's M-1) ────────────────────
+//
+// On the phone tier the picker's opener opens its map at once, so the map can
+// be open before it has drawn: its lazy chunk still loading (this host's
+// "Loading map…" fallback), the style loading or failed, or maplibre not yet
+// built. The map's Exit is a map child, so each of those was a full-window
+// panel with no Exit and the bar hidden. The REAL panel and the REAL corner
+// row; only the map's own body is stubbed, through the readiness gate.
+describe('the location picker opened on a phone before its map has drawn (M-1, D-38)', () => {
+  let media: ExactMatchMediaStub
+  beforeEach(() => { media = installExactMatchMedia({ [PHONE_MEDIA_QUERY]: true }) })
+  afterEach(() => { media.restore(); resetMapReadiness(); document.documentElement.removeAttribute('data-sr-fs-open') })
+
+  const openPicker = async (state: MapReadiness) => {
+    setMapReadiness(state)
+    getCurrentLocationMock.mockRejectedValue({ code: 'unavailable' })
+    render(<WeatherForecastPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /plan weather and tide/i }))
+    return waitFor(() => screen.getByRole('button', { name: 'Open the map' }))
+  }
+
+  it.each(['chunk', 'loading', 'failed', 'constructing'] as const)(
+    '%s: exactly one Exit, it exits, and the map arriving leaves exactly one with the focus on it',
+    async state => {
+      const opener = await openPicker(state)
+      if (state === 'chunk') expect(screen.getByText('Loading map…')).toBeTruthy()   // the picker's own fallback
+      await expectOneExitUntilAndAfterDrawn(opener)
+    },
+  )
+
+  it('failed: Retry is reachable in fullscreen, and the map it brings keeps one Exit with the focus', async () => {
+    await expectRetryInFullscreen(await openPicker('failed'))
+  })
+
+  it('a map that drew before it was opened shows its own Exit and no stand-in', async () => {
+    await expectDrawnExitOnly(await openPicker('ready'))
   })
 })

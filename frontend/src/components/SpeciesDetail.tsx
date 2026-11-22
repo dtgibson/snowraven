@@ -78,6 +78,9 @@ import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { MapCornerControls } from './map/MapCornerControls'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
+import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
+import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 import { useExportWeather } from '../lib/useExportWeather'
 
 // LAZY, and that is NFR-03's structural half (species-detail-weather): a user
@@ -1552,8 +1555,25 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                   </div>
                 </div>
               )}
-              <div ref={mapBoxRef} className={mapFs.className}>
+              {/* On the phone tier the container is a STILL (map-scroll-on-
+                  phones): the same live map, its body inert and taking no
+                  pointer, so a swipe on it moves the page; a press on it opens
+                  it in fullscreen, and so does the opener row under it, which
+                  is the keyboard and screen-reader route (D-18). Above the tier
+                  every one of these is absent and the map is HEAD's. */}
+              <div
+                ref={mapBoxRef}
+                className={mapFs.hostClassName}
+                role={mapFs.still ? 'img' : undefined}
+                aria-label={mapFs.still ? STILL_NAMES.species : undefined}
+                onClick={mapFs.still ? mapFs.open : undefined}
+              >
+                <div className="sr-map-still-body" inert={mapFs.still}>
                 <MapFullscreenProvider value={mapFs}>
+                {/* The Exit while the map has not drawn (D-38, M-1): the opener
+                    opens the panel at once, before either branch's corner row
+                    exists. Around BOTH branches, so it covers either. */}
+                <MapExitStandIn compact={false}>
                 {/* Pins mode: the shared SightingsMap owns the markers + popup +
                     its own MapBoundsFitter. Heatmap mode keeps its inline SnowMap
                     with the HeatmapLayer and a top-level MapBoundsFitter, so the
@@ -1622,11 +1642,16 @@ export function SpeciesDetail({ onGoToSettings, onGoToWeather, filesVersion, req
                         toggle). Both branches mount it, or a user switching
                         modes silently loses the feature — the exact trap the
                         share-pin build hit and fixed on this same pair. */}
-                    <MapCornerControls compact={false} sharePinResetKey={selectedSpecies} />
+                    <MapCornerControls compact={false} share fsOnly={false} sharePinResetKey={selectedSpecies} />
                   </SnowMap>
                 )}
+                </MapExitStandIn>
                 </MapFullscreenProvider>
+                </div>
               </div>
+              {/* The map runs edge to edge in this card, so the row takes the
+                  card's own 18px side gutter. */}
+              <FsOpenRow fs={mapFs} label={OPEN_MAP_LABEL} note={OPEN_MAP_NOTE} inset />
 
               {/* The shading panel, beneath the map. Everything that changes how
                   the shading paints lives here, in the Map Explorer's order

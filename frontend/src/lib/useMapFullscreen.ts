@@ -1,7 +1,9 @@
-// Fullscreen for the app's four EMBEDDED map mounts: Species Detail's Sighting
+// Fullscreen for the app's EMBEDDED map mounts: Species Detail's Sighting
 // Locations in both its Pins and Heatmap branches, the Named Birds per-individual
-// card map, and the Statistics Geographic Stats map. The Map Explorer's own
-// fullscreen is a separate, untouched mechanism that lives in App.tsx.
+// card map, the Statistics Geographic Stats map and, since map-scroll-on-phones,
+// the Weather tab's Plan location picker and the Hotspot Reports map (those two
+// expand on the phone tier only, where they are a still in the page). The Map
+// Explorer's own fullscreen is a separate mechanism that lives in App.tsx.
 //
 // The whole feature is a CLASS SWAP on the host's own container, never a portal
 // and never a remount: the <SnowMap> keeps its position in the React tree, so the
@@ -9,14 +11,29 @@
 // share pin, the selected base map and the county overlay all survive a round
 // trip because nothing ever asked them not to.
 //
-// THIS FILE IMPORTS `react` AND `./useFocusTrap` AND NOTHING ELSE, EVER.
-// NamedBirdRow.tsx is on App.tsx's static import graph (App -> NamedBirds ->
-// NamedBirdsTable -> NamedBirdRow) and imports this hook directly, which is why
-// the row already reaches SightingsMap only through `lazy(() => import(...))`.
-// One `react-map-gl` or `maplibre-gl` edge from here puts the ~1 MB maplibre
-// vendor chunk on first paint. The map-side half of the feature lives in
-// components/map/MapCornerControls.tsx, which uses useMap() and must therefore
-// stay reachable only from the three lazy map hosts.
+// THIS FILE IMPORTS `react`, `./useFocusTrap` AND `./useIsPhone` AND NOTHING
+// ELSE, EVER. NamedBirdRow.tsx is on App.tsx's static import graph (App ->
+// NamedBirds -> NamedBirdsTable -> NamedBirdRow) and imports this hook directly,
+// which is why the row already reaches SightingsMap only through
+// `lazy(() => import(...))`. One `react-map-gl` or `maplibre-gl` edge from here
+// puts the ~1 MB maplibre vendor chunk on first paint. `./useIsPhone` imports
+// `react` only and is already on the entry chunk through App.tsx
+// (map-scroll-on-phones D-11; mapFullscreenEntrySafe.test.ts pins the list). The
+// map-side half of the feature lives in components/map/MapCornerControls.tsx,
+// which uses useMap() and must therefore stay reachable only from the lazy map
+// hosts.
+//
+// THE PHONE TIER (map-scroll-on-phones, design-refinement.md). On the
+// `(max-width: 640px)` query that `useIsPhone` and the stylesheet's phone block
+// both read, a map in a page is a STILL: the same live map, made inert by its
+// host while `still`, with an opener button under it (components/ui/FsOpenRow).
+// It is used in fullscreen by the same class swap as above the tier. The hook
+// owns everything that has to be the same for every consumer, the Family Tree
+// included: the bar signal on the root element, focus on open and on exit, and
+// the page's scroll offset across a round trip. A consumer passes the container
+// and its base class, registers its exit and its opener, and wraps its tab panel
+// in MapTabShowingProvider; it needs no z-index, no bar handling and no width
+// test of its own.
 //
 // Why a hook plus a context rather than a prop on <SnowMap>: SnowMap does not own
 // the box that expands (it renders into a div each host owns), Species Detail's
@@ -27,16 +44,59 @@
 // all, so "added once, both callers receive it" holds by construction.
 
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useState,
+  createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState,
   type RefObject,
 } from 'react'
 import { useFocusTrap } from './useFocusTrap'
+import { useIsPhone } from './useIsPhone'
 
 /** The one expanded class, shared by all four mounts. Its geometry, its opaque
  *  ground, its dropped border/radius and its iOS inset are written once in
  *  globals.css, so "the surfaces are identical when expanded" is a property of
  *  the stylesheet rather than of anyone's discipline. */
 export const MAP_FS_PANEL_CLASS = 'sr-map-fs-panel'
+
+/** The host container's class while it is a still on the phone tier
+ *  (`hostClassName`). The stylesheet's phone block hangs the still's posture on
+ *  it: no pointer on the inert body, the map's own controls not drawn. */
+export const MAP_STILL_CLASS = 'sr-map-still'
+
+/** The root-element attribute that says "a panel is expanded" (D-07). The hook
+ *  only says it; `:root[data-sr-fs-open] .sr-navbar { visibility: hidden }` in
+ *  globals.css decides whether there is a bar to hide, so nothing in script
+ *  tests a width for it. */
+export const FS_OPEN_ATTR = 'data-sr-fs-open'
+
+// COUNTED AT MODULE SCOPE, so two consumers can never clear each other's: the
+// attribute goes only when the last expanded panel lets go. One panel at a time
+// is the shipped reality (they live on different tabs, and leaving a tab
+// collapses its map), and the count is what makes that not need to be true.
+// Module state on the entry chunk, the same shape as useFocusTrap's stack.
+let expandedPanels = 0
+function markPanelExpanded(): void {
+  expandedPanels += 1
+  document.documentElement.setAttribute(FS_OPEN_ATTR, '')
+}
+function unmarkPanelExpanded(): void {
+  expandedPanels = Math.max(0, expandedPanels - 1)
+  if (expandedPanels === 0) document.documentElement.removeAttribute(FS_OPEN_ATTR)
+}
+
+/** Focus the first candidate that actually TAKES focus, read back from
+ *  `document.activeElement` rather than predicted (ui.md v1.0.20): a node that
+ *  is detached, hidden, inert or disabled refuses silently, and `<body>` passes
+ *  every predicate an enumeration reaches for. Returns whether one took it. */
+function focusFirstThatTakes(
+  candidates: ReadonlyArray<HTMLElement | null | undefined>,
+  options?: FocusOptions,
+): boolean {
+  for (const el of candidates) {
+    if (!el || !el.isConnected) continue
+    el.focus(options)
+    if (document.activeElement === el) return true
+  }
+  return false
+}
 
 /** Container class list for a map host. Pure, and the same idiom as the shipped
  *  `mapContentClass()` next door: positioning lives in globals.css, NOT inline.
@@ -54,6 +114,23 @@ export interface MapFullscreen {
   className: string
   /** Ref callback for the toggle button currently rendering for this map. */
   registerToggle: (el: HTMLButtonElement | null) => void
+  // ── Added by map-scroll-on-phones; nothing above was renamed (D-11). ──
+  /** The phone-tier media query matches (`useIsPhone`). The opener row renders
+   *  on this. A width test of the VIEWPORT, never of the container. */
+  stillTier: boolean
+  /** `stillTier && !expanded`: the page shows the still. A host sets `inert` on
+   *  its map body and `role="img"` on its container while this is true. */
+  still: boolean
+  /** Expand. Idempotent, so a second press while opening never closes it, and
+   *  stamped with the current `resetKey` exactly as `toggle` is. */
+  open: () => void
+  /** Ref callback for the opener button now rendering, held as STATE with the
+   *  same detach rule as `registerToggle`. Focus returns to it after a user
+   *  exit. */
+  registerOpener: (el: HTMLButtonElement | null) => void
+  /** `className`, plus `MAP_STILL_CLASS` while `still`. Map hosts put this on
+   *  the container; a consumer that draws its own still can keep `className`. */
+  hostClassName: string
 }
 
 const MapFullscreenContext = createContext<MapFullscreen | null>(null)
@@ -70,8 +147,9 @@ export function useMapFullscreenContext(): MapFullscreen | null {
 
 /**
  * Whether the tab a map lives in is the one showing (visited-hotspots-in-search
- * FR-28, decisions.md E-09). App.tsx provides it around the panels of the three
- * map hosts (Species Detail, Statistics, Named Birds) as `activeTab === tab`.
+ * FR-28, decisions.md E-09). App.tsx provides it around the panel of every tab
+ * that hosts this hook (Species Detail, Statistics, Named Birds, Weather and
+ * Hotspot Reports) as `activeTab === tab`.
  * Every tab stays MOUNTED once opened and is only hidden with `display: none`,
  * so leaving a tab by a route that changes nothing inside it (a Search result,
  * the species route out of Statistics' county popup or Named Birds) used to
@@ -89,7 +167,8 @@ export interface UseMapFullscreenOptions {
    *  overlay contains (base switcher, zoom, attribution, marker buttons, popup
    *  links, the share pin and its popup, the corner row) is inside it. */
   containerRef: RefObject<HTMLElement | null>
-  /** 'sr-map-container' | 'sr-named-map' | 'sr-geo-map' */
+  /** 'sr-map-container' | 'sr-named-map' | 'sr-geo-map' | 'sr-wx-pick-map' |
+   *  'sr-hsr-map', or a non-map consumer's own box class. */
   baseClass: string
   /** False collapses AND releases. This is how "the Named Birds row collapsed"
    *  is handled structurally: the row itself stays mounted, only its `{open &&
@@ -149,38 +228,99 @@ export function useMapFullscreen({
     })
   }, [])
 
-  // Focus lands on the toggle rendering NOW, and never on document.body. The
-  // container query is the belt-and-braces arm for a toggle that never
-  // registered, or whose replacement has not registered yet.
-  const focusToggle = useCallback(() => {
-    if (toggleEl?.isConnected) { toggleEl.focus(); return }
-    containerRef.current
-      ?.querySelector<HTMLButtonElement>('.sr-map-fullscreen-btn')
-      ?.focus()
-  }, [toggleEl, containerRef])
+  // The opener under the still (map-scroll-on-phones), held exactly as the
+  // toggle is and for the same reasons: the CURRENT element, as state, with a
+  // detach that never clears a live replacement.
+  const [openerEl, setOpenerEl] = useState<HTMLButtonElement | null>(null)
+  const registerOpener = useCallback((el: HTMLButtonElement | null) => {
+    setOpenerEl(prev => {
+      if (el) return el
+      return prev && !prev.isConnected ? null : prev
+    })
+  }, [])
+
+  // The phone tier, read through the same render-safe media store the
+  // stylesheet's phone block mirrors (D-11). A width test of the viewport and
+  // nothing else: a desktop window zoomed to 640 CSS px is on the tier too.
+  const stillTier = useIsPhone()
+  const still = stillTier && !expanded
+
+  // A USER exit (the toggle turning it off, Escape, `collapse()`) is the only
+  // kind that moves focus or restores the page's place. A collapse caused by
+  // leaving the tab, by `active` dropping or by `resetKey` changing is derived,
+  // never written here, so it moves nothing, as at HEAD. Written in the event
+  // paths, read by the effects below after the collapsed commit, and cleared on
+  // the next open so a stale request cannot reach a later derived collapse.
+  const userExit = useRef(false)
+
+  // THE PAGE'S PLACE, RECORDED AT THE PRESS (map-scroll-on-phones QA round 1,
+  // F-1). The container leaves the flow in the commit that expands it, and the
+  // browser lays the shorter page out, clamping its offset, BEFORE any passive
+  // effect runs; a reading taken in the scroll-lock effect below is therefore
+  // the clamped offset whenever less than one container height of page was left
+  // below the window (measured: 154px on Named Birds, 88px on Weather). So the
+  // offset is read in the event path, before the state update, and the lock
+  // effect restores this reading. Overwritten by every press that opens, and
+  // spent when the expansion ends, so an expansion with no press (a `resetKey`
+  // returning to the stamped key) falls back to the lock effect's own reading.
+  const placeAtPress = useRef<{ x: number; y: number } | null>(null)
+  const recordPlace = useCallback(() => {
+    placeAtPress.current = { x: window.scrollX, y: window.scrollY }
+  }, [])
+
+  // The fallback arm for a toggle that never registered, or whose replacement
+  // has not registered yet. Optional, never required: a consumer with no
+  // `.sr-map-fullscreen-btn` (the Family Tree) registers its controls instead.
+  const fallbackToggle = useCallback(
+    () => containerRef.current?.querySelector<HTMLButtonElement>('.sr-map-fullscreen-btn') ?? null,
+    [containerRef],
+  )
 
   // Every write stamps the CURRENT resetKey, so a toggle pressed after a species
   // change belongs to the new species rather than reviving the old state.
-  const toggle = useCallback(
-    () => setRaw(p => ({ on: !(p.on && p.key === resetKey), key: resetKey })),
-    [resetKey],
-  )
-  const collapse = useCallback(() => setRaw({ on: false, key: resetKey }), [resetKey])
+  const toggle = useCallback(() => {
+    if (expanded) userExit.current = true
+    else recordPlace()
+    setRaw(p => ({ on: !(p.on && p.key === resetKey), key: resetKey }))
+  }, [resetKey, expanded, recordPlace])
+  const collapse = useCallback(() => {
+    userExit.current = true
+    setRaw({ on: false, key: resetKey })
+  }, [resetKey])
+  // Idempotent: returning the same object when already open bails the update
+  // out, so a quick second tap on the still or the opener changes nothing (and
+  // records nothing: the place is the one the first press left).
+  const open = useCallback(() => {
+    if (!expanded) recordPlace()
+    setRaw(p => (p.on && p.key === resetKey ? p : { on: true, key: resetKey }))
+  }, [resetKey, expanded, recordPlace])
 
-  // Escape exits and returns focus to the toggle. BUBBLE phase, armed only while
-  // expanded: SharePopup owns Escape in the CAPTURE phase with stopPropagation,
-  // so one Escape closes that popup and this listener never fires, and a second
-  // exits fullscreen. The two work as layers only because the phases differ.
+  // Escape exits. BUBBLE phase, armed only while expanded: SharePopup owns
+  // Escape in the CAPTURE phase with stopPropagation, so one Escape closes that
+  // popup and this listener never fires, and a second exits fullscreen. The two
+  // work as layers only because the phases differ. Where focus goes is the exit
+  // effect's job below, after the collapsed commit: at keydown time the trap is
+  // still armed, and on the phone tier the toggle is about to stop being drawn.
   useEffect(() => {
     if (!expanded) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      userExit.current = true
       setRaw(p => ({ on: false, key: p.key }))
-      focusToggle()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [expanded, focusToggle])
+  }, [expanded])
+
+  // THE BAR SIGNAL (D-07). A LAYOUT effect, so the commit that expands the panel
+  // carries the attribute before the browser paints it: no frame shows the phone
+  // bar over the panel (baseline-measurements.md, section 3, measured it covering
+  // the exit and share buttons in 24 of 24 pairs). Counted at module scope.
+  useLayoutEffect(() => {
+    if (!expanded) return
+    markPanelExpanded()
+    return unmarkPanelExpanded
+  }, [expanded])
 
   // Body scroll lock. The PREVIOUS value is captured and restored rather than
   // assumed to be '' — same shape as the Map Explorer's shipped lock. The two
@@ -188,12 +328,60 @@ export function useMapFullscreen({
   // that not need to be true. Because `expanded` is derived, this releases on an
   // `active` drop, a `resetKey` change and the host's tab being hidden, as well
   // as on a collapse and unmount.
+  //
+  // THE PAGE'S PLACE (map-scroll-on-phones). The container leaves the flow while
+  // expanded, so a page near its end gets shorter and the browser clamps its
+  // offset; back in flow, the page would sit higher than the user left it. The
+  // offset the opening PRESS recorded (`placeAtPress` above; by this effect the
+  // page is already clamped) is put back, for a user exit only, after the lock
+  // lets go (the container is already back in flow by then: this cleanup runs
+  // after the collapsed commit). This effect's own reading is only the fallback
+  // for an expansion no press made.
   useEffect(() => {
     if (!expanded) return
     const prev = document.body.style.overflow
+    const { x, y } = placeAtPress.current ?? { x: window.scrollX, y: window.scrollY }
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    return () => {
+      document.body.style.overflow = prev
+      placeAtPress.current = null
+      if (userExit.current && (window.scrollY !== y || window.scrollX !== x)) window.scrollTo(x, y)
+    }
   }, [expanded])
+
+  // FOCUS ON OPEN AND ON EXIT, after the commit that changed `expanded`, and only
+  // on a CHANGE (the toggle or opener re-registering, a Pins to Heatmap swap,
+  // re-runs this and must move nothing).
+  //
+  // Open: if focus is outside the container (the opener, or <body> after a tap
+  // on the still), it goes to the exit, read back. A consumer that wants another
+  // landing focuses it in its own effect declared after the hook call; the last
+  // focus wins. Above the tier the toggle that was pressed is already inside, so
+  // nothing moves, as at HEAD.
+  //
+  // Exit, user exits only: the opener if it takes focus (it is not rendered above
+  // the tier), else the toggle, else the fallback selector, each read back. Never
+  // at close time: the trap is still armed then, and on the phone tier the
+  // toggle is about to become inert. `preventScroll` on the way back so the
+  // offset restored above stands. React runs every cleanup of a commit before any
+  // of its effects, so the trap's listeners are already gone when this runs.
+  const shownExpanded = useRef(expanded)
+  useEffect(() => {
+    if (shownExpanded.current === expanded) return
+    shownExpanded.current = expanded
+    if (expanded) {
+      userExit.current = false
+      const root = containerRef.current
+      const active = document.activeElement
+      if (root && !(active instanceof Node && root.contains(active))) {
+        focusFirstThatTakes([toggleEl, fallbackToggle()])
+      }
+      return
+    }
+    if (!userExit.current) return
+    userExit.current = false
+    focusFirstThatTakes([openerEl, toggleEl, fallbackToggle()], { preventScroll: true })
+  }, [expanded, toggleEl, openerEl, containerRef, fallbackToggle])
 
   // THE TAB CAN BE LEFT WHILE A MAP IS EXPANDED, and the tab-showing input above
   // is what makes that safe. The original argument here was that it could not:
@@ -214,12 +402,20 @@ export function useMapFullscreen({
   // lean on the page behind being unfocusable and opts into containment. A
   // later-activated modal such as CommandPalette owns focus while it is above
   // this one; the shared hook yields, then resumes here when that modal closes.
+  //
+  // The still and the opener arm NOTHING: `expanded` is the one condition that
+  // makes this surface modal on every tier (a fixed, opaque, window-filling
+  // panel), so it is the arming expression (v1.0.20), unchanged.
   useFocusTrap(expanded, containerRef, { containOutsideFocus: true })
 
   const className = mapFullscreenClass(baseClass, expanded)
+  const hostClassName = still ? `${className} ${MAP_STILL_CLASS}` : className
 
   return useMemo(
-    () => ({ expanded, toggle, collapse, className, registerToggle }),
-    [expanded, toggle, collapse, className, registerToggle],
+    () => ({
+      expanded, toggle, collapse, className, registerToggle,
+      stillTier, still, open, registerOpener, hostClassName,
+    }),
+    [expanded, toggle, collapse, className, registerToggle, stillTier, still, open, registerOpener, hostClassName],
   )
 }

@@ -13,6 +13,9 @@ import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { MapCornerControls } from './map/MapCornerControls'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
+import { FsOpenRow } from './ui/FsOpenRow'
+import { MapExitStandIn } from './ui/MapExitStandIn'
+import { OPEN_MAP_LABEL, OPEN_MAP_NOTE, STILL_NAMES } from '../lib/mapStillCopy'
 // STATIC imports, deliberately (FR-21): entryChunk.test.ts's walker follows
 // STATIC edges only, so its guard-the-guard ("this host's subtree reaches
 // CountyLayer") is satisfiable only this way. Safe because this component is
@@ -1275,8 +1278,23 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                   and could never be beaten by the expanded panel's `100dvh`.
                   mapReady flips on requestIdleCallback after `computed`. */}
               {mapReady ? (
-                <div ref={geoMapRef} className={geoFs.className}>
+                // On the phone tier this is a STILL (map-scroll-on-phones): the
+                // same live map with its body inert and taking no pointer, so a
+                // swipe on it moves the page; a press on it, or the opener row
+                // below, opens it in fullscreen. Above the tier: HEAD.
+                <div
+                  ref={geoMapRef}
+                  className={geoFs.hostClassName}
+                  role={geoFs.still ? 'img' : undefined}
+                  aria-label={geoFs.still ? STILL_NAMES.statistics : undefined}
+                  onClick={geoFs.still ? geoFs.open : undefined}
+                >
+                  <div className="sr-map-still-body" inert={geoFs.still}>
                   <MapFullscreenProvider value={geoFs}>
+                  {/* The Exit while the map has not drawn (D-38, M-1): a press
+                      held through the idle deferral opens the panel as this
+                      branch mounts, before the style or the map exists. */}
+                  <MapExitStandIn compact={false}>
                   <SnowMap
                     initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
                     style={{ width: '100%', height: '100%' }}
@@ -1357,15 +1375,22 @@ export function BirdingStats({ onGoToSettings, onGoToWeather, onOpenSpecies }: {
                         then the fullscreen toggle. No share-pin reset key
                         needed: this map has no entity behind it that can change
                         under a mounted map. */}
-                    <MapCornerControls compact={false} />
+                    <MapCornerControls compact={false} share fsOnly={false} />
                   </SnowMap>
+                  </MapExitStandIn>
                   </MapFullscreenProvider>
+                  </div>
                 </div>
               ) : (
                 <div className="sr-geo-map" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</span>
                 </div>
               )}
+              {/* In both branches, so the row is in the layout from the first
+                  frame the box is and nothing shifts when the idle-deferred map
+                  mounts. A press during the placeholder is held by the hook and
+                  the map opens as it arrives (`active` gates `expanded`). */}
+              <FsOpenRow fs={geoFs} label={OPEN_MAP_LABEL} note={OPEN_MAP_NOTE} />
               <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="var(--sr-rank-pin-circle)" /></svg>

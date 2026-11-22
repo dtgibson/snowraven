@@ -15,7 +15,7 @@
 // keeps a host that was never wired from reading as nothing at all.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 /// <reference types="node" />
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -66,6 +66,8 @@ vi.mock('../lib/storage', () => ({
 }))
 
 import { SightingsMap } from './SightingsMap'
+import { PredictMap } from './PredictMap'
+import type { OpeningPress } from '../lib/mapOpeningTap'
 import { useMapFullscreen, MapFullscreenProvider } from '../lib/useMapFullscreen'
 import type { SightingMarker } from '../lib/sightingMarkers'
 
@@ -189,6 +191,46 @@ describe('what the user had set up survives the round trip (QA-12, QA-13)', () =
   })
 })
 
+// map-scroll-on-phones QA round 1, item 5: a quick double tap on the Weather
+// picker's opener (or its still) opened the map with the first tap and dropped a
+// pin with the second, which landed on the map it had just opened (16 of 16
+// runs). Driven through the REAL PredictMap and its click handler on the fake
+// map; the press is what the host records (WeatherForecastPanel.test.tsx holds
+// that half), and the window's two sides are in lib/mapOpeningTap.test.ts.
+describe('the Weather picker takes no pin from the second tap of the double tap that opened it', () => {
+  function PickerHost({ onPick, press }: { onPick: (c: { lat: number; lng: number }) => void; press: { current: OpeningPress | null } }) {
+    const ref = useRef<HTMLDivElement>(null)
+    const fs = useMapFullscreen({ containerRef: ref, baseClass: 'sr-wx-pick-map' })
+    return (
+      <div ref={ref} className={fs.className}>
+        <MapFullscreenProvider value={fs}>
+          <PredictMap coord={null} onPick={onPick} openPress={press} />
+        </MapFullscreenProvider>
+      </div>
+    )
+  }
+  const tapMap = (clientX: number, clientY: number, timeStamp: number) => act(() => {
+    for (const h of handlers.click ?? []) h({ lngLat: { lat: 37.5, lng: -122.4 }, originalEvent: { clientX, clientY, timeStamp } })
+  })
+
+  it('ignores the second tap, and takes a deliberate tap: later at the same point, or elsewhere at once', () => {
+    const onPick = vi.fn()
+    const press = { current: { x: 195, y: 422, t: 1000 } as OpeningPress | null }
+    render(<PickerHost onPick={onPick} press={press} />)
+    expect(handlers.click?.length).toBe(1)
+    tapMap(195, 422, 1112)      // WebKit's measured second tap: 112ms on, the same point
+    expect(onPick).not.toHaveBeenCalled()
+    tapMap(195, 422, 1600)      // the same point once the window has passed
+    expect(onPick).toHaveBeenCalledTimes(1)
+    tapMap(345, 422, 1150)      // 150px away, inside the window: aimed, not a second tap
+    expect(onPick).toHaveBeenCalledTimes(2)
+    press.current = null        // above the tier, or opened by the keyboard: no press
+    tapMap(195, 422, 1112)
+    expect(onPick).toHaveBeenCalledTimes(3)
+    expect(onPick).toHaveBeenLastCalledWith({ lat: 37.5, lng: -122.4 })
+  })
+})
+
 // ── The host roster (FR-07, FR-12, FR-23; QA-01, QA-08) ─────────────────────
 //
 // One template, one row per host, so a fourth surface with no row reads as a gap
@@ -243,6 +285,8 @@ const HOSTS = [
     // The state belongs to the container that wraps BOTH branches, and it exits
     // on a species change because that map keeps its JSX position.
     extra: [/active:\s*coordMarkers\.length\s*>\s*0/, /resetKey:\s*selectedSpecies/],
+    // The stand-in wraps BOTH branches and the Heatmap branch's own row.
+    standIn: { compact: false, inside: [/<SightingsMap\b/, /<SnowMap\b/, /<MapCornerControls\b/] },
   },
   {
     name: 'Named Birds — the per-individual card map (M3)',
@@ -253,6 +297,8 @@ const HOSTS = [
     mounts: [/<SightingsMap\b/],
     // The row stays mounted when the accordion closes, so `active` is the exit.
     extra: [/active:\s*open\s*&&\s*showMap\s*&&\s*cardMarkers\.length\s*>\s*0/],
+    // Compact, as the card's row is; around the Suspense, so its fallback too.
+    standIn: { compact: true, inside: [/<Suspense\b/, /<SightingsMap\b/] },
   },
   {
     name: 'Statistics — Geographic Stats (M4)',
@@ -262,11 +308,53 @@ const HOSTS = [
     // No toggle before mapReady flips or when there are no ranked pins (FR-05),
     // and the county popup's open-species link collapses on its way out (FR-24).
     extra: [/active:\s*mapReady\s*&&\s*geoHasPins/, /collapseGeoFs\(\)/],
+    standIn: { compact: false, inside: [/<SnowMap\b/, /<MapCornerControls\b/] },
+  },
+  // map-scroll-on-phones D-12 and D-13: two hosts that expand on the phone tier
+  // only. Each mounts its corner row inside its own lazy map module (below).
+  {
+    name: 'Weather — the Plan location picker',
+    file: 'src/components/WeatherForecastPanel.tsx',
+    baseClass: 'sr-wx-pick-map',
+    mounts: [/<PredictMap\b/],
+    // The picker's subtree unmounts on any other phase; `active` is the exit.
+    extra: [/active:\s*phase\.kind\s*===\s*'predict'/],
+    standIn: { compact: false, inside: [/<Suspense\b/, /<PredictMap\b/] },
+  },
+  {
+    name: 'Hotspot Reports — the report\'s map',
+    file: 'src/components/hotspotReports/HotspotReport.tsx',
+    baseClass: 'sr-hsr-map',
+    mounts: [/<HotspotReportMap\b/],
+    // No coordinates, no map; a change of place collapses it (the map is not
+    // remounted across selections).
+    extra: [/active:\s*hasMap/, /resetKey:\s*rec\.ord/],
+    standIn: { compact: false, inside: [/<Suspense\b/, /<HotspotReportMap\b/] },
   },
 ] as const
 
-describe.each(HOSTS)('$name', ({ file, baseClass, mounts, extra }) => {
+describe.each(HOSTS)('$name', ({ file, baseClass, mounts, extra, standIn }) => {
   const src = read(file)
+
+  it('holds an Exit until its map has drawn: the stand-in wraps the whole map subtree, inside the provider (D-38, M-1)', () => {
+    // The behaviour (one Exit in every not-drawn state, focus handed across)
+    // is driven through each REAL host in its own suite; this row pins the
+    // shape that behaviour rests on, so a host that drops or misplaces the
+    // wrapper reads as a red here even where its suite is not run. Outside the
+    // provider it would read no state; outside the still body it would resolve
+    // against the panel and miss the apps' side insets; not around the map
+    // subtree, the map's own row could never report itself and both would draw.
+    expect(src.match(/<MapExitStandIn\b/g) ?? []).toHaveLength(1)
+    const open = src.search(standIn.compact ? /<MapExitStandIn compact>/ : /<MapExitStandIn compact=\{false\}>/)
+    const close = src.indexOf('</MapExitStandIn>')
+    expect(open, 'the stand-in, with this host\'s own density').toBeGreaterThan(-1)
+    expect(src.search(/<div className="sr-map-still-body" inert=\{\w+\.still\}>/)).toBeLessThan(open)
+    expect(src.search(/<MapFullscreenProvider\s+value=\{\w+\}>/)).toBeLessThan(open)
+    expect(close).toBeGreaterThan(open)
+    expect(src.indexOf('</MapFullscreenProvider>', close)).toBeGreaterThan(close)
+    const wrapped = src.slice(open, close)
+    for (const inside of standIn.inside) expect(wrapped, String(inside)).toMatch(inside)
+  })
 
   it.each(mounts as unknown as RegExp[])('mounts the corner row: %s', pattern => {
     // Mutation-verified against the half-revert shape: commenting the row out
@@ -280,7 +368,21 @@ describe.each(HOSTS)('$name', ({ file, baseClass, mounts, extra }) => {
   })
 
   it('puts the composed className and the ref on the container it owns', () => {
-    expect(src).toMatch(/<div\s+ref=\{\w+\}\s+className=\{\w+\.className\}/)
+    // `hostClassName` since map-scroll-on-phones: `className` plus the still
+    // class while the map is a still on the phone tier.
+    expect(src).toMatch(/<div\s+ref=\{\w+\}\s+className=\{\w+\.hostClassName\}/)
+  })
+
+  it('is a still on the phone tier: named as a picture, its body inert, a press opens it, and the opener follows', () => {
+    // D-08, D-18. The container is `role="img"` with a name only while still
+    // (Hotspot Reports keeps its shipped `group` otherwise); the ONE wrapper is
+    // inert while still; the press is wired to `open` only while still; and the
+    // opener row (the keyboard and screen-reader route) is rendered by the host.
+    expect(src).toMatch(/role=\{\w+\.still \? 'img' : (undefined|'group')\}/)
+    expect(src).toMatch(/aria-label=\{(\w+\.still \? [^}]+ : undefined|mapLabel\(name\))\}/)
+    expect(src).toMatch(/onClick=\{\w+\.still \? \w+\.open : undefined\}/)
+    expect(src).toMatch(/<div className="sr-map-still-body" inert=\{\w+\.still\}>/)
+    expect(src).toMatch(/<FsOpenRow fs=\{\w+\}/)
   })
 
   it('wraps the map subtree in the provider, which is how the corner row reads the state', () => {
@@ -308,6 +410,14 @@ describe('the shared implementation (FR-07, QA-08)', () => {
     const shared = read('src/components/SightingsMap.tsx')
     expect(shared).toMatch(/<MapCornerControls\s+compact=\{compact\}/)
     expect(shared).not.toMatch(/fullscreen/i)
+  })
+
+  it('the two phone-tier-only hosts mount an Exit-only row inside their lazy map modules', () => {
+    // D-12, D-13: no share pin, and the row exists only while expanded, so
+    // above the tier both maps keep the plain look they were designed with.
+    for (const file of ['src/components/PredictMap.tsx', 'src/components/hotspotReports/HotspotReportMap.tsx']) {
+      expect(read(file), file).toMatch(/<MapCornerControls compact=\{false\} share=\{false\} fsOnly \/>/)
+    }
   })
 
   it('adds no fullscreen state to App.tsx and writes nothing to the storage seam', () => {

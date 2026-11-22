@@ -171,3 +171,40 @@ describe('fullscreen is not on this mechanism at all', () => {
     expect(tierConsumers).toEqual([BASE])
   })
 })
+
+// map-scroll-on-phones D-34 (QA round 1, F-3's remainder). The panel is sized
+// from the window less the measured chrome, and the chrome is measured from the
+// DOCUMENT's top, so it already contains the top inset the app body pads. The
+// other half of "the page fits the window" is the app root around the shell:
+// at HEAD its inline `minHeight: '100dvh'` sat inside that padding, so every
+// document in the apps was at least the window plus the inset tall, and the Map
+// Explorer's page scrolled by exactly the inset under a live map (modelled: 32px
+// with a 32px Android inset at every text scale). The root's floor is now a
+// class, and each app class subtracts the SAME term its body pads by.
+describe('the app root fills the window less the top inset the body pads, in each app class', () => {
+  it('the base floor is the 100dvh the inline style carried, with no inset (web, desktop, Pi)', () => {
+    const base = TOP.get('.sr-app-root')
+    expect(base, '.sr-app-root missing (top-level)').toBeTruthy()
+    expect(decl(base!, 'min-height')).toBe('100dvh')
+    expect(base).not.toMatch(/env\(|--sr-inset-/)
+  })
+
+  it.each([['.sr-ios-app'], ['.sr-android-app']])('%s subtracts exactly the term its body pads on top', app => {
+    const body = TOP.get(`${app} body`)
+    const root = TOP.get(`${app} .sr-app-root`)
+    expect(body, `${app} body missing`).toBeTruthy()
+    expect(root, `${app} .sr-app-root missing (top-level)`).toBeTruthy()
+    const inset = decl(body!, 'padding-top')
+    expect(inset).toMatch(/^(env\(safe-area-inset-top, 0px\)|var\(--sr-inset-top, 0px\))$/)
+    // Compared to the body's own declaration, never restated, so the two
+    // cannot drift apart (CLAUDE.md, guard quality).
+    expect(decl(root!, 'min-height')).toBe(`calc(100dvh - ${inset})`)
+  })
+
+  it('App.tsx puts the class on the root and no longer carries the floor inline', () => {
+    const app = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8')
+      .split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
+    expect(app).toMatch(/data-date-fmt-version=\{dateFormatVersion\}\s*className="sr-app-root"\s*style=\{\{/)
+    expect(app).not.toMatch(/minHeight:\s*'100dvh'/)
+  })
+})

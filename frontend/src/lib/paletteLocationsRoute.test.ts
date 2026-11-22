@@ -53,22 +53,28 @@ describe('the location route copies the species route (FR-28)', () => {
     // The route above collapses the Map Explorer's fullscreen; an EXPANDED
     // EMBEDDED map is released by the tab-showing input instead, which App must
     // provide around each host keyed to that host's own tab.
-    for (const [tab, host] of [['species-detail', 'SpeciesDetail'], ['birding-stats', 'BirdingStats'], ['named-birds', 'NamedBirds']]) {
+    // map-scroll-on-phones added the Weather picker (WeatherForecastPanel) and
+    // the Hotspot Reports map (HotspotReport, inside HotspotReportsTab) as hosts.
+    for (const [tab, host] of [
+      ['species-detail', 'SpeciesDetail'], ['birding-stats', 'BirdingStats'], ['named-birds', 'NamedBirds'],
+      ['weather', 'WeatherForecastPanel'], ['hotspot-reports', 'HotspotReportsTab'],
+    ]) {
       const wrapped = new RegExp(String.raw`<MapTabShowingProvider value=\{activeTab === '${tab}'\}>\s*(?:<Suspense fallback=\{[^}]*\}>\s*)?<${host}\b`)
       expect(wrapped.test(CODE), `${host} is wrapped for '${tab}'`).toBe(true)
     }
   })
 
   it('and the hosts are the complete set: every caller of useMapFullscreen is one of them', () => {
-    // NamedBirdRow renders inside NamedBirds and inside SpeciesDetail, both wrapped.
-    // A fourth caller turns this red until its tab is wrapped too.
+    // NamedBirdRow renders inside NamedBirds and inside SpeciesDetail, both wrapped;
+    // HotspotReport renders inside HotspotReportsTab. A new caller turns this red
+    // until its tab is wrapped too.
     const dir = new URL('../components/', import.meta.url)
     const callers = readdirSync(dir, { recursive: true, withFileTypes: true })
       .filter(d => d.isFile() && /\.tsx$/.test(d.name) && !/\.test\.tsx$/.test(d.name))
       .filter(d => readFileSync(join(d.parentPath, d.name), 'utf8').includes('useMapFullscreen({'))
       .map(d => d.name)
       .sort()
-    expect(callers).toEqual(['BirdingStats.tsx', 'NamedBirdRow.tsx', 'SpeciesDetail.tsx'])
+    expect(callers).toEqual(['BirdingStats.tsx', 'HotspotReport.tsx', 'NamedBirdRow.tsx', 'SpeciesDetail.tsx', 'WeatherForecastPanel.tsx'])
   })
 
   it('GUARD THE GUARD: a route that forgot the fullscreen collapse would not equal the species route', () => {
