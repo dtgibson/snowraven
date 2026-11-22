@@ -109,10 +109,11 @@ export function useListFit(
       const wanted = list.offsetHeight
       let top = list.getBoundingClientRect().top
       if (mayScroll && visibleBottom(field) - top - LIST_FIT_EDGE_PX < wanted && typeof field.scrollIntoView === 'function') {
-        const margin = field.style.scrollMarginTop
-        field.style.scrollMarginTop = `var(--sr-list-fit-margin, ${LIST_FIT_EDGE_PX}px)`
+        const margin = field.style.getPropertyValue('scroll-margin-top')
+        field.style.setProperty('scroll-margin-top', `var(--sr-list-fit-margin, ${LIST_FIT_EDGE_PX}px)`)
         field.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' })
-        field.style.scrollMarginTop = margin
+        if (margin) field.style.setProperty('scroll-margin-top', margin)
+        else field.style.removeProperty('scroll-margin-top')
         top = list.getBoundingClientRect().top
       }
       list.style.setProperty(LIST_FIT_VAR, `${listFitPx(visibleBottom(field), top, floorFor(list, optionSelector))}px`)
