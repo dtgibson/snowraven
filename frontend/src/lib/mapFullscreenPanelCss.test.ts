@@ -25,7 +25,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { findUngatedSafeAreaRules, parseTopLevelRules } from './cssTopLevelRules'
-import { MAP_FS_PANEL_CLASS, mapFullscreenClass } from './useMapFullscreen'
+import { FS_OPEN_ATTR, MAP_FS_PANEL_CLASS, MAP_STILL_CLASS, mapFullscreenClass } from './useMapFullscreen'
+import { compoundsOf, specificity, splitList } from '../test/cssSpecificity'
+import { LIST_FIT_VAR } from './useListFit'
 
 const CSS = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const TOP = parseTopLevelRules(CSS)
@@ -263,7 +265,15 @@ describe('.sr-map-corner-row', () => {
     // .sr-map-fab + a size modifier. A rule here would be the fourth
     // hand-duplicated copy the uniform-map-fabs extraction removed.
     expect(TOP.get('.sr-map-fullscreen-btn')).toBeUndefined()
-    expect(/\.sr-map-fullscreen-btn\s*\{/.test(mediaTier(640))).toBe(false)
+    // The ONE exception, map-scroll-on-phones D-10: on the phone tier, inside an
+    // EXPANDED embedded panel only, the exit becomes the "Exit" pill. It is not a
+    // circle definition: it reshapes the disc .sr-map-fab already draws, and it
+    // cannot reach the Map Explorer's toggle (`.sr-map-fullscreen-panel`).
+    const phone = mediaTier(640)
+    const hits = [...phone.matchAll(/([^{}]*\.sr-map-fullscreen-btn[^{}]*)\{([^}]*)\}/g)]
+    expect(hits.map(m => m[1].trim())).toEqual(['.sr-map-fs-panel .sr-map-fullscreen-btn'])
+    const props = hits[0][2].split(';').map(d => d.split(':')[0].trim()).filter(Boolean).sort()
+    expect(props).toEqual(['gap', 'min-width', 'padding', 'width'])
   })
 })
 
@@ -362,5 +372,252 @@ describe('mapFullscreenClass', () => {
 
   it('names a class the stylesheet actually defines', () => {
     expect(TOP.get(`.${MAP_FS_PANEL_CLASS}`)).toBeTruthy()
+  })
+})
+
+
+// ── map-scroll-on-phones: the still, the exit, the bar and the lists ─────────
+//
+// A RESOLVED CASCADE, not a declaration's presence (testing.md v1.0.33): each
+// row below asks "which value wins on this element", over every rule at top
+// level and in the phone tier, scored by the shared specificity helper and broken
+// by source order. What this resolver does NOT check, said so it is not
+// over-read: it admits a selector when every class in each compound is on the
+// element (rightmost compound) or somewhere on its ancestor chain (the others),
+// so it does not distinguish a child from a descendant combinator, and it reads
+// `:not(.x)` only as "the element does not carry .x". Whether the rules work in
+// an engine is the Tester's real-browser reading.
+
+interface FlatRule { selector: string; body: string; tier: 'top' | 'phone'; order: number }
+
+function flatRules(): FlatRule[] {
+  const src = CSS.replace(/\/\*[\s\S]*?\*\//g, m => ' '.repeat(m.length))
+  const out: FlatRule[] = []
+  let order = 0
+  const walk = (text: string, tier: FlatRule['tier'] | null) => {
+    let i = 0
+    let start = 0
+    while (i < text.length) {
+      if (text[i] === ';' ) { i++; start = i; continue }
+      if (text[i] !== '{') { i++; continue }
+      let depth = 1
+      let end = i + 1
+      while (end < text.length && depth) { if (text[end] === '{') depth++; else if (text[end] === '}') depth--; end++ }
+      const prelude = text.slice(start, i).trim().replace(/\s+/g, ' ')
+      const body = text.slice(i + 1, end - 1)
+      if (prelude.startsWith('@')) {
+        if (tier === 'top' && /^@media \(max-width: ?640px\)$/.test(prelude)) walk(body, 'phone')
+      } else if (tier) {
+        for (const one of splitList(prelude)) out.push({ selector: one, body, tier, order: order++ })
+      }
+      i = end
+      start = end
+    }
+  }
+  walk(src, 'top')
+  return out
+}
+const FLAT = flatRules()
+
+const classesIn = (compound: string) => [...compound.matchAll(/(?<!:not\()\.([-\w]+)/g)].map(m => m[1])
+const notClassesIn = (compound: string) => [...compound.matchAll(/:not\(\.([-\w]+)\)/g)].map(m => m[1])
+
+/** Whether `selector` can match an element with `own` classes under `ancestors`. */
+function admits(selector: string, own: string[], ancestors: string[]): boolean {
+  const compounds = compoundsOf(selector)
+  const last = compounds[compounds.length - 1]
+  // A type selector in the subject compound (`... button`, `... svg`) names an
+  // element these rows never model, and a state pseudo-class is not the resting
+  // value being asked about.
+  const typeLeft = last.replace(/:not\([^)]*\)|\.[-\w]+|\[[^\]]*\]|::?[-\w]+(\([^)]*\))?/g, '').trim()
+  if (typeLeft !== '' && typeLeft !== '*') return false
+  if (/:(hover|focus|focus-visible|focus-within|active|disabled|checked|empty)\b/.test(last)) return false
+  if (!classesIn(last).every(c => own.includes(c))) return false
+  if (notClassesIn(last).some(c => own.includes(c))) return false
+  const up = compounds.slice(0, -1).flatMap(classesIn)
+  return up.every(c => ancestors.includes(c))
+}
+
+/** The winning value of `prop` on the element, at the phone tier or above it. */
+function resolved(prop: string, own: string[], ancestors: string[], phone: boolean): string | undefined {
+  const rank = ([a, b, c]: [number, number, number]) => a * 1e6 + b * 1e3 + c
+  let win: { value: string; spec: number; order: number } | undefined
+  for (const r of FLAT) {
+    if (!phone && r.tier === 'phone') continue
+    const value = decl(`;${r.body}`, prop)
+    if (value === undefined || !admits(r.selector, own, ancestors)) continue
+    const spec = rank(specificity(r.selector))
+    if (!win || spec > win.spec || (spec === win.spec && r.order > win.order)) win = { value, spec, order: r.order }
+  }
+  return win?.value
+}
+
+describe('the bar while a panel is expanded (D-07)', () => {
+  it('is one top-level rule keyed on the attribute the hook sets', () => {
+    expect(FS_OPEN_ATTR).toBe('data-sr-fs-open')
+    expect(decl(rule(`:root[${FS_OPEN_ATTR}] .sr-navbar`), 'visibility')).toBe('hidden')
+  })
+
+  it('and nothing under the bar can undo it with `visibility: visible`', () => {
+    // `visibility: hidden` is inherited and a descendant may set it back, which
+    // would paint and hit-test that one cell over the panel.
+    const offenders = FLAT.filter(r => /\.sr-navbar|\.sr-nav-/.test(r.selector) && /visibility\s*:\s*visible/.test(r.body))
+    expect(offenders.map(r => r.selector)).toEqual([])
+  })
+
+  it('does not hide the bar any other way, so it keeps its box and --sr-navbar-h stands', () => {
+    expect(decl(rule(`:root[${FS_OPEN_ATTR}] .sr-navbar`), 'display')).toBeUndefined()
+  })
+})
+
+describe('the still on the phone tier (D-08)', () => {
+  const STILL = ['sr-map-container', MAP_STILL_CLASS]
+
+  it('takes the page\'s swipe: the body takes no pointer and the host lets the page pan', () => {
+    expect(resolved('pointer-events', ['sr-map-still-body'], STILL, true)).toBe('none')
+    expect(resolved('touch-action', STILL, [], true)).toBe('manipulation')
+    // Above the tier neither exists, so the live map is HEAD's.
+    expect(resolved('pointer-events', ['sr-map-still-body'], STILL, false)).toBeUndefined()
+    expect(resolved('touch-action', STILL, [], false)).toBeUndefined()
+  })
+
+  it.each([
+    ['maplibregl-ctrl-top-left'], ['maplibregl-ctrl-top-right'], ['sr-map-layers'], ['sr-map-corner-row'],
+    ['sr-map-note'], ['maplibregl-cooperative-gesture-screen'],
+  ])('draws no %s on a still', control => {
+    expect(resolved('display', [control], STILL, true)).toBe('none')
+  })
+
+  it('the wrapper is 100% high, at every width', () => {
+    for (const phone of [false, true]) {
+      expect(resolved('height', ['sr-map-still-body'], [], phone)).toBe('100%')
+      expect(resolved('height', ['sr-mx-still-host'], [], phone)).toBe('100%')
+    }
+  })
+
+  it('the Map Explorer still hides its round buttons but never the location-failure live region', () => {
+    const AREA = ['sr-mx-area--still', 'sr-map-fab-cluster']
+    for (const child of [['sr-map-fab'], ['sr-map-filters-btn'], ['sr-map-fab-slot'], ['sr-map-search-area-row']]) {
+      expect(resolved('display', child, AREA, true), child[0]).toBe('none')
+    }
+    expect(resolved('display', ['sr-map-geo-error'], AREA, true)).toBe('flex')
+  })
+
+  it('the Map Explorer panel floor is 300px on the tier, every platform, and HEAD\'s 340px above it', () => {
+    expect(resolved('min-height', ['sr-map-explorer-panel'], [], true)).toBe('300px')
+    expect(resolved('min-height', ['sr-map-explorer-panel'], [], false)).toBe('340px')
+    // The iPhone app's (0,2,0) panel rule says 300px as well, so the floor is
+    // the same on every platform on the tier.
+    expect(resolved('min-height', ['sr-map-explorer-panel', 'sr-map-panel-ios'], [], true)).toBe('300px')
+  })
+
+  it('while its map is a still, the floor makes room for the opener row (D-28), on the tier only', () => {
+    // `:has()` is outside the resolver above, so this row reads the tier rule
+    // itself: the floor plus the row's own 10px + 2.75rem + 12px.
+    const phone = mediaTier(640)
+    const hit = phone.match(/\.sr-map-explorer-panel:has\(\.sr-mx-still-host\.sr-map-still\)\s*\{([^}]*)\}/)
+    expect(hit, 'the still-floor rule is in the phone tier').toBeTruthy()
+    expect(decl(hit![1], 'min-height')).toBe('calc(322px + 2.75rem)')
+    expect(FLAT.some(r => r.tier === 'top' && r.selector.includes(':has(.sr-mx-still-host'))).toBe(false)
+  })
+})
+
+describe('the exit and the corner row while expanded on the phone tier (D-10)', () => {
+  const PANEL = ['sr-map-container', MAP_FS_PANEL_CLASS]
+
+  it.each([['std'], ['compact']])('the %s exit is a pill: width auto over its size modifier, 44px tall, carrying its word', size => {
+    const own = ['sr-map-fab', `sr-map-fab--${size}`, 'sr-map-fullscreen-btn']
+    expect(resolved('width', own, PANEL, true)).toBe('auto')
+    expect(resolved('min-width', own, PANEL, true)).toBe('2.75rem')
+    expect(resolved('height', own, PANEL, true)).toBe('2.75rem')
+    expect(resolved('display', ['sr-map-exit-label'], PANEL, true)).toBe('inline')
+  })
+
+  it('above the tier the exit is HEAD\'s disc and carries no word', () => {
+    const own = ['sr-map-fab', 'sr-map-fab--std', 'sr-map-fullscreen-btn']
+    expect(resolved('width', own, PANEL, false)).toBe('2.25rem')
+    expect(resolved('display', ['sr-map-exit-label'], PANEL, false)).toBe('none')
+  })
+
+  it('the Map Explorer\'s own exit keeps its disc on the tier (v0.5.84: 4px of slack)', () => {
+    const own = ['sr-map-fab', 'sr-map-fab--std', 'sr-map-fullscreen-btn']
+    expect(resolved('width', own, ['sr-map-fullscreen-panel', 'sr-map-fab-cluster'], true)).toBe('2.75rem')
+  })
+
+  it.each([
+    [[], 'calc(20px + 3rem)'],
+    [['sr-ios-app'], 'calc(20px + 3rem + env(safe-area-inset-bottom, 0px))'],
+    [['sr-android-app'], 'calc(20px + 3rem + var(--sr-inset-bottom, 0px))'],
+  ])('the row stands above the credits, its platform inset re-added (%j)', (app, bottom) => {
+    for (const row of [['sr-map-corner-row'], ['sr-map-corner-row', 'sr-map-corner-row--compact']]) {
+      expect(resolved('bottom', row, [...app, ...PANEL], true), row.join(' ')).toBe(bottom)
+    }
+  })
+
+  it('above the tier the row keeps HEAD\'s offsets', () => {
+    expect(resolved('bottom', ['sr-map-corner-row'], PANEL, false)).toBe('20px')
+    expect(resolved('bottom', ['sr-map-corner-row', 'sr-map-corner-row--compact'], ['sr-ios-app', ...PANEL], false))
+      .toBe('calc(12px + env(safe-area-inset-bottom, 0px))')
+  })
+
+  it('a row marked fs-only is drawn only inside the expanded panel', () => {
+    const own = ['sr-map-corner-row', 'sr-map-corner-row--fs-only']
+    expect(resolved('display', own, ['sr-wx-pick-map'], false)).toBe('none')
+    expect(resolved('display', own, ['sr-wx-pick-map', MAP_FS_PANEL_CLASS], false)).toBe('flex')
+  })
+})
+
+describe('the two new hosts\' boxes can be sized by the panel (D-12, D-13)', () => {
+  it('.sr-wx-pick-map carries the lifted inline size, and sits ABOVE the panel rule', () => {
+    const pick = rule('.sr-wx-pick-map')
+    expect(decl(pick, 'height')).toBe('clamp(180px, 28vw, 280px)')
+    expect(decl(pick, 'border')).toBe('1px solid var(--sr-border-input)')
+    expect(decl(pick, 'border-radius')).toBe('9px')
+    const order = [...TOP.keys()]
+    expect(order.indexOf('.sr-map-fs-panel')).toBeGreaterThan(order.indexOf('.sr-wx-pick-map'))
+  })
+
+  it.each([
+    ['sr-wx-pick-map'], ['sr-hsr-map'],
+  ])('expanded, %s takes the panel\'s geometry at both tiers', base => {
+    for (const phone of [false, true]) {
+      expect(resolved('height', [base, MAP_FS_PANEL_CLASS], [], phone)).toBe('100dvh')
+      expect(resolved('position', [base, MAP_FS_PANEL_CLASS], [], phone)).toBe('fixed')
+    }
+  })
+
+  it('the Hotspot Reports box keeps its shipped in-page heights', () => {
+    expect(resolved('height', ['sr-hsr-map'], [], false)).toBe('232px')
+    expect(resolved('height', ['sr-hsr-map'], [], true)).toBe('200px')
+    expect(resolved('height', ['sr-wx-pick-map'], [], true)).toBe('clamp(180px, 28vw, 280px)')
+  })
+})
+
+describe('the five dropdown lists on the phone tier (D-15)', () => {
+  it.each([
+    [['sr-hsr-list'], `min(20rem, var(${LIST_FIT_VAR}, 20rem))`, '24rem'],
+    [['sr-lfl-region-list'], `min(18rem, var(${LIST_FIT_VAR}, 18rem))`, '21rem'],
+    [['sr-tg-combo-list'], `min(17rem, var(${LIST_FIT_VAR}, 17rem))`, '17rem'],
+    [['sr-combobox-list'], `min(260px, var(${LIST_FIT_VAR}, 260px))`, '260px'],
+  ])('%j takes the smaller of its cap and the measured room, and its cap above the tier', (own, phone, desktop) => {
+    expect(resolved('max-height', own, [], true)).toBe(phone)
+    expect(resolved('max-height', own, [], false)).toBe(desktop)
+    expect(resolved('overscroll-behavior', own, [], true)).toBe('contain')
+  })
+
+  it('the two lists that lacked it gain `contain` on the tier only', () => {
+    for (const own of [['sr-tg-combo-list'], ['sr-combobox-list']]) {
+      expect(resolved('overscroll-behavior', own, [], false)).toBeUndefined()
+    }
+  })
+
+  it('the Targets chooser is ONE scroller on the tier, its inner list released', () => {
+    expect(resolved('max-height', ['sr-tg-apop'], [], true)).toBe(`var(${LIST_FIT_VAR}, none)`)
+    expect(resolved('overflow-y', ['sr-tg-apop'], [], true)).toBe('auto')
+    expect(resolved('max-height', ['sr-tg-apop-list'], ['sr-tg-apop'], true)).toBe('none')
+    expect(resolved('overflow', ['sr-tg-apop-list'], ['sr-tg-apop'], true)).toBe('visible')
+    // Above the tier the inner list keeps its own cap and the chooser none.
+    expect(resolved('max-height', ['sr-tg-apop-list'], ['sr-tg-apop'], false)).toBe('11.5rem')
+    expect(resolved('max-height', ['sr-tg-apop'], [], false)).toBeUndefined()
   })
 })

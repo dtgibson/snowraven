@@ -1179,6 +1179,31 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
+/* The Weather tab's Plan location picker (map-scroll-on-phones D-12). Lifted
+   from PredictMap.tsx's inline style with the SAME values, because an inline
+   declaration is specificity 1,0,0 and `.sr-map-fs-panel` could never size it
+   (maps.md trap c). It sits on the container WeatherForecastPanel owns, which
+   also holds the Suspense fallback, so the two boxes agree by construction.
+   ABOVE `.sr-map-fs-panel` in source, like the three rules before it: all are
+   one class deep and only source order decides the height. At <=640px the
+   clamp already resolves to its 180px floor, so it needs no phone-tier height
+   rule (one would owe the `:not(.sr-map-fs-panel)` guard, maps.md trap a). */
+.sr-wx-pick-map {
+  height: clamp(180px, 28vw, 280px);
+  width: 100%;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid var(--sr-border-input);
+}
+
+/* The one wrapper every map host puts around its map subtree, so the phone
+   tier can make it inert and pointer-free while the host is a still. 100% high
+   and nothing else, so above the tier the map lays out exactly as it did with
+   no wrapper. The Map Explorer's still has a second, outer box (it names the
+   still; an inert element cannot carry a name), styled the same way. */
+.sr-map-still-body,
+.sr-mx-still-host { height: 100%; }
+
 .sr-media-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3138,6 +3163,29 @@ h1, h2, h3, h4, h5, h6 {
 }
 .sr-map-corner-row button { pointer-events: auto; }
 .sr-map-corner-row--compact { bottom: 12px; right: 12px; max-width: calc(100% - 24px); }
+/* A map with no corner row in the page (the Weather picker, the Hotspot
+   Reports map) shows its row only while expanded (map-scroll-on-phones D-12,
+   D-13). After the base row in source: both set `display` at one class deep. */
+.sr-map-corner-row--fs-only { display: none; }
+.sr-map-fs-panel .sr-map-corner-row--fs-only { display: flex; }
+/* The exit's visible word: drawn only on the phone tier, inside the expanded
+   panel (`.sr-map-fs-panel .sr-map-exit-label` in the <=640 block). Above the
+   tier the toggle is HEAD's icon-only disc. */
+.sr-map-exit-label { display: none; }
+/* The Weather picker's top-centre statement while expanded (D-12): a
+   statement, never a control, so it takes no pointer (maps.md v0.5.91 a). It is
+   anchored left AND right with its child centred, because a wrapping occupant
+   of a `left: 50%` anchor shrinks to half the map (ui.md). The surface and ink
+   are the loading chip's. Rendered by PredictMap only while expanded. */
+.sr-map-note {
+  position: absolute; top: 10px; left: 52px; right: 52px; z-index: 1050;
+  display: flex; justify-content: center; pointer-events: none;
+}
+.sr-map-note > span {
+  max-width: 100%; padding: 6px 12px; border-radius: 999px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border); box-shadow: var(--sr-card-shadow);
+  color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 600; line-height: 1.35; text-align: center;
+}
 
 /* THE MOTION. The panel itself does not animate, and each reason is a real
    constraint rather than restraint: a scaling live canvas tears (MapLibre renders
@@ -3654,6 +3702,33 @@ h1, h2, h3, h4, h5, h6 {
 }
 .sr-btn-accent:hover { background: var(--sr-accent-strong); }
 [data-theme="dark"] .sr-btn-accent:hover { box-shadow: 0 0 0 3px var(--sr-accent-border); }
+
+/* ── The opener row under a phone-tier still (map-scroll-on-phones D-09) ──────
+   One register for the maps and the Family Tree's tree: a full-width accent
+   button (the Button primitive with .sr-btn-accent) and one helper line wired
+   to it by aria-describedby (components/ui/FsOpenRow.tsx). Rendered only on the
+   phone tier, so the tier's `.sr-btn-accent` rule (44px floor, wrapping) is the
+   one in force. Values from the approved Family Tree mockup: radius 8px,
+   0.875rem / 600 type.
+
+   HOVER IS A POINTER LOOK (ui.md v1.0.65): a touch screen keeps `:hover` on the
+   tapped button, and the shared `.sr-btn-accent:hover` above is not gated (it
+   is left alone here; gating it would change every accent button on a touch
+   tablet). So the opener CANCELS that rule for itself, written after it at the
+   same weight, with a dark twin at the dark rule's (0,3,0), and restates its
+   hover inside the gate. */
+.sr-fs-open-row { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; }
+.sr-fs-open-row--inset { padding-left: 18px; padding-right: 18px; }
+.sr-fs-open-btn { width: 100%; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; }
+.sr-fs-open-btn:hover { background: var(--sr-accent); box-shadow: none; }
+[data-theme="dark"] .sr-fs-open-btn:hover { box-shadow: none; }
+@media (hover: hover) {
+  .sr-fs-open-btn:hover { background: var(--sr-accent-strong); }
+}
+/* Sized by its own class in rem, never `.sr-fs-open-btn svg` (a bare `svg`
+   rightmost compound competes with the map FAB glyph rule, mapFabCascade). */
+.sr-fs-open-glyph { flex: none; width: 0.9375rem; height: 0.9375rem; }
+.sr-fs-open-note { margin: 0; font-size: 0.75rem; line-height: 1.45; color: var(--sr-text-muted); }
 
 /* The section's rows. */
 .sr-ics-row { padding: 14px 16px; }
@@ -6638,7 +6713,11 @@ select:focus-visible {
    shares, so the page does not move when the lazy map chunk lands. The pin
    reads the map's own pin tokens; the centre dot is the theme-neutral white
    (`--sr-switch-thumb`) the pins' glyph contrast was measured against. */
-.sr-hsr-map { height: 232px; position: relative; background: var(--sr-surface-subtle); }
+/* `:not(.sr-map-fs-panel)` (map-scroll-on-phones D-13): this rule is one class
+   deep and sits BELOW `.sr-map-fs-panel` in source, so unscoped it would win
+   the expanded panel's height AND position (maps.md traps a and b). Scoped, it
+   is (0,2,0) and the panel is untouched; the collapsed box is unchanged. */
+.sr-hsr-map:not(.sr-map-fs-panel) { height: 232px; position: relative; background: var(--sr-surface-subtle); }
 .sr-hsr-pin { display: block; pointer-events: none; }
 .sr-hsr-pin-body { fill: var(--sr-map-pin-visited); stroke: var(--sr-map-pin-stroke); stroke-width: 1.5; }
 .sr-hsr-pin-dot { fill: var(--sr-switch-thumb); }
@@ -7295,6 +7374,84 @@ select:focus-visible {
      and still wins wherever it is meant to. Any future phone-tier height
      override on .sr-named-map or .sr-geo-map owes the same guard. */
   .sr-map-container:not(.sr-map-fs-panel) { height: 300px; }
+
+  /* ── The map still and its fullscreen (map-scroll-on-phones) ─────────────
+     THE STILL. On this tier a map in a page is the same live map, kept
+     mounted, with its body inert (set by the host from `useMapFullscreen`'s
+     `still`) and taking NO POINTER, so a touch on it is a touch on the host
+     container, whose `touch-action: manipulation` lets a swipe move the page
+     and a press open the map. Controls that cannot be pressed on a still are
+     not drawn; the credits are drawn open (components/map/StillCredits.tsx,
+     D-17, D-20). `-webkit-touch-callout` and `user-select` keep a long press
+     from selecting labels or opening the image callout on the picture. */
+  .sr-map-still {
+    cursor: pointer; touch-action: manipulation;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+  }
+  .sr-map-still > .sr-map-still-body { pointer-events: none; }
+  /* Written as one selector per control rather than one `:is()` list: a
+     pseudo-only rightmost compound matches every element as far as the FAB
+     cascade scan can tell (mapFabCascade.test.ts), while a class names exactly
+     what it hides. Two classes deep, so each beats maplibre-gl.css's (0,1,0)
+     `display` on the cooperative-gestures screen, which loads later. */
+  .sr-map-still .maplibregl-ctrl-top-left,
+  .sr-map-still .maplibregl-ctrl-top-right,
+  .sr-map-still .sr-map-layers,
+  .sr-map-still .sr-map-corner-row,
+  .sr-map-still .sr-map-note,
+  .sr-map-still .maplibregl-cooperative-gesture-screen { display: none; }
+  /* The Map Explorer's still (D-14): its round buttons sit in the cluster
+     beside the map, outside the still, so they are not drawn while it is one.
+     The cluster's location-failure note is deliberately NOT in this list: it is
+     the cluster's live region, which must never leave the accessibility tree
+     (DECISIONS.md v0.5.83, mapFabClusterCss.test.ts). */
+  .sr-mx-area--still .sr-map-fab-cluster > .sr-map-search-area-row,
+  .sr-mx-area--still .sr-map-fab-cluster > .sr-map-fab-slot,
+  .sr-mx-area--still .sr-map-fab-cluster > .sr-map-fab,
+  .sr-mx-area--still .sr-map-fab-cluster > .sr-map-filters-btn { display: none; }
+  .sr-map-explorer-panel .sr-fs-open-row { flex: none; padding: 10px 12px 12px; background: var(--sr-surface); }
+
+  /* FULLSCREEN ON THIS TIER (D-10). The control that opened the map was the
+     opener under the still, so the corner row is new on open and the exit may
+     carry its word: the same toggle and glyph, now a pill reading "Exit"
+     (accessible name unchanged). Every disc is 44px here, the Named Birds
+     card's compact pair included. Two classes deep, so `width: auto` beats the
+     size modifiers above in this block; the Map Explorer's own toggle is in
+     `.sr-map-fullscreen-panel`, never `.sr-map-fs-panel`, and keeps its disc
+     (v0.5.84: its three discs have 4px of slack at 320px / 200%). The pill
+     rule comes after the compact one, which it must out-order on `width`. */
+  .sr-map-fs-panel .sr-map-fab--compact { --sr-fab-glyph: 1.0625rem; width: 2.75rem; height: 2.75rem; }
+  .sr-map-fs-panel .sr-map-fullscreen-btn { width: auto; min-width: 2.75rem; padding: 0 16px 0 13px; gap: 7px; }
+  .sr-map-fs-panel .sr-map-exit-label { display: inline; font-size: 0.875rem; font-weight: 600; }
+  /* The row stands one control above the bottom edge, so the open credits
+     (bottom left, up to two lines) and the two buttons never share a band. The
+     app-class rows below re-add each platform's bottom inset to the lifted
+     offset: the top-level `.sr-ios-app` / `.sr-android-app` expanded-row rules
+     are (0,3,0) and would otherwise win over this (0,2,0) one. */
+  .sr-map-fs-panel .sr-map-corner-row,
+  .sr-map-fs-panel .sr-map-corner-row--compact { bottom: calc(20px + 3rem); right: 16px; max-width: calc(100% - 32px); }
+  .sr-ios-app .sr-map-fs-panel .sr-map-corner-row,
+  .sr-ios-app .sr-map-fs-panel .sr-map-corner-row--compact { bottom: calc(20px + 3rem + env(safe-area-inset-bottom, 0px)); }
+  .sr-android-app .sr-map-fs-panel .sr-map-corner-row,
+  .sr-android-app .sr-map-fs-panel .sr-map-corner-row--compact { bottom: calc(20px + 3rem + var(--sr-inset-bottom, 0px)); }
+
+  /* THE MAP EXPLORER'S FLOOR on this tier is 300px on every platform (D-14;
+     it was 340px outside the iPhone app). At 320 x 568 the window leaves 305px
+     for the panel, so the 35px of page scroll under the live map measured at
+     baseline goes. Where the panel is still on this floor, the map is a still. */
+  .sr-map-explorer-panel { min-height: 300px; }
+  /* ...and while its map IS a still, the floor makes room for the opener row
+     (10px + 2.75rem + 12px; its helper line is visually hidden), so the row is
+     never clipped by the panel's `overflow: hidden`. Measured in the built app
+     at 320 x 568: the view-mode pills take 226px at 150% text and 265px at 200%,
+     so on the 300px floor the row overflowed the panel by 14px and by 75px
+     (D-28). This cannot move the reading that decides the still: the still is
+     "the panel's height equals its floor", which holds at this floor too, and
+     the panel goes live again once the window less the chrome exceeds it.
+     `:has()` is in every engine the apps ship on (the Android WebView floor is
+     Chromium 111); where it is missing the row is clipped as measured above. */
+  .sr-map-explorer-panel:has(.sr-mx-still-host.sr-map-still) { min-height: calc(322px + 2.75rem); }
+
   .sr-media-grid { grid-template-columns: 1fr; }
   .sr-media-disabled-list { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
@@ -7608,7 +7765,14 @@ select:focus-visible {
   .sr-tg-summary { margin-left: 0; white-space: normal; flex-basis: 100%; }
   .sr-tg-summary small { display: inline-block; margin-left: 6px; }
   .sr-tg-group--dist { flex-basis: 100%; }
-  .sr-tg-apop { width: 100%; }
+  /* ONE scroller on this tier (D-15): the chooser takes the room
+     lib/useListFit.ts measures and scrolls as a whole, and its inner list is
+     released. It was 465.5px tall with a second scroller inside it. */
+  .sr-tg-apop { width: 100%; max-height: var(--sr-list-fit, none); overflow-y: auto; overscroll-behavior: contain; }
+  .sr-tg-apop .sr-tg-apop-list { max-height: none; overflow: visible; }
+  /* The county list: its cap, or the measured room (D-15), and a swipe that
+     reaches its end is not handed to the page. */
+  .sr-tg-combo-list { max-height: min(17rem, var(--sr-list-fit, 17rem)); overscroll-behavior: contain; }
   .sr-tg-range-wrap { width: 100%; }
   .sr-tg-range-stops { font-size: 0.6875rem; }
   .sr-tg-strip .sr-segbar { flex-wrap: wrap; max-width: 100%; }
@@ -7634,7 +7798,7 @@ select:focus-visible {
   .sr-lfl-region-field { min-height: 2.75rem; padding-right: 0; }
   .sr-lfl-region-chev { width: 2.75rem; height: 2.75rem; }
   .sr-lfl-region-opt { min-height: 2.75rem; }
-  .sr-lfl-region-list { max-height: 18rem; }
+  .sr-lfl-region-list { max-height: min(18rem, var(--sr-list-fit, 18rem)); }
   .sr-lfl-controls .sr-toggle { height: auto !important; min-height: 2.75rem; white-space: normal !important; }
   .sr-lfl-controls .sr-pill { white-space: normal; }
   .sr-lfl-lead { padding: 12px 12px 10px; }
@@ -7659,7 +7823,7 @@ select:focus-visible {
   .sr-hsr-field { min-height: 2.75rem; padding-right: 0; }
   .sr-hsr-chev { width: 2.75rem; height: 2.75rem; }
   .sr-hsr-opt { min-height: 2.75rem; }
-  .sr-hsr-list { max-height: 20rem; }
+  .sr-hsr-list { max-height: min(20rem, var(--sr-list-fit, 20rem)); }
   .sr-hsr-sum { padding: 14px; }
   .sr-hsr-rank { padding: 12px 2px 8px; }
   .sr-hsr-rankrow { grid-template-columns: 1.6rem minmax(0, 1fr) 14px; grid-template-areas: "num name chev" "num meta chev" "num fig chev"; min-height: 2.75rem; }
@@ -7672,7 +7836,7 @@ select:focus-visible {
   .sr-hsr-secbody { padding: 12px 14px 14px; }
   .sr-hsr-lead { padding: 11px 14px 10px; }
   .sr-hsr-ll-row { padding: 10px 12px 11px; }
-  .sr-hsr-map { height: 200px; }
+  .sr-hsr-map:not(.sr-map-fs-panel) { height: 200px; }
   .sr-hsr-proto .sr-wx-track { margin-top: 0; }
   .sr-hsr-chip { min-height: 2.75rem; }
 
@@ -8388,12 +8552,24 @@ select:focus-visible {
    per-component reduced-motion query is needed (the standing note at the Pin
    Share block). Top-level on purpose: it applies at every width. */
 .sr-combobox-list {
+  /* Lifted from SpeciesCombobox's inline `maxHeight: 260` with the same value
+     (map-scroll-on-phones D-15), so the phone tier can fit it to the room. */
+  max-height: 260px;
   transform-origin: top center;
   animation: sr-combobox-list-in 140ms cubic-bezier(0.2, 0, 0, 1);
 }
 @keyframes sr-combobox-list-in {
   from { opacity: 0; transform: scaleY(0.96); }
   to   { opacity: 1; transform: scaleY(1); }
+}
+/* The shared species picker's list on the phone tier (map-scroll-on-phones
+   D-15): its cap or the measured room, and a swipe at its end is not handed to
+   the page. In its OWN phone block, after the rule above rather than inside the
+   established tier, because `.sr-combobox-list` is declared after that tier and
+   at the same weight: inside it, the 260px cap above would win on source order
+   (mapFullscreenPanelCss.test.ts resolves it). */
+@media (max-width: 640px) {
+  .sr-combobox-list { max-height: min(260px, var(--sr-list-fit, 260px)); overscroll-behavior: contain; }
 }
 
 /* ── Tab load-failure live region ──────────────────────────────────────────────
@@ -8672,6 +8848,30 @@ select:focus-visible {
 @container (max-width: 17rem) {
   .sr-navbar-label { display: none; }
 }
+/* WHILE ANY EMBEDDED MAP PANEL IS EXPANDED THE BAR IS NOT IN USE (map-scroll-on-
+   phones D-07). Both are `position: fixed` at z-index 1200 and the bar comes
+   later in the DOM, so it painted over the panel's bottom edge and took the
+   taps meant for Exit and the share pin (measured in 24 of 24 pairs).
+   `useMapFullscreen` sets the attribute on the root in a layout effect while a
+   panel is expanded (counted, so two consumers cannot clear each other's) and
+   this rule does the rest: `visibility: hidden` stops paint, hit-testing, focus
+   and the accessibility tree, and the bar KEEPS ITS BOX, so `--sr-navbar-h` and
+   the page behind the panel do not move. No script tests a width for it: where
+   there is no bar there is nothing to hide. NO DESCENDANT MAY SET
+   `visibility: visible`, which would undo it for that descendant
+   (navCss.test.ts). The Map Explorer's own fullscreen keeps its shipped
+   mechanism (App.tsx does not render the bar). */
+:root[data-sr-fs-open] .sr-navbar { visibility: hidden; }
+
+/* THE FIELD BEFORE A LIST OPENS (map-scroll-on-phones D-15). When the room
+   under a field is short of what its list wants, lib/useListFit.ts brings the
+   field to the top of the visible area with one instant scroll, and this is how
+   far from the top it stops: 8px, plus the status bar in the apps. The hook
+   reads it as the field's `scroll-margin-top` for that one call only, so no
+   picker's markup carries a class for it. Gated on the app classes, never a
+   bare env() (ui.md), each with its twin. */
+.sr-ios-app { --sr-list-fit-margin: calc(8px + env(safe-area-inset-top, 0px)); }
+.sr-android-app { --sr-list-fit-margin: calc(8px + var(--sr-inset-top, 0px)); }
 
 /* ---- the More sheet ------------------------------------------------------
    A bottom sheet, deliberately NOT the shared ModalDialog: that shell is centred

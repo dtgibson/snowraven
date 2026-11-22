@@ -188,7 +188,10 @@ describe('the .sr-map-fab base class', () => {
     const phone = mediaTier(640)
     expect(/\.sr-map-locate-btn\s*\{/.test(phone)).toBe(false)
     expect(/\.sr-share-drop-btn\s*\{/.test(phone)).toBe(false)
-    expect(/\.sr-map-fullscreen-btn\s*\{/.test(phone)).toBe(false)
+    // The one tier rule naming it is the expanded embedded exit's pill
+    // (map-scroll-on-phones D-10), scoped under `.sr-map-fs-panel`, which
+    // mapFullscreenPanelCss.test.ts pins declaration by declaration.
+    expect(/(^|[,}\s])\.sr-map-fullscreen-btn\s*\{/.test(phone.replace(/\.sr-map-fs-panel \.sr-map-fullscreen-btn\s*\{/g, ''))).toBe(false)
   })
 
   it('sizes the glyph in the same unit as the box, so the ratio survives 200% text scale', () => {
