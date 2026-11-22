@@ -2,6 +2,8 @@
 // (alphaCodesAsset.test.ts, alphaCodesGenerator.test.ts) import the
 // generator's pure core and its shared invariant checker with types.
 
+import type { FamiliesAsset, FamilyPlan } from './ebirdFamiliesDerive.mjs'
+
 export interface TaxonLike {
   speciesCode?: string
   comName?: string
@@ -12,6 +14,12 @@ export interface TaxonLike {
   bandingCodes?: unknown
   comNameCodes?: unknown
   sciNameCodes?: unknown
+  order?: string
+  familyCode?: string
+  familyComName?: string
+  familySciName?: string
+  extinct?: unknown
+  extinctYear?: number
 }
 
 export interface SnapshotMaps {
@@ -70,7 +78,15 @@ export function snapshotDrift(liveMaps: SnapshotMaps, committed: unknown): strin
 
 export type TaxonomyRunPlan =
   | { mode: 'stop'; messages: string[] }
-  | { mode: 'codes-only' | 'all'; bundle: SnapshotBundle; alphaCodes: AlphaCodesAsset; alphaCodesJson: string }
+  | {
+    mode: 'codes-only' | 'all'
+    bundle: SnapshotBundle
+    alphaCodes: AlphaCodesAsset
+    alphaCodesJson: string
+    /** The family asset (family-rollups-and-tree), planned in both write modes. */
+    familiesAsset: FamiliesAsset
+    familiesJson: string
+  }
 
 export function planTaxonomyRun(input: {
   live: readonly TaxonLike[]
@@ -80,4 +96,6 @@ export function planTaxonomyRun(input: {
   generated: string
   minEntries?: number
   entryCodes?: (taxon: TaxonLike) => string[]
+  /** Test seam only; the CLI never passes it. */
+  families?: (live: readonly TaxonLike[], bundle: SnapshotBundle) => FamilyPlan
 }): TaxonomyRunPlan

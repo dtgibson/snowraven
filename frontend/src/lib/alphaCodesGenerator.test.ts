@@ -85,8 +85,12 @@ const EXPECTED_CODES: Record<string, string> = {
 }
 
 const SNAPSHOT_VERSION = '2027'
+// These fixtures carry no family fields, so the family step (which
+// familiesGenerator.test.ts drives with its own fixture) is the seam's
+// accepting stand-in here. The CLI never passes the seam.
+const NO_FAMILIES = () => ({ violations: [] as [], asset: { v: 2, version: SNAPSHOT_VERSION, orders: [], extinct: [] }, json: '{}' })
 const plan = (live: TaxonLike[], extra: Partial<Parameters<typeof planTaxonomyRun>[0]> = {}) =>
-  planTaxonomyRun({ live, committed: null, version: SNAPSHOT_VERSION, generated: '2026-10-10', minEntries: 1, ...extra })
+  planTaxonomyRun({ live, committed: null, version: SNAPSHOT_VERSION, generated: '2026-10-10', minEntries: 1, families: NO_FAMILIES, ...extra })
 const messages = (p: ReturnType<typeof planTaxonomyRun>) => (p.mode === 'stop' ? p.messages.join('\n') : '')
 
 // ── The American-name rule (QA-38, schema.md 5.2's pinned table) ─────────────

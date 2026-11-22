@@ -14,11 +14,18 @@
 //       published common name, lowercased, to the four-letter codes Search and
 //       the species pickers match; its rule, the American-name filter, is in
 //       scripts/lib/ebirdTaxonomyDerive.mjs, the pure core of this script)
+//   - frontend/src/assets/ebird-families.json     (family-rollups-and-tree: every
+//       order, family and genus with each species' place in them, the world
+//       species counts, the authored order names and the derived genus names;
+//       its pure core is scripts/lib/ebirdFamiliesDerive.mjs, and it is written
+//       in BOTH modes, behind the same revision check, or not at all)
 //
 // THE REVISION CHECK. With VERSION unchanged, this script refuses a live
 // taxonomy whose five maps differ from the committed snapshot (codes are never
 // generated from a newer revision than the snapshot), and when they are equal it
-// writes ONLY the alpha-code asset, so every other asset stays byte-identical.
+// writes ONLY the alpha-code and family assets, so every other asset stays
+// byte-identical (the family asset carries no date, so its bytes move only when
+// eBird changes a family, order, genus or extinct field).
 // So at the annual revision, bump VERSION and CACHE_KEY FIRST; the run then
 // writes every asset together. Every code in the five maps must also fit the
 // species-code shape the app's code guards accept (codeShapeViolations in the
@@ -75,10 +82,12 @@
 // taxonomyHistoryAsset.test.ts fails while the two disagree.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { gzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { deriveCountability, guard as guardCountability } from './build-countability.mjs'
 import { planTaxonomyRun } from './lib/ebirdTaxonomyDerive.mjs'
+import { genusNameReport } from './lib/ebirdFamiliesDerive.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..')
@@ -98,6 +107,7 @@ const SNAPSHOT_TARGET = join(REPO, 'frontend/src/assets/ebird-taxonomy.json')
 const SNAPSHOT_TWIN_TARGET = join(REPO, 'backend/staticdata/ebird_taxonomy.json')
 const COUNTABILITY_TARGET = join(REPO, 'frontend/src/assets/ebird-countability.json')
 const ALPHA_CODES_TARGET = join(REPO, 'frontend/src/assets/ebird-alpha-codes.json')
+const FAMILIES_TARGET = join(REPO, 'frontend/src/assets/ebird-families.json')
 
 // Plausibility floors — a truncated/partial fetch must HARD-FAIL the build, never
 // silently ship a degraded snapshot (a truncated floor blanks favicons for ALL
@@ -132,10 +142,10 @@ async function fetchTaxonomy() {
   return taxonomy
 }
 
-/** The committed snapshot's file text, or null when it does not exist yet. */
-async function readCommittedSnapshot() {
+/** A committed file's text, or null when it does not exist yet. */
+async function readCommitted(target) {
   try {
-    return await readFile(SNAPSHOT_TARGET, 'utf8')
+    return await readFile(target, 'utf8')
   } catch (e) {
     if (e && e.code === 'ENOENT') return null
     throw e
@@ -177,7 +187,7 @@ async function run() {
   // 1-3. Fetch, read the committed snapshot, and plan. The plan runs the
   // revision check and every alpha-code invariant; a refusal is part of it.
   const taxonomy = await fetchTaxonomy()
-  const committed = await readCommittedSnapshot()
+  const committed = await readCommitted(SNAPSHOT_TARGET)
   const plan = planTaxonomyRun({ live: taxonomy, committed, version: VERSION, generated: GENERATED })
   if (plan.mode === 'stop') {
     for (const m of plan.messages) console.error(m)
@@ -213,7 +223,7 @@ async function run() {
   } else {
     console.log(
       `codes-only: the live taxonomy equals the committed snapshot (version ${VERSION}), ` +
-      'so only the alpha-code asset is written and every other asset stays byte-identical.'
+      'so only the alpha-code and family assets are written and every other asset stays byte-identical.'
     )
   }
   writes.push({ target: ALPHA_CODES_TARGET, json: plan.alphaCodesJson })
@@ -222,6 +232,19 @@ async function run() {
     `  alpha codes: ${codeValues.filter((v) => v !== '').length} of ${codeValues.length} ` +
     'published names carry a code'
   )
+  // The family asset, in both modes, then the genus-name read-through report
+  // (FR-91): the names new or changed against the committed asset, for a
+  // person or the builder to read before the feature ships.
+  writes.push({ target: FAMILIES_TARGET, json: plan.familiesJson })
+  const fam = plan.familiesAsset
+  let families = 0
+  let genera = 0
+  for (const o of fam.orders) { families += o[2].length; for (const f of o[2]) genera += f[4].length }
+  console.log(
+    `  families: ${fam.orders.length} orders, ${families} families, ${genera} genera, ` +
+    `${fam.extinct.length} extinct species; ${gzipSync(plan.familiesJson).length} bytes gzipped`
+  )
+  for (const line of genusNameReport(fam, await readCommitted(FAMILIES_TARGET))) console.log(line)
 
   // 7. The only write in this file. No guard runs after the first write.
   for (const { target, json } of writes) {

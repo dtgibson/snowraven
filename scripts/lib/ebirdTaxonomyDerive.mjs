@@ -36,6 +36,7 @@
 // writes nothing unless the plan is a write plan.
 
 import { gzipSync } from 'node:zlib'
+import { planFamilies } from './ebirdFamiliesDerive.mjs'
 
 /** Asset schema version. Any other value is a load failure in the app. */
 export const ALPHA_CODES_ASSET_VERSION = 1
@@ -456,9 +457,18 @@ export function snapshotDrift(liveMaps, committed) {
  *   generated  the provenance date
  *
  * Returns `{ mode: 'stop', messages }`, or a write plan
- * `{ mode: 'codes-only' | 'all', bundle, alphaCodes, alphaCodesJson }`.
+ * `{ mode: 'codes-only' | 'all', bundle, alphaCodes, alphaCodesJson,
+ *   familiesAsset, familiesJson }`.
+ *
+ * THE FAMILY ASSET (family-rollups-and-tree, schema 3.4) is planned here in
+ * BOTH write modes, from the same response and against the bundle this run
+ * derives, and any of its checks stops the whole run with nothing written. It
+ * is only ever written behind the revision check above, never past it.
+ * `families` is a test seam, as `entryCodes` is (the alpha-code suite drives
+ * fixtures that carry no family fields); the CLI never passes it, which
+ * `familiesGenerator.test.ts` holds as a source row.
  */
-export function planTaxonomyRun({ live, committed, version, generated, minEntries = MIN_ALPHA_CODE_ENTRIES, entryCodes }) {
+export function planTaxonomyRun({ live, committed, version, generated, minEntries = MIN_ALPHA_CODE_ENTRIES, entryCodes, families = planFamilies }) {
   const stop = (messages) => ({ mode: 'stop', messages })
 
   let mode = 'all'
@@ -493,5 +503,7 @@ export function planTaxonomyRun({ live, committed, version, generated, minEntrie
     ...sizeViolations(alphaCodesJson),
   ]
   if (violations.length > 0) return stop(violations)
-  return { mode, bundle, alphaCodes, alphaCodesJson }
+  const fam = families(live, bundle)
+  if (fam.violations.length > 0) return stop(fam.violations)
+  return { mode, bundle, alphaCodes, alphaCodesJson, familiesAsset: fam.asset, familiesJson: fam.json }
 }

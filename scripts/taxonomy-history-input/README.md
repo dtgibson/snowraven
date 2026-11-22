@@ -161,10 +161,34 @@ and eBird's announcement all exist; they do not always land on the same day.
    same. Do not echo the variable, paste the key anywhere, or add it to
    `backend/.env` for this. The generator writes both snapshot twins
    (`frontend/src/assets/ebird-taxonomy.json` and
-   `backend/staticdata/ebird_taxonomy.json`), the countability asset and the
-   species-code asset, or nothing: it stops on a truncated fetch, a dangling
-   `reportAs`, a species code outside the shape the app's code guards accept,
-   or a failed check on the countability or four-letter-code assets.
+   `backend/staticdata/ebird_taxonomy.json`), the countability asset, the
+   species-code asset and the family asset (`frontend/src/assets/ebird-families.json`,
+   the Family Tree tab's orders, families, genera, world species counts and
+   order and genus common names), or nothing: it stops on a truncated fetch, a
+   dangling `reportAs`, a species code outside the shape the app's code guards
+   accept, or a failed check on the countability, four-letter-code or family
+   assets. The family checks (G1 to G7 and F1 to F11 in
+   `scripts/lib/ebirdFamiliesDerive.mjs`) stop it on a species with no order or
+   family, a family under two orders or names, an extinct marker that is not a
+   boolean, a scientific name that is not two words, a family, order or genus
+   that is not contiguous, a family code outside the link guard's shape, a name
+   out of its bounds, or a tally that does not add up. **A new order eBird
+   adds, or one it retires, stops the generator (G6) until
+   `ORDER_COMMON_NAMES` in that file gains or loses its row**; the wording of a
+   new order's common name is the user's to approve before it is written there.
+   A mid-year stop on the revision check stops the family asset with
+   everything else, and is raised, never worked around: the family asset is
+   written only by this generator, under that check.
+
+   **The genus-name read-through.** After its counts the generator prints a
+   genus-name report: how many genera are named, the distinct names, and every
+   name that is new or changed against the committed family asset. Read those
+   names once for awkward plurals. Settle each in
+   `scripts/lib/ebirdFamiliesDerive.mjs`, by a row in `GENUS_PLURAL_EXCEPTIONS`
+   or by leaving the genus without a name in `GENUS_LEFT_UNNAMED` (a member
+   that names no genus the rule would name stops the run), never in the asset
+   by hand; re-run; and record the date, the names changed and the names
+   dropped in the run's `decisions.md`.
 
 5. **Add the year to `UPDATE_PUBLISHED`** in
    `scripts/lib/taxonomyHistoryDerive.mjs`: its published date,
@@ -277,7 +301,13 @@ and eBird's announcement all exist; they do not always land on the same day.
    `build-countability.mjs` (the published names and the countability
    corrections), `ebirdTaxonomyDerive.mjs` (`MIN_ALPHA_CODE_ENTRIES` and
    `MAX_HYPHENATED_TOKENS`) and the plausibility floors in
-   `build-ebird-taxonomy.mjs`. If `frivolousLists.test.ts` turns red, a listed
+   `build-ebird-taxonomy.mjs`. Measure the old family asset's figures too:
+   the families, orders and genera, the extinct species, the wholly extinct
+   families (one on eBird's 2026 taxonomy, Hawaiian Honeyeaters), the named
+   genera and distinct genus names, the longest family, order, genus, epithet
+   and species name, and the gzipped size against `FAMILIES_GZIP_MAX_BYTES`;
+   their known sites are the name bounds, the floors and the comments in
+   `scripts/lib/ebirdFamiliesDerive.mjs`. If `frivolousLists.test.ts` turns red, a listed
    species was renamed or split: change the list to eBird's current name. Check
    the history record's byte length against `historyMaxBytes` in
    `frontend/src/lib/taxonomyHistoryAsset.ts` too: renames are most of the
@@ -289,7 +319,9 @@ and eBird's announcement all exist; they do not always land on the same day.
    run`, because pinned text was edited), the backend suite
    (`cd backend && .venv/bin/python -m pytest tests/ -v`), `npm run build` and
    `npx eslint .` in `frontend/`. `entryChunk.test.ts` confirms the snapshot
-   stays off the entry chunk and the countability asset stays small, and
+   and the family asset stay off the entry chunk and the countability asset
+   stays small, `familiesAsset.test.ts` holds the family asset to the new
+   snapshot (and to the approved order names), and
    `cmp` on the two snapshot twins confirms they are identical. If
    `taxonomyHistoryAsset.test.ts` goes red on a kept form that is not countable
    or does not fold to its lump's surviving species (K4), stop and bring it to
