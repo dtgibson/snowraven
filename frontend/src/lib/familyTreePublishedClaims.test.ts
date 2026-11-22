@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs'
 import { DEFAULT_TAB_ORDER, TAB_LABELS } from './tabLayout'
 import { SWITCH_LABELS, EVERYWHERE_LABEL, REGION_CONTROL_LABEL } from './lifeListsCopy'
 import { COLLAPSE, COLLAPSE_ALL, EXPAND, EXPAND_ALL, FIT, FOCUS, KIND_COPY, MEDIA_LABEL, NOT_PLACED_HEADING, RESET, SORT_LABEL, VIEW_LABELS, YEAR_LABEL } from './familyTreeCopy'
+import { BOW_FAMILY_LINK_VERIFIED, ML_FAMILY_LINK_VERIFIED } from './familyTreeLinks'
 import { DEFAULT_NAMES, FAMILY_TREE_NAMES_SETTING, FAMILY_TREE_REGION_SETTING, FAMILY_TREE_VIEW_SETTING, defaultViewFor } from './familyTreeSettings'
 
 const HELP = readFileSync(new URL('../../../docs/HELP.md', import.meta.url), 'utf8')
@@ -110,6 +111,12 @@ describe('the tree and Find (Slice B)', () => {
   it('the tree is one Tab stop with its keys', () => {
     const s = sentenceWith('one stop for the Tab key')
     expect(s).toContain('plus, minus and zero zoom in, out and to fit')
+  })
+  it('a family links to Birds of the World, and no family-level Macaulay link is claimed (D-47)', () => {
+    sentenceWith('A selected family also links to its account on Birds of the World')
+    expect(BOW_FAMILY_LINK_VERIFIED).toBe(true)
+    expect(ML_FAMILY_LINK_VERIFIED).toBe(false)
+    expect(/family[^.]*Macaulay|Macaulay[^.]*famil/i.test(PASSAGE.replace(/\s+/g, ' '))).toBe(false)
   })
   it('Find searches all four levels by either name, and a species by its code', () => {
     const s = sentenceWith('**Find** searches every species, genus, family and order')

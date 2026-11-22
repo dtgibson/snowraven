@@ -603,6 +603,49 @@ describe('the tree (FR-55 to FR-70)', () => {
     fireEvent.click(within(tools).getByRole('button', { name: 'Collapse all' }))
     await waitFor(() => expect([...t.querySelectorAll('[role="treeitem"]')].every(e => e.getAttribute('aria-level') === '1')).toBe(true))
   })
+  it('the readout adds the tab stops design-spec 9.9 counts for each kind, in its order (QA-86)', async () => {
+    const t = await tree()
+    const readout = screen.getByRole('region', { name: 'Selected' })
+    const stops = () => [...readout.querySelectorAll<HTMLElement>('a[href], button')].filter(e => e.getAttribute('tabindex') === '0' && !(e as HTMLButtonElement).disabled)
+    const press = (label: RegExp) => {
+      const item = [...t.querySelectorAll('[role="treeitem"]')].find(e => label.test(e.getAttribute('aria-label') ?? ''))!
+      fireEvent.pointerDown(item, { pointerType: 'touch' })
+      fireEvent.click(item)
+    }
+    expect(stops()).toHaveLength(0)
+    press(/^Family, Ducks, Geese, and Waterfowl/)
+    await waitFor(() => expect(stops()).toHaveLength(4))
+    expect(stops().map(e => e.getAttribute('aria-label') ?? e.textContent)).toEqual([
+      'Waterfowl', 'Collapse', 'Focus', 'Open Ducks, Geese, and Waterfowl on Birds of the World (opens in a new tab)',
+    ])
+    press(/^Order, Waterfowl/)
+    await waitFor(() => expect(stops().map(e => e.textContent)).toEqual(['Collapse', 'Focus']))
+    press(/^Species, Snow Goose/)
+    await waitFor(() => expect(stops()).toHaveLength(6))
+  })
+  it('the family link opens its own Birds of the World URL once in the Tauri apps (FR-50, QA-47)', async () => {
+    const { installTauriOpener } = await import('../../test/tauriOpener')
+    const t = await tree()
+    const item = [...t.querySelectorAll('[role="treeitem"]')].find(e => /^Family, Ducks, Geese/.test(e.getAttribute('aria-label') ?? ''))!
+    fireEvent.pointerDown(item, { pointerType: 'touch' })
+    fireEvent.click(item)
+    const link = await screen.findByRole('link', { name: 'Open Ducks, Geese, and Waterfowl on Birds of the World (opens in a new tab)' }) as HTMLAnchorElement
+    expect(link.getAttribute('href')).toBe('https://birdsoftheworld.org/bow/species/anatid1/cur/introduction')
+    const opener = installTauriOpener()
+    try {
+      expect(fireEvent.click(link)).toBe(false)
+      expect(opener.calls()).toEqual([{ url: link.href, via: 'own' }])
+    } finally {
+      opener.uninstall()
+    }
+  })
+  it('no order or genus in either view carries an outside link (QA-49)', async () => {
+    const t = await tree()
+    expect(t.querySelector('a')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+    await waitFor(() => expect(document.querySelector('.sr-ft-list')).not.toBeNull())
+    expect(document.querySelector('.sr-ft-oband a, .sr-ft-genus a, .sr-ft-frow a')).toBeNull()
+  })
   it('a change made inside the save pause survives switching to the table and back', async () => {
     const t = await tree()
     fireEvent.click(within(screen.getByRole('toolbar', { name: 'View tools' })).getByRole('button', { name: 'Collapse all' }))

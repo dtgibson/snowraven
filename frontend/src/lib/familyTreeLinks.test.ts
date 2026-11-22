@@ -10,14 +10,17 @@ import {
 } from './familyTreeLinks'
 import { ML_CATALOG_BASE } from './statsFormat'
 
-describe('the shipped flags', () => {
-  it('both family links ship off (D-12)', () => {
-    expect(BOW_FAMILY_LINK_VERIFIED).toBe(false)
+describe('the shipped flags (D-47)', () => {
+  it('Birds of the World is on, verified in a browser; the Macaulay family link stays off', () => {
+    expect(BOW_FAMILY_LINK_VERIFIED).toBe(true)
     expect(ML_FAMILY_LINK_VERIFIED).toBe(false)
   })
-  it('so neither builder returns a link at its defaults', () => {
-    expect(bowFamilyHref('anatid1')).toBeNull()
+  it('so the Birds of the World builder returns its link at its defaults and the Macaulay one returns none', () => {
+    expect(bowFamilyHref('anatid1')).toBe('https://birdsoftheworld.org/bow/species/anatid1/cur/introduction')
     expect(mlFamilyHref('anatid1', 'Photo', 'ABC123')).toBeNull()
+  })
+  it('the unverified branch still builds nothing', () => {
+    expect(bowFamilyHref('anatid1', false)).toBeNull()
   })
 })
 
