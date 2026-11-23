@@ -44,6 +44,24 @@
 // must then see a failure in EVERY leg, so the harness is shown able to see
 // what it guards.
 //
+// THE FACE (testing.md, v1.0.75; family-rollups-and-tree D-70). The app
+// bundles no font and its stack names Inter first, so a text reading is a
+// reading of whatever face the page drew, and every text leg here names it:
+// Chromium's own answer through CDP (`CSS.getPlatformFontsForNode`) and, in
+// both engines, a width test the engine lays out itself (the measured
+// element's own stack against 'Inter' over two different generic fallbacks),
+// with `document.fonts.check`. The text legs (2 and 4) run in up to two
+// faces: the stack as served ("first"), and the stack without its first
+// family ("fallback") wherever that resolves to a face a shipped platform
+// draws, which is macOS's (SF, as on Mac, iPhone and iPad) and not the Linux
+// runner's (a DejaVu-metric face no platform ships, v1.0.75). When the run is
+// ASKED for the first face (on CI, where `fonts-inter` is installed; or with
+// `SR_VERIFY_FACE_DIR`, which `serveDist.mjs` serves; or `--face=first`), a
+// page that did not draw Inter FAILS its leg rather than passing on another
+// face. Asked for nothing and without Inter, a run says it measured the
+// fallback only. The 1.0.76 build passed every run on a Mac without Inter
+// and failed GitHub's in Inter, 5.45px of ink at 320px and 200%.
+//
 // SCOPE: schema 17 names more rows than these legs hold (QA-11, 43, 57,
 // 59, 60, 66, 67, 81, 83, 94, 96, 99's phone leg, and Fit on a roster of 40 or
 // more orders). Their readings were taken by hand-run probes and are in the
@@ -81,8 +99,12 @@ const { dismissWelcome } = await import(pathToFileURL(join(VERIFY, 'dismissWelco
 const { chromium, webkit } = requirePlaywright()
 const DIST = resolve(process.argv.slice(2).find(a => !a.startsWith('--')) ?? process.env.SR_VERIFY_DIST ?? join(ROOT, 'frontend/dist'))
 const MODE = process.argv.includes('--expect-broken') ? 'broken' : 'fixed'
-// `--legs=1,3` runs only those legs (a development aid; the gate runs all four).
+// `--legs=1,3` runs only those legs (a development aid; the gate runs all five).
 const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4,5').slice(7).split(',').map(Number)
+/** Asked to measure in the stack's first face: a page that draws another fails. */
+const ASK_FIRST = process.env.CI === 'true' || Boolean(process.env.SR_VERIFY_FACE_DIR) || process.argv.includes('--face=first')
+/** The stack without its first family resolves to a shipped platform's face here (macOS: SF). */
+const FALLBACK_SHIPPED = process.platform === 'darwin'
 
 // -- The synthetic backup: every 8th species of the family asset ---------------
 // Real names, so each is placed; every order the asset has is reached, so the
@@ -137,6 +159,16 @@ function stubBackend(p, _req, res) {
 let refusedHosts = 0
 
 // -- The built threshold, read from the stylesheet the dist ships -------------
+
+/** The app's stack, read from the built stylesheet: the `--font-sans` that names a quoted family first. */
+async function fontStack() {
+  const html = await readFile(join(DIST, 'index.html'), 'utf8')
+  let css = ''
+  for (const m of html.matchAll(/href="\/(assets\/[^"]+\.css)"/g)) css += await readFile(join(DIST, m[1]), 'utf8')
+  const m = /--font-sans:\s*(["'])([^"']+)\1\s*,([^;}]+)/.exec(css)
+  if (!m) throw new Error('the built stylesheet carries no --font-sans that names a family first')
+  return { first: m[2], rest: m[3].trim() }
+}
 
 async function captionThreshold() {
   const html = await readFile(join(DIST, 'index.html'), 'utf8')
@@ -198,6 +230,7 @@ async function open(browser, base, viewport, { scale = 1, css = '', script = '',
 async function setScale(page, s) {
   await page.evaluate(v => document.documentElement.style.setProperty('--sr-text-scale', String(v)), s)
   await page.waitForFunction(v => Math.abs(parseFloat(getComputedStyle(document.documentElement).fontSize) - 16 * v) < 0.01, s)
+  await page.evaluate(() => document.fonts.ready)
   await settle(page)
 }
 
@@ -220,6 +253,73 @@ async function showView(page, name) {
 }
 
 const settle = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+
+// -- The face a text leg measured ---------------------------------------------
+
+/** Both engines: lay the same string out in the element's own stack, and in
+ *  the first family over two different generic fallbacks. The two agree only
+ *  when the first family is there; the element drew it only when its own
+ *  stack lays out as they do. */
+const FACE_TEST = ({ sel, first }) => {
+  const el = document.querySelector(sel)
+  if (!el) return null
+  const cs = getComputedStyle(el)
+  const width = family => {
+    const s = document.createElement('span')
+    s.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px'
+    s.style.fontStyle = cs.fontStyle
+    s.style.fontWeight = cs.fontWeight
+    s.style.fontSize = '32px'
+    s.style.fontFamily = family
+    s.textContent = 'Campylorhamphus Laughingthrush 0123456789'
+    document.body.appendChild(s)
+    const w = s.getBoundingClientRect().width
+    s.remove()
+    return w
+  }
+  const own = width(cs.fontFamily)
+  const overSerif = width(`'${first}', serif`)
+  const overMono = width(`'${first}', monospace`)
+  const available = Math.abs(overSerif - overMono) < 0.01
+  return {
+    available, drawn: available && Math.abs(own - overSerif) < 0.01, stack: cs.fontFamily,
+    fontsCheck: document.fonts.check(`${cs.fontStyle} ${cs.fontWeight} 16px '${first}'`),
+  }
+}
+
+/** Chromium's own name for the face it drew (CDP). WebKit has no such call here. */
+async function platformFace(page, sel) {
+  let cdp
+  try { cdp = await page.context().newCDPSession(page) } catch { return null }
+  try {
+    await cdp.send('DOM.enable'); await cdp.send('CSS.enable')
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1 })
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel })
+    if (!nodeId) return null
+    const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId })
+    return fonts.map(f => `${f.familyName}${f.isCustomFont ? ' (served)' : ''}`).join(', ')
+  } finally { await cdp.detach() }
+}
+
+/** Name the face this leg measured, and hold it to the pass it ran in. */
+async function assertFace(leg, page, engine, label, pass, sel) {
+  await page.evaluate(() => document.fonts.ready)
+  const t = await page.evaluate(FACE_TEST, { sel, first: STACK.first })
+  const named = await platformFace(page, sel)
+  const said = t === null ? 'no element to read' : `${named ?? (t.drawn ? STACK.first : 'not ' + STACK.first)} by ${named ? 'CDP' : 'width'}; ${STACK.first} ${t.drawn ? 'drawn' : 'not drawn'} by width, ${t.available ? 'available' : 'not available'}, fonts.check ${t.fontsCheck}`
+  console.log(`MEASURE ${engine} ${label} face [${pass.id}] ${said}`)
+  if (pass.id === 'first' && ASK_FIRST) {
+    faceCheck(`${engine} ${label} drew ${STACK.first}, the face the run was asked for`, t !== null && t.drawn, said)
+  } else if (pass.id === 'fallback') {
+    faceCheck(`${engine} ${label} drew the fallback, not ${STACK.first}`, t !== null && !t.drawn, said)
+  }
+}
+let facesChecked = 0
+function faceCheck(name, ok, detail) {
+  facesChecked++
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  ${detail}`)
+  if (!ok) failures.push(name)
+}
 
 /** Open the phone's full screen from the still, by keyboard. */
 async function openFullScreen(page) {
@@ -335,10 +435,11 @@ const CAPTIONS = () => {
   return out
 }
 
-async function captionsLeg(name, browser, base, threshold) {
-  const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: MODE === 'broken' ? BREAK_CAPTIONS : '' })
+async function captionsLeg(name, browser, base, threshold, pass) {
+  const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: (MODE === 'broken' ? BREAK_CAPTIONS : '') + pass.css })
   await showView(page, 'Tree')
   await openFullScreen(page)
+  await assertFace(2, page, name, 'tools row', pass, '.sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool')
   const rows = []
   for (const w of [320, 390]) {
     await page.setViewportSize({ width: w, height: 844 })
@@ -349,11 +450,11 @@ async function captionsLeg(name, browser, base, threshold) {
       const wantShown = c.rowRem >= threshold
       const ok = c.cells >= 6 && (wantShown ? c.shown === c.cells : c.shown === 0) && c.worstInk <= 0.5 && c.maxLines <= 1 && c.minW >= 44 && c.minH >= 44
       rows.push(`${w}px/${s * 100}%: row ${c.rowRem}rem, ${c.shown}/${c.cells} captions, ink ${c.worstInk}px, ${c.maxLines} line, cell ${c.minW}x${c.minH}`)
-      check(2, `${name} tools row ${w}px ${s * 100}%`, ok,
+      check(2, `${name} [${pass.id}] tools row ${w}px ${s * 100}%`, ok,
         `row ${c.rowRem}rem (threshold ${threshold}rem), captions ${c.shown} of ${c.cells}, ink ${c.worstInk}px, lines ${c.maxLines}, smallest cell ${c.minW}x${c.minH}px`)
     }
   }
-  console.log(`MEASURE ${name} tools row ${rows.join('; ')}`)
+  console.log(`MEASURE ${name} [${pass.id}] tools row ${rows.join('; ')}`)
   await ctx.close()
 }
 
@@ -366,6 +467,7 @@ async function roundTripLeg(name, browser, base) {
     await showView(page, 'Tree')
     await page.waitForSelector('.sr-ft-boxwrap[role="img"]')
     await settle(page)
+    if (s === 1) await assertFace(3, page, name, 'still', FIRST, '#panel-family-tree .sr-ft-plane .sr-ft-nm')
     const s0 = await page.evaluate(STATE)
     const still = await page.evaluate(() => {
       const w = document.querySelector('.sr-ft-boxwrap[role="img"]')
@@ -476,14 +578,15 @@ const TABLE = () => {
   }
 }
 
-async function tableLeg(name, browser, base) {
-  const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: MODE === 'broken' ? BREAK_TABLE : '' })
+async function tableLeg(name, browser, base, pass) {
+  const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: (MODE === 'broken' ? BREAK_TABLE : '') + pass.css })
   await showView(page, 'Table')
   await page.locator('.sr-ft-toolbar').getByRole('button', { name: 'Expand all', exact: true }).click()
   await page.waitForFunction(() => {
     const fams = document.querySelectorAll('.sr-ft-list .sr-ft-frow').length
     return fams > 0 && document.querySelectorAll('.sr-ft-list .sr-ft-fblock .sr-ft-open').length >= fams
   }, null, { timeout: 60_000 })
+  await assertFace(4, page, name, 'table', pass, '#panel-family-tree .sr-ft-list .sr-ft-genus b')
   const rows = []
   for (const w of [320, 390]) {
     await page.setViewportSize({ width: w, height: 844 })
@@ -492,12 +595,12 @@ async function tableLeg(name, browser, base) {
       await page.waitForTimeout(100)
       const t = await page.evaluate(TABLE)
       rows.push(`${w}px/${s * 100}%: ink ${t.worst}px, page ${t.pageOver}px, link ${t.minLinkH}px`)
-      check(4, `${name} table ${w}px ${s * 100}%`,
+      check(4, `${name} [${pass.id}] table ${w}px ${s * 100}%`,
         t.worst <= 0.5 && t.pageOver <= 0 && t.linkFirst && t.links === t.blocks && t.blocks === t.families && t.unplacedLinks === 0 && t.minLinkH >= t.wantLinkH,
         `ink ${t.worst}px, page over ${t.pageOver}px, ${t.blocks} blocks of ${t.families} families, ${t.links} links first ${t.linkFirst}, Not placed ${t.unplacedLinks}, shortest link ${t.minLinkH}px against ${t.wantLinkH + 0.5}px`)
     }
   }
-  console.log(`MEASURE ${name} table ${rows.join('; ')}`)
+  console.log(`MEASURE ${name} [${pass.id}] table ${rows.join('; ')}`)
   await ctx.close()
 }
 
@@ -584,21 +687,50 @@ async function assetLeg(name, browser, base) {
 // -- The run --------------------------------------------------------------------
 
 const threshold = await captionThreshold()
-console.log(`built tools-row threshold ${threshold}rem; ${SPECIES.length} species in the backup (mode: expect-${MODE})`)
+const STACK = await fontStack()
+console.log(`built tools-row threshold ${threshold}rem; ${SPECIES.length} species in the backup (mode: expect-${MODE}); font stack ${STACK.first}, ${STACK.rest}; asked for ${ASK_FIRST ? STACK.first : 'no face'}${process.env.SR_VERIFY_FACE_DIR ? ' (served from SR_VERIFY_FACE_DIR)' : ''}`)
 const { base, close } = await serveDist(DIST, { routes: stubBackend, fallback: 'index' })
 const started = Date.now()
-// Per engine: leg 1 eight presses, leg 2 eight settings, leg 3 six checks at
-// each of four scales plus two on the desktop, leg 4 eight settings, leg 5
-// four checks for each of two faults.
-const EXPECTED = [8, 8, 26, 8, 8].map((n, i) => (LEGS_RUN.includes(i + 1) ? n * ENGINES.length : 0))
+/** Whether this machine's page has the first family at all, read once per engine. */
+async function firstAvailable(browser) {
+  const ctx = await browser.newContext()
+  try {
+    const page = await ctx.newPage()
+    await page.goto(base, { waitUntil: 'domcontentloaded' })
+    await page.evaluate(() => document.fonts.ready)
+    return (await page.evaluate(FACE_TEST, { sel: 'body', first: STACK.first }))?.available === true
+  } finally { await ctx.close() }
+}
+const FIRST = { id: 'first', css: '' }
+const FALLBACK = { id: 'fallback', css: `:root { --font-sans: ${STACK.rest} !important; }` }
+let passCount = 0
+// Per engine: leg 1 eight presses, leg 2 eight settings per face, leg 3 six
+// checks at each of four scales plus two on the desktop, leg 4 eight settings
+// per face, leg 5 four checks for each of two faults. The text legs' counts are
+// set once the faces each engine offers are known (below).
+const PER_ENGINE = [8, 8, 26, 8, 8]
+const EXPECTED = PER_ENGINE.map(() => 0)
 try {
   for (const [name, engine] of ENGINES) {
     const browser = await engine.launch()
     try {
+      const has = await firstAvailable(browser)
+      // Two faces where both can be had and the fallback is a shipped one.
+      const passes = has && FALLBACK_SHIPPED ? [FIRST, FALLBACK] : [FIRST]
+      if (!has) console.log(`MEASURE ${name} face: ${STACK.first} is not available here${ASK_FIRST ? ', though the run was asked for it' : ' and the run was not asked for it'}, so the text legs measured the fallback only`)
+      if (has && !FALLBACK_SHIPPED) console.log(`MEASURE ${name} face: the fallback here is not a face a shipped platform draws, so the text legs measured ${STACK.first} only`)
+      passCount += passes.length
+      PER_ENGINE.forEach((n, i) => {
+        if (LEGS_RUN.includes(i + 1)) EXPECTED[i] += n * (i === 1 || i === 3 ? passes.length : 1)
+      })
       if (LEGS_RUN.includes(1)) await focusLeg(name, browser, base)
-      if (LEGS_RUN.includes(2)) await captionsLeg(name, browser, base, threshold)
+      for (const pass of passes) {
+        if (LEGS_RUN.includes(2)) await captionsLeg(name, browser, base, threshold, pass)
+      }
       if (LEGS_RUN.includes(3)) await roundTripLeg(name, browser, base)
-      if (LEGS_RUN.includes(4)) await tableLeg(name, browser, base)
+      for (const pass of passes) {
+        if (LEGS_RUN.includes(4)) await tableLeg(name, browser, base, pass)
+      }
       if (LEGS_RUN.includes(5)) await assetLeg(name, browser, base)
     } finally {
       await browser.close()
@@ -616,6 +748,7 @@ for (let i = 0; i < LEGS.length; i++) {
   console.log(`MEASURE leg ${i + 1} (${LEGS[i]}): ${legMeasured[i]} of ${EXPECTED[i]} declared checks measured, ${legFailures[i]} failed`)
   if (!full) failures.push(`leg ${i + 1} measured ${legMeasured[i]} of ${EXPECTED[i]}`)
 }
+console.log(`MEASURE faces: ${passCount} engine-face passes, ${facesChecked} face assertions`)
 const hermetic = thirdParty.length === 0
 console.log(`${hermetic ? 'PASS' : 'FAIL'}  no request left the page for a third party  ${thirdParty.length} backend-forwarded third-party paths answered by the stub (${[...new Set(thirdParty)].slice(0, 5).join(', ')}); ${refusedHosts} requests to other hosts refused in the browser`)
 console.log(`MEASURE the tab's codes batch: ${taxonomyCalls.length} /taxonomy requests across the run, answered by the stub with a 404`)
