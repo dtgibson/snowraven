@@ -2224,6 +2224,12 @@ struct FetchGate {
     /// (family-rollups-and-tree D-70; DECISIONS.md v1.0.75, the timing bar).
     #[cfg(test)]
     requested: Mutex<Vec<Duration>>,
+    /// Tests only: the wait each blocking receive was GIVEN, recorded by
+    /// `recv_within` beside the call itself, so a wait handed to the receive
+    /// that is longer than its deadline allows is seen even when the deadline
+    /// arithmetic is right (family-rollups-and-tree D-74).
+    #[cfg(test)]
+    given: Mutex<Vec<Duration>>,
 }
 
 impl FetchGate {
@@ -2236,6 +2242,8 @@ impl FetchGate {
             window,
             #[cfg(test)]
             requested: Mutex::new(Vec::new()),
+            #[cfg(test)]
+            given: Mutex::new(Vec::new()),
         }
     }
     /// What one listing may wait now: its own budget, capped by what is left
@@ -2550,7 +2558,7 @@ fn read_fetched_records<I: ContainerIo>(
         requested.push(deadline.saturating_duration_since(started));
     }
     loop {
-        match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+        match recv_within(&rx, deadline.saturating_duration_since(Instant::now()), gate) {
             Ok(answer) => take(answer),
             Err(_) => break,
         }
@@ -2567,6 +2575,19 @@ fn read_fetched_records<I: ContainerIo>(
             None => (i, name, "not read in time", None),
         })
         .collect()
+}
+
+/// The listing wait's one blocking receive. It exists so the wait handed to
+/// `recv_timeout` is the value the tests read (`FetchGate::given`, recorded
+/// only in a test build); in a shipped build it is `recv_timeout` itself.
+fn recv_within<T>(rx: &mpsc::Receiver<T>, wait: Duration, gate: &FetchGate) -> Result<T, mpsc::RecvTimeoutError> {
+    #[cfg(test)]
+    if let Ok(mut given) = gate.given.lock() {
+        given.push(wait);
+    }
+    #[cfg(not(test))]
+    let _ = gate;
+    rx.recv_timeout(wait)
 }
 
 /// Push one item's local file and then its record (the record is the commit
@@ -5152,6 +5173,19 @@ mod tests {
         gate.requested.lock().unwrap().clone()
     }
 
+    /// The wait each blocking receive was given, held to the wait its listing
+    /// asked for: never longer (a receive given more than its deadline leaves
+    /// would wait past the bound), and one receive per waiting listing while
+    /// the test holds every read, since no answer can arrive to start another.
+    fn assert_given_within_requested(gate: &FetchGate) {
+        let given = gate.given.lock().unwrap().clone();
+        let requested = requested(gate);
+        assert_eq!(given.len(), requested.len(), "one receive per wait asked for, given {:?}", given);
+        for (g, r) in given.iter().zip(requested.iter()) {
+            assert!(g <= r, "a receive was given {:?} where its listing asked for {:?}", g, r);
+        }
+    }
+
     /// The phone's case: the county was added HERE (this device wrote its
     /// file record), and the other device's cleared marker has since replaced
     /// it in iCloud, so the record here is a local copy that is out of date.
@@ -5242,6 +5276,7 @@ mod tests {
         assert_eq!(io.downloads.lock().unwrap().len(), 3);
         // One wait, of the budget: not one per record, and not longer.
         assert_eq!(requested(&gate), vec![Duration::from_millis(100)]);
+        assert_given_within_requested(&gate);
         io.release_reads(3);
         until_no_read_in_flight(&gate);
         let _ = fs::remove_dir_all(&docs);
@@ -5283,6 +5318,7 @@ mod tests {
         assert_eq!(io.reads.lock().unwrap().len(), 1, "a second helper was started");
         // Only the first listing asked for a wait.
         assert_eq!(requested(&gate), vec![Duration::from_millis(300)], "a later listing waited");
+        assert_given_within_requested(&gate);
         // Once that read returns, the flag is clear and the record it brought
         // down is read as Current by the listing's own read (one more permit),
         // with no fetch and no wait.
@@ -5328,6 +5364,7 @@ mod tests {
         assert_eq!(io.reads.lock().unwrap().len(), 2, "reads");
         assert_eq!(requested(&gate), vec![Duration::from_millis(150), Duration::from_millis(150)], "the waits the listings asked for");
         assert_eq!(gate.spent.lock().unwrap().1, Duration::from_millis(300), "what the window was charged");
+        assert_given_within_requested(&gate);
         // A new window restores the allowance.
         // A window spent in full, then past its 1 ms (a sleep is never shorter
         // than asked, so this holds on any machine).
@@ -5339,6 +5376,7 @@ mod tests {
         let _ = listing_that_returns(&docs, &io, &fresh);
         assert_eq!(io.reads.lock().unwrap().len(), before + 1);
         assert_eq!(requested(&fresh), vec![Duration::from_millis(150)]);
+        assert_given_within_requested(&fresh);
         io.release_reads(1);
         until_no_read_in_flight(&fresh);
         let _ = fs::remove_dir_all(&docs);
