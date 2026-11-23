@@ -1,8 +1,12 @@
 # Held published copy for 1.0.76 (family-rollups-and-tree + map-scroll-on-phones)
 
-Held for the user's express yes (CLAUDE.md, "Published copy needs the user's
-approval first"). Nothing below is written to `README.md`, `website/`,
-`appstore/` or `fastlane/metadata/` until that yes. Every BEFORE block is cut
+**Approved by the user at the first release gate (2026-11-22, decisions.md
+D-63), each answer given to a question that carried the exact text:** the
+sentence on all three surfaces (with the website row, its picture, the pill and
+footer at v1.0.76, and the `website/tools/` changes), and What's New as the
+two-sentence text below. Applied at the release by `apply-release-1.0.76.sh`,
+not before. Nothing below is written to `README.md`, `website/`, `appstore/` or
+`fastlane/metadata/` until then. Every BEFORE block is cut
 verbatim from the file at `012c3b7c` and occurs there exactly once; the AFTER
 blocks are what `patches/2-published-copy-1.0.76.patch` writes.
 `frontend/src/lib/familyTreeSurfacesPublishedClaims.test.ts` (in that patch)
@@ -158,11 +162,9 @@ unchanged unless the user adds a frame (a separate question).
 
 One text for all four, nothing Apple-only in it, so F-Droid takes it whole.
 Each file is the text and one newline: `10000761.txt`, `10000762.txt`,
-`10000764.txt`. The recommended text names each build's change in one short
-sentence (197 characters); the alternative is one sentence (121). If the user
-picks the alternative or other words, replace the `proposal whats-new` block's
-body with the approved text before applying, and keep `proposal fastlane`
-identical to it.
+`10000764.txt`. The approved text (D-63) names each build's change in one short
+sentence, 197 characters. It is also the approval the map build's held sentence
+was waiting for (`pipeline/map-scroll-on-phones/release-handoff.md`).
 
 ````proposal whats-new
 A new Family Tree tab shows your life list by order and family, as a table and as a tree you can zoom. On phones, maps inside a page now open in fullscreen, so swiping the page never moves the map.
@@ -170,8 +172,4 @@ A new Family Tree tab shows your life list by order and family, as a table and a
 
 ````proposal fastlane
 A new Family Tree tab shows your life list by order and family, as a table and as a tree you can zoom. On phones, maps inside a page now open in fullscreen, so swiping the page never moves the map.
-````
-
-````option whats-new-short
-A new Family Tree tab shows your life list by order and family, and on phones, maps inside a page now open in fullscreen.
 ````

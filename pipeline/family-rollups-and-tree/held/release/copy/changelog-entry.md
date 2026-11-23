@@ -4,10 +4,9 @@
 not wait for the user's yes; it is shown at the sign-off for review. The
 `version` group of `apply-release-1.0.76.sh` inserts it from this file when it
 runs, so a word or the date is changed here. Phase B re-dates it to the ship day, and the last Internal bullet
-names the pictures actually retaken once the user has answered the picture
-questions (the text below assumes the recommendations: no new App Store or
-F-Droid frame, OpenFreeMap tile requests allowed for the frames that draw a
-map). The block between the fences is inserted verbatim above `## [1.0.75]`.
+names the pictures actually retaken (as of the second Phase A pass, the iPad
+and iPhone Duo Weather frames wait on an eBird key; if they are retaken, "six
+frames each" becomes "every frame"). The block between the fences is inserted verbatim above `## [1.0.75]`.
 
 ````changelog
 ## [1.0.76] - 2026-11-22
@@ -35,6 +34,7 @@ map). The block between the fences is inserted verbatim above `## [1.0.75]`.
 - `lib/useMapFullscreen.ts` grows by addition (`stillTier`, `still`, `open`, `registerOpener`, `hostClassName`) beside `components/ui/FsOpenRow.tsx`, `components/ui/MapExitStandIn.tsx` and `lib/mapStillCopy.ts`; while any panel is expanded the hook sets `data-sr-fs-open` on `<html>` and one rule hides the phone bar. The Family Tree is the hook's fifth host and draws its own toggle outside its lazy chunk; `mapFullscreenWiring.test.tsx` holds every host's shape.
 - `<BirdName>` gains a `lead` prop for the Family Tree's scientific-names state, every other call held byte-identical by a markup golden. The shared load-failure alert gains an optional Reload action, drawn only when the Family Tree's bundled family data fails to load on web or Pi; without it the alert's markup is unchanged across its eight states.
 - `docs/HELP.md` gains `## Family Tree` and describes the phone still and opener, and `ACCESSIBILITY.md` gives the phone keyboard route for maps; `familyTreePublishedClaims.test.ts` and `mapStillPublishedClaims.test.ts` hold them to the code. The Family Tree sentence is in `README.md`, on the website as a new feature row with its screenshot, and in the App Store listing, held by `familyTreeSurfacesPublishedClaims.test.ts`. The capture tools gain the Family Tree job, and the tab's browser harness joins `website/tools/verify/`.
-- The website screenshots, the iPad and iPhone Duo App Store frames and the F-Droid tablet screenshots, every one of which draws the side menu or the icon rail, are recaptured from the demo data with Family Tree in them; the website's Weather crop, the iPhone App Store set and the F-Droid phone set draw no part of either change and are kept.
+- The demo dataset the screenshots and the App Review data come from now names nine birds as eBird's 2026 taxonomy does (Black-crowned Night Heron, Cooper's Hawk, Forster's Tern and Swainson's Thrush with straight apostrophes; American Herring Gull, Northern House Wren, Eastern Marsh Wren, Eastern Warbling Vireo and Northern Yellow Warbler), so every one of its species has a family on the Family Tree. `website/tools/gen-demo-data.mjs` and the reviewer copies under `website/demo/` change together; no other field of any row moved.
+- The pictures are recaptured from the corrected demo data wherever the new menu entry or a corrected name shows: eleven website screenshots plus a new Family Tree shot, six frames each of the iPad and iPhone Duo App Store sets and the iPhone set's Breeding Codes frame, and all six F-Droid tablet screenshots with the phone set's Breeding Codes and Multimedia. Every other frame was retaken and kept, identical or differing by capture variance alone; captions are unchanged.
 - The F-Droid changelog for this release is three identical files, one per processor-type build (`10000761.txt`, `10000762.txt`, `10000764.txt`), and the in-repo F-Droid recipe names 1.0.76.
 ````

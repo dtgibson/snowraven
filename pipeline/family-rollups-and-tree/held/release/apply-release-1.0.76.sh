@@ -10,6 +10,10 @@
 #   version   the six-file version set (+ package-lock, CHANGELOG), patch 1, and
 #             the three F-Droid changelog files written from the `proposal
 #             fastlane` block of copy/published-copy.md (the approved What's New)
+#   demo      patch 4: the demo generator's nine pre-2026 bird names corrected
+#             (website/tools/gen-demo-data.mjs), the reviewer copies under
+#             website/demo/ regenerated from it, and one test title; applied
+#             before the pictures, which were taken from this data
 #   copy      README, website row and listing bullet from the held before/after
 #             blocks, plus patch 2 (the surfaces guard, the capture tools' Family
 #             Tree job, the harness moved into website/tools/verify/ with its
@@ -27,11 +31,11 @@ groups=()
 for a in "$@"; do
   case "$a" in
     --check) CHECK=1 ;;
-    version|copy|pictures|records) groups+=("$a") ;;
+    version|demo|copy|pictures|records) groups+=("$a") ;;
     *) echo "unknown argument: $a" >&2; exit 2 ;;
   esac
 done
-(( ${#groups[@]} )) || { echo "name at least one group: version copy pictures records" >&2; exit 2; }
+(( ${#groups[@]} )) || { echo "name at least one group: version demo copy pictures records" >&2; exit 2; }
 cd "$ROOT"
 
 block() { # print the body of the fenced block "<kind> <name>" from published-copy.md
@@ -66,6 +70,14 @@ i = t.index('\n## [1.0.75] - ') + 1
 open(sys.argv[2], 'w', encoding='utf-8').write(t[:i] + entry + '\n\n' + t[i:])
 EOF
   echo "version: applied (F-Droid text: ${#fl} characters; CHANGELOG entry inserted)"
+}
+
+do_demo() {
+  if grep -q "Black-crowned Night Heron" website/tools/gen-demo-data.mjs; then echo "demo: the generator already has the corrected names" >&2; return 1; fi
+  git apply --check "$HELD/patches/4-demo-birds-1.0.76.patch"
+  (( CHECK )) && { echo "demo: check OK"; return 0; }
+  git apply "$HELD/patches/4-demo-birds-1.0.76.patch"
+  echo "demo: applied"
 }
 
 do_copy() {
