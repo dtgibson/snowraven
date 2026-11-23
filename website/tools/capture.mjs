@@ -217,6 +217,14 @@ await tab('Life Lists', 'life-lists-light.png', { settle: 4200, clipH: 900, rout
   await statsSettled(p);
 } });
 
+// Family Tree (family-rollups-and-tree): the tab's first view at this width,
+// the tree, after the stubbed Statistics escapee pass has finished in the same
+// page, so the tab reads a settled check rather than its not-finished line.
+await tab('Family Tree', 'family-tree-light.png', { settle: 4500, clipH: 900, routes: statsRoutes, pre: async (p) => {
+  await selectTab(p, 'Statistics');
+  await statsSettled(p);
+} });
+
 // Species Detail: Wood Thrush, the bird the published frame shows (DECISIONS.md
 // v1.0.52), clipped at 900 so the asset is 16:9 like every feature figure.
 await tab('Species Detail', 'species-light.png', { settle: 4200, clipH: 900, prep: async (p) => {

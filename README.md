@@ -42,6 +42,10 @@ Your life list as a media checklist: which species you have photographed, record
 
 Every species you have recorded breeding evidence for, as a matrix against eBird's breeding codes, colored by evidence tier.
 
+### Family Tree
+
+Your life list arranged by eBird's classification, every order and family you have recorded with how much of each you have seen, as a table and as a tree you can zoom.
+
 ### Hotspot Reports
 
 Your own record at any one place you have birded, an eBird hotspot or one of your personal locations: your life list there, a map, your checklists by protocol, and the weather on your visits from the weather blocks in your checklist comments.

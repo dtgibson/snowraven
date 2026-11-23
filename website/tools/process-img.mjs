@@ -18,6 +18,7 @@ const jobs = [
   ['calendar-light.png', 'calendar.webp', 1600, 84],
   ['named-birds-light.png', 'named-birds.webp', 1600, 84],
   ['life-lists-light.png', 'life-lists.webp', 1600, 84],
+  ['family-tree-light.png', 'family-tree.webp', 1600, 84],
   ['weather-light.png', 'weather.webp', 1080, 86],
 ];
 for (const [src, out, w, q] of jobs) {

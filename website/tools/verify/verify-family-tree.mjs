@@ -44,7 +44,7 @@
 // must then see a failure in EVERY leg, so the harness is shown able to see
 // what it guards.
 //
-// SCOPE: schema 17 names more rows than these four legs hold (QA-11, 43, 57,
+// SCOPE: schema 17 names more rows than these legs hold (QA-11, 43, 57,
 // 59, 60, 66, 67, 81, 83, 94, 96, 99's phone leg, and Fit on a roster of 40 or
 // more orders). Their readings were taken by hand-run probes and are in the
 // run's decisions log; they are not legs here yet.
@@ -59,12 +59,12 @@
 // server answers from its own taxonomy, is counted and reported apart. Every
 // other host is refused in the browser and counted.
 //
-// HELD (schema 17): this file sits in `pipeline/family-rollups-and-tree/held/`
-// until the user approves the `website/` change, then moves to
-// `website/tools/verify/`, where `run.mjs` picks it up. It finds the shared
-// helpers from either place, so it runs unchanged in both:
+// WHERE IT LIVES (schema 17): held in `pipeline/family-rollups-and-tree/held/`
+// until the user approved the `website/` change at the 1.0.76 sign-off, then
+// moved here, where `run.mjs` picks it up. It still finds the shared helpers
+// from either place:
 //
-//   node pipeline/family-rollups-and-tree/held/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5]
+//   node website/tools/verify/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5]
 
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'

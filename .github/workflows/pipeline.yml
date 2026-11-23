@@ -48,23 +48,26 @@ jobs:
     # 1,800 s budget (hotspot-report-order-and-stats decisions.md D-12). The
     # gate's worst case is every harness at its own bound in `run.mjs`: six at
     # the 180 s default (1,080 s), `verify-plan-readout.mjs` and
-    # `verify-plan-daylabels.mjs` at 600 s each (1,200 s), and
-    # `verify-hotspot-reports.mjs` at 1,800 s: 4,080 s, 68 min. The measured
+    # `verify-plan-daylabels.mjs` at 600 s each (1,200 s),
+    # `verify-hotspot-reports.mjs` at 1,800 s, and `verify-family-tree.mjs` at
+    # 1,200 s (added at 1.0.76, measured 283 s on the dev Mac): 5,280 s, 88 min.
+    # The measured
     # rest of this job is 944 s, about 16 min: 888 s from setup to the end of
     # the vitest step on 2026-11-11 (the run at 2253d047), plus 56 s for the
     # build, the tooling install and the browser download on the last green run
-    # (1.0.67), the newest that reached them. 68 + 16 is 84 min; 90 keeps real
-    # headroom over that sum. A healthy run is now about 35 to 45 min (1.0.67's
+    # (1.0.67), the newest that reached them. 88 + 16 is 104 min; 110 keeps
+    # headroom over that sum (it was 68 + 16 = 84 against 90 before the Family
+    # Tree harness joined the gate). A healthy run is now about 35 to 45 min (1.0.67's
     # gate took 485 s before the Hotspot Reports harness existed, and that
     # harness measured 570 to 590 s on the dev Mac under heavy load), which is
     # why the previous 40 could no longer hold even a green job. Recompute this
     # when a harness is added or a budget changes, rather than trusting the
     # number. Recounted when the build moved ahead of the suite
     # (security-bloat-deps-and-tests-cleanup): the same steps in a new order,
-    # so the 944 s and the 84 min sum stand; the suite now also runs the 20
+    # so the 944 s stands; the suite now also runs the 20
     # bundle rows and skips the local-only timing rows, and the first runs on
     # the branch give the new step times.
-    timeout-minutes: 90
+    timeout-minutes: 110
     defaults:
       run:
         working-directory: frontend

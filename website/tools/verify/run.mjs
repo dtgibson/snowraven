@@ -62,6 +62,7 @@ const ORDER = [
   'verify-weather-species-rows.mjs',
   'verify-plan-daylabels.mjs',
   'verify-plan-readout.mjs',
+  'verify-family-tree.mjs',
   'verify-hotspot-reports.mjs',
 ]
 
@@ -138,6 +139,14 @@ const BUDGET_MS = {
   // about 3x the loaded reading and 4.7x the quiet one, the 4x-or-more the plan
   // harnesses carry for a shared runner. CI's job bound counts it (D-12).
   'verify-hotspot-reports.mjs': 1_800_000,
+  // Family Tree (family-rollups-and-tree schema 17): five legs in both engines,
+  // focus at each tool's limit, the phone full screen's caption threshold at
+  // two widths and four text scales, the still and its round trip, every
+  // family opened at phone widths, and a failed family asset across a Reload.
+  // MEASURED 283 s on the dev Mac at a one-minute load near 4.5 (two Android
+  // emulators running beside it), so 1,200 s is 4.2x, the 4x-or-more the other
+  // budgeted harnesses carry for a shared runner.
+  'verify-family-tree.mjs': 1_200_000,
 }
 const rawTimeout = Number(process.env.SR_VERIFY_TIMEOUT_MS)
 const OVERRIDE_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : null

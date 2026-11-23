@@ -114,12 +114,39 @@ const count = (hay: string, needle: string) => hay.split(needle).length - 1
  *  here rather than rewriting them, and the applied-state row reads each AFTER
  *  block with these replacements made. Each `was` must occur exactly once in its
  *  surface's AFTER blocks, so an entry cannot quietly match nothing. */
+/** A block of family-rollups-and-tree's held copy, re-terminated by the newline
+ *  its fence holds back. Read rather than restated, so this suite and
+ *  `familyTreeSurfacesPublishedClaims.test.ts` cannot disagree about it. */
+const FT_HELD = 'pipeline/family-rollups-and-tree/held/release/copy/published-copy.md'
+function familyTreeBlock(kind: 'before' | 'after' | 'proposal', name: string, n = 0): string {
+  const text = read(FT_HELD)
+  const found = [...text.matchAll(/^````([a-z-]+)(?: ([a-z-]+))?(?: (\d+))?\n([\s\S]*?)\n````$/gm)]
+    .filter(m => m[1] === kind && (m[2] ?? '') === name && (m[3] ? Number(m[3]) : 0) === n)
+  if (found.length !== 1) throw new Error(`expected one "${kind} ${name} ${n}" block in ${FT_HELD}, found ${found.length}`)
+  return kind === 'proposal' ? found[0][4] : `${found[0][4]}\n`
+}
+const FT_BY = 'family-rollups-and-tree, 1.0.76: the Family Tree entry inserted before Hotspot Reports and the website rows after it renumbered, approved by the user at the 1.0.76 sign-off (its held/release/copy/published-copy.md)'
+
 const SUPERSEDED: readonly { surface: Surface; was: string; now: string; by: string }[] = [
   {
     surface: 'website',
     was: `alt="The Hotspot Reports tab showing one hotspot's report: its name and kind, its species and checklist totals with the counting rule beneath them, its life list newest first with how many of the place's checklists include each species, a map with one pin, and its checklists by eBird protocol."`,
     now: `alt="The Hotspot Reports tab showing one hotspot's totals and an at a glance summary, above its map and life list."`,
     by: 'hotspot-report-order-and-stats, 1.0.72: the recaptured frame\'s alt text, approved by the user on 2026-11-13 (decisions.md D-16)',
+  },
+  // family-rollups-and-tree's own pairs, each of whose BEFORE sits inside one of
+  // this release's AFTER blocks.
+  { surface: 'readme', was: familyTreeBlock('before', 'readme', 1), now: familyTreeBlock('after', 'readme', 1), by: FT_BY },
+  ...[1, 2, 3, 4, 5].map(n => ({ surface: 'website' as const, was: familyTreeBlock('before', 'website', n), now: familyTreeBlock('after', 'website', n), by: FT_BY })),
+  { surface: 'listing', was: familyTreeBlock('before', 'listing', 1), now: familyTreeBlock('after', 'listing', 1), by: FT_BY },
+  // The listing bullet pair's BEFORE line survives inside its AFTER, so the edit
+  // is named by the span the insertion actually replaced: the seam between the
+  // Breeding Codes and Hotspot Reports bullets.
+  {
+    surface: 'listing',
+    was: `colored by evidence tier.\n• Hotspot Reports: `,
+    now: `colored by evidence tier.\n• Family Tree: ${familyTreeBlock('proposal', 'listing')}\n• Hotspot Reports: `,
+    by: FT_BY,
   },
 ]
 
