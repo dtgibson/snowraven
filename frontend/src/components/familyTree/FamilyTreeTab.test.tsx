@@ -712,6 +712,16 @@ describe('the tree (FR-55 to FR-70)', () => {
     await waitFor(() => expect(t.querySelectorAll('[role="treeitem"]').length).toBeGreaterThan(0))
     return t
   }
+  it('the headline\'s container holds the headline alone, never the tree\'s host (D-74)', async () => {
+    await tree()
+    const wrap = document.querySelector('.sr-ft-glance-wrap')!
+    expect(wrap.children).toHaveLength(1)
+    expect(wrap.firstElementChild!.matches('dl.sr-ft-glance')).toBe(true)
+    const host = document.querySelector('.sr-ft-host')!
+    expect(host).not.toBeNull()
+    expect(wrap.contains(host)).toBe(false)
+    expect(host.contains(wrap)).toBe(false)
+  })
   it('is one tab stop: the tree carries the one tabIndex and its items none, no link and no button', async () => {
     const t = await tree()
     expect(t.getAttribute('tabindex')).toBe('0')

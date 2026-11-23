@@ -6886,6 +6886,11 @@ select:focus-visible {
 .sr-ft-selcaret { position: absolute; right: 9px; top: 50%; margin-top: -6px; pointer-events: none; color: var(--sr-text-muted); }
 
 /* The headline: the at a glance tile, three counts each against the world's. */
+/* The headline's own width decides its form on the phone tier (design-spec 5,
+   amended for QA-79 and NFR-07, D-73): a named inline-size container around
+   the <dl>, queried only inside the still tier's block. It holds the <dl>
+   alone, so its containment never reaches the full-screen host. */
+.sr-ft-glance-wrap { container-type: inline-size; container-name: sr-ft-glance; min-width: 0; }
 .sr-ft-glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 12px 36px; margin: 0; padding: 14px 18px 13px; min-width: 0; }
 .sr-ft-tile { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }
 .sr-ft-tile dt { order: 2; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text); overflow-wrap: break-word; }
@@ -7168,12 +7173,19 @@ select:focus-visible {
   .sr-ft-controls .sr-toggle { height: auto !important; min-height: 2.75rem; white-space: normal !important; }
   .sr-ft-controls .sr-pill { min-height: 2.75rem; white-space: normal; }
   .sr-ft-group--media { flex: 1 1 100%; }
-  .sr-ft-glance { padding: 14px 12px 12px; gap: 12px 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .sr-ft-tile { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
-  .sr-ft-tile dt { order: 0; color: var(--sr-text-muted); font-weight: 600; }
-  .sr-ft-tile-den { flex: none; }
-  .sr-ft-tile .sr-ft-bar { flex: none; }
+  /* The headline: three-up while its wrapper is 16.5rem or wider (the form the
+     user approved, at 100% text on every phone width), else one tile per row,
+     the base tile form, so a four- or five-digit count never reaches the next
+     tile and no label breaks inside its word (design-spec 5, D-73(a)). */
+  .sr-ft-glance { padding: 14px 12px 12px; gap: 12px 14px; }
   .sr-ft-tile-value { font-size: 1.375rem; }
+  @container sr-ft-glance (width >= 16.5rem) {
+    .sr-ft-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .sr-ft-tile { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+    .sr-ft-tile dt { order: 0; color: var(--sr-text-muted); font-weight: 600; }
+    .sr-ft-tile-den { flex: none; }
+    .sr-ft-tile .sr-ft-bar { flex: none; }
+  }
   .sr-ft-notes { padding: 0 12px 10px; }
   .sr-ft-viewbar, .sr-ft-toolbar { padding: 10px 12px; }
   .sr-ft-namesseg { margin-left: 0; flex: 1 1 100%; }
@@ -7212,7 +7224,10 @@ select:focus-visible {
      alone below. The caption sizes itself, so the control row's text floor on
      the button never reaches it. */
   .sr-ft-host.sr-map-fs-panel .sr-ft-fsbtn { width: auto; min-height: 2.75rem; padding: 0 16px 0 13px; gap: 7px; }
-  .sr-ft-host.sr-map-fs-panel .sr-ft-find { flex: 1 1 11rem; }
+  /* Find narrows beside Exit at every text size (design-spec 10.3, D-73(c)):
+     with an 11rem basis it dropped under Exit from 150% at 320px and the
+     tree's box shrank to 15% of the panel. */
+  .sr-ft-host.sr-map-fs-panel .sr-ft-find { flex: 1 1 4rem; min-width: 0; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-tools { flex: 1 1 100%; flex-wrap: nowrap; gap: 4px; margin-left: 0; container-type: inline-size; container-name: sr-ft-tools; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-toolgroup { display: contents; }
   .sr-ft-host.sr-map-fs-panel .sr-ft-zoomval { display: none; }

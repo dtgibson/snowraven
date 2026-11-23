@@ -269,14 +269,19 @@ export interface MetricsInput {
   readonly boxH: number
   readonly both: boolean
   readonly stillTier: boolean
+  /** The still (design-spec 10.1): it cannot be panned, so its plane is the box. */
+  readonly still?: boolean
 }
 
 /** Every length in pixels from the root font size, so it follows the in-app text scale. */
-export function metricsFor({ rem, boxW, boxH, both, stillTier }: MetricsInput): Metrics {
+export function metricsFor({ rem, boxW, boxH, both, stillTier, still = false }: MetricsInput): Metrics {
   const form = formFor(boxW, rem)
   const outline = form === 'outline'
   const padX = 0.75 * rem
-  const planeW = outline ? Math.max(boxW, 17 * rem) : Math.max(boxW, COLUMNS_MIN_REM * rem)
+  // The outline's 17rem least width is for a box that pans sideways; in the
+  // still, which cannot, the plane is exactly the box, so a name ends in an
+  // ellipsis inside it and its figure stays whole (D-73(c)).
+  const planeW = outline ? (still ? boxW : Math.max(boxW, 17 * rem)) : Math.max(boxW, COLUMNS_MIN_REM * rem)
   const W = planeW - 2 * padX
   return {
     rem, boxW, boxH, form, outline, both,

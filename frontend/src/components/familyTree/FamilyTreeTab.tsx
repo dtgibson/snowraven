@@ -562,23 +562,25 @@ export function FamilyTreeTab({ onGoToSettings, onOpenSpecies, showing }: Family
           media={media}
           onCycleKind={cycleKind}
         />
-        <dl className="sr-ft-glance">
-          {tiles.map(([key, seen, world]) => (
-            <div key={key} className="sr-ft-tile">
-              <dt>{HEADLINE_LABELS[key]}</dt>
-              <dd>
-                <span className="sr-ft-tile-value">{formatCount(seen)}</span>
-                <span className="sr-ft-tile-den">
-                  <span>{ofWorld(world)}</span>
-                  <span>{share(seen, world)}</span>
-                </span>
-                <span className={seen > 0 ? 'sr-ft-bar' : 'sr-ft-bar is-zero'} aria-hidden="true">
-                  <i style={{ '--w': barWidth(seen, world) } as CSSProperties} />
-                </span>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <div className="sr-ft-glance-wrap">
+          <dl className="sr-ft-glance">
+            {tiles.map(([key, seen, world]) => (
+              <div key={key} className="sr-ft-tile">
+                <dt>{HEADLINE_LABELS[key]}</dt>
+                <dd>
+                  <span className="sr-ft-tile-value">{formatCount(seen)}</span>
+                  <span className="sr-ft-tile-den">
+                    <span>{ofWorld(world)}</span>
+                    <span>{share(seen, world)}</span>
+                  </span>
+                  <span className={seen > 0 ? 'sr-ft-bar' : 'sr-ft-bar is-zero'} aria-hidden="true">
+                    <i style={{ '--w': barWidth(seen, world) } as CSSProperties} />
+                  </span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
         <span className="sr-only" role="status" aria-live="polite">
           <span key={announceSeq}>{headlineSentence(model.seen.species, model.seen.families, model.seen.orders)}</span>
         </span>

@@ -307,3 +307,27 @@ describe('the module stays pure (11.3)', () => {
     expect(src).toMatch(/export function cullTree/)
   })
 })
+
+// -- The still's plane is its box (design-spec 10.1 as amended, D-73(c), D-74) --
+// The outline's 17rem least width is for a box that pans sideways; the still
+// cannot, so at large text a 17rem plane in a narrower box cut rows at the
+// box's right edge, a figure mid-number among them.
+describe('the still\'s plane is exactly its box; full screen keeps the 17rem least width', () => {
+  // Phone boxes (px) at the four text sizes: a 320 and a 390 window, less padding.
+  const CASES = [[270, 16], [270, 20], [270, 24], [270, 32], [340, 16], [340, 20], [340, 24], [340, 32]] as const
+  it('in the still, the outline plane equals the box at every phone width and text size', () => {
+    for (const [boxW, rem] of CASES) {
+      const m = metricsFor({ rem, boxW, boxH: 272, both: true, stillTier: true, still: true })
+      expect(m.form, `${boxW}px at ${rem}px`).toBe('outline')
+      expect(m.planeW, `${boxW}px at ${rem}px`).toBe(boxW)
+    }
+  })
+  it('in full screen (not the still) the plane keeps its 17rem least width', () => {
+    for (const [boxW, rem] of CASES) {
+      const m = metricsFor({ rem, boxW, boxH: 600, both: true, stillTier: true })
+      expect(m.planeW).toBe(Math.max(boxW, 17 * rem))
+    }
+    // Non-vacuity: at 125% text in a 320 window the two differ.
+    expect(metricsFor({ rem: 20, boxW: 270, boxH: 272, both: true, stillTier: true }).planeW).toBeGreaterThan(270)
+  })
+})

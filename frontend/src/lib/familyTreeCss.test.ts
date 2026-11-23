@@ -276,15 +276,18 @@ describe('the diagram\'s code scales nothing (QA-57, scan half)', () => {
 // md second name, resolved the same way. Two declarations compared to each
 // other: no size is typed here.
 type Tier = 'desktop' | 'phone'
-function activeAt(tier: Tier, atRules: readonly string[]): boolean {
-  return atRules.every(a => /^@layer/.test(a) || (tier === 'phone' && /max-width:\s*640px/.test(a)))
+// The headline's container query (D-74) is the one container condition this
+// resolver can be told is true; every other container rule stays inactive.
+const GLANCE_QUERY = /^@container sr-ft-glance \(width >= 16\.5rem\)$/
+function activeAt(tier: Tier, atRules: readonly string[], glanceWide = false): boolean {
+  return atRules.every(a => /^@layer/.test(a) || (tier === 'phone' && /max-width:\s*640px/.test(a)) || (glanceWide && GLANCE_QUERY.test(a.trim())))
 }
-function resolvedAt(chain: Chain, prop: string, tier: Tier): string | null {
-  for (let end = chain.length; end > 0; end--) {
+function resolvedAt(chain: Chain, prop: string, tier: Tier, { glanceWide = false, inherit = true } = {}): string | null {
+  for (let end = chain.length; end > (inherit ? 0 : chain.length - 1); end--) {
     const sub = chain.slice(0, end)
     let best: { spec: [number, number, number]; order: number; value: string } | null = null
     rules.forEach((r, order) => {
-      if (!activeAt(tier, r.atRules)) return
+      if (!activeAt(tier, r.atRules, glanceWide)) return
       const value = decl(r.body, prop)
       if (value === null) return
       for (const sel of r.selector.split(',')) {
@@ -351,5 +354,54 @@ describe('every name in an opened family can break inside an over-long word (D-7
   it('the matcher reads tags: `.sr-ft-genus b` reaches the lead and not the count', () => {
     expect(matches('.sr-ft-genus b', OPENED_TEXTS['the genus lead'])).toBe(true)
     expect(matches('.sr-ft-genus b', OPENED_TEXTS['the genus count'])).toBe(false)
+  })
+})
+
+// -- The headline's form follows its own width on the phone tier (QA-79,
+// NFR-07, FR-36; design-spec 5 as amended, D-73(a), D-74) ---------------------
+const GLANCE_WRAP: Chain = [['<div>', 'sr-ft-glance-wrap']]
+const GLANCE: Chain = [...GLANCE_WRAP, ['<dl>', 'sr-ft-glance']]
+const TILE: Chain = [...GLANCE, ['<div>', 'sr-ft-tile']]
+
+describe('the headline is three-up only where its wrapper holds three figures (D-74)', () => {
+  it('the wrapper is a named inline-size container on every tier, and the query is 16.5rem inside the phone tier', () => {
+    for (const tier of ['desktop', 'phone'] as const) {
+      expect(resolvedAt(GLANCE_WRAP, 'container-type', tier, { inherit: false }), tier).toBe('inline-size')
+      expect(resolvedAt(GLANCE_WRAP, 'container-name', tier, { inherit: false }), tier).toBe('sr-ft-glance')
+    }
+    const q = rules.filter(r => r.atRules.some(a => /@container sr-ft-glance/.test(a)))
+    expect(q.length).toBeGreaterThanOrEqual(5)
+    for (const r of q) {
+      expect(r.atRules.some(a => GLANCE_QUERY.test(a.trim())), r.selector).toBe(true)
+      expect(r.atRules.some(a => /max-width:\s*640px/.test(a)), r.selector).toBe(true)
+    }
+  })
+  it('on the phone tier: three columns, stacked tiles at or over the threshold; under it the base grid and the wrapping tile', () => {
+    const base = resolvedAt(GLANCE, 'grid-template-columns', 'desktop', { inherit: false })
+    expect(base).toBe('repeat(auto-fit, minmax(min(15rem, 100%), 1fr))')
+    expect(resolvedAt(GLANCE, 'grid-template-columns', 'phone', { glanceWide: true, inherit: false })).toBe('repeat(3, minmax(0, 1fr))')
+    expect(resolvedAt(TILE, 'flex-direction', 'phone', { glanceWide: true, inherit: false })).toBe('column')
+    expect(resolvedAt(GLANCE, 'grid-template-columns', 'phone', { inherit: false })).toBe(base)
+    expect(resolvedAt(TILE, 'flex-direction', 'phone', { inherit: false })).toBeNull()
+    expect(resolvedAt(TILE, 'flex-wrap', 'phone', { inherit: false })).toBe('wrap')
+  })
+  it('no type size changes with the form', () => {
+    const VALUE: Chain = [...TILE, ['<dd>'], ['<span>', 'sr-ft-tile-value']]
+    const LABEL: Chain = [...TILE, ['<dt>']]
+    for (const p of ['font-size']) {
+      expect(resolvedAt(VALUE, p, 'phone', { glanceWide: true })).toBe(resolvedAt(VALUE, p, 'phone'))
+      expect(resolvedAt(LABEL, p, 'phone', { glanceWide: true })).toBe(resolvedAt(LABEL, p, 'phone'))
+    }
+  })
+})
+
+// -- Find narrows beside Exit in the phone full screen (design-spec 10.3, D-73(c))
+describe('Find in the phone full screen keeps Exit\'s row (D-74)', () => {
+  const FIND: Chain = [['sr-ft-host', 'sr-map-fs-panel'], ['sr-ft-toolbar', 'sr-ctl-row'], ['sr-ft-find']]
+  it('its basis is 4rem and it may shrink to nothing, against the base and tier rules', () => {
+    expect(resolvedAt(FIND, 'flex', 'phone', { inherit: false })).toBe('1 1 4rem')
+    expect(resolvedAt(FIND, 'min-width', 'phone', { inherit: false })).toBe('0')
+    // Outside the panel the tier's own rule stands.
+    expect(resolvedAt([['sr-ft-toolbar'], ['sr-ft-find']], 'flex', 'phone', { inherit: false })).toBe('1 1 100%')
   })
 })

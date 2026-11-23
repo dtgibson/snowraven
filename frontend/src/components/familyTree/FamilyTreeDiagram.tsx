@@ -173,7 +173,7 @@ export default function FamilyTreeDiagram(props: FamilyTreeDiagramProps) {
   }
 
   const both = names === 'both'
-  const m = useMemo(() => (size === null ? null : metricsFor({ rem: size.rem, boxW: size.w, boxH: size.h, both, stillTier })), [size, both, stillTier])
+  const m = useMemo(() => (size === null ? null : metricsFor({ rem: size.rem, boxW: size.w, boxH: size.h, both, stillTier, still })), [size, both, stillTier, still])
   const form = m !== null ? m.form : null
   const effExp = useMemo(() => exp ?? (form !== null ? arrivalExpansion(tree, form) : NO_EXPANSION), [exp, form, tree])
   const slots = useMemo(() => (m === null ? null : assignSlots(tree, effExp, m.form)), [tree, effExp, m])
