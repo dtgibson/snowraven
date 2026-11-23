@@ -35,12 +35,30 @@
 //      was; the fault is lifted and Reload pressed, and the chunk is requested
 //      again and the tab comes up with its roster. A unit row cannot prove what
 //      an engine asks for again; this leg is where that is held.
+//   6. THE HEADLINE, TILE AGAINST TILE (QA-79, NFR-07, FR-36; design-spec 5 as
+//      amended, D-73(a)). On a roster with a five-digit species count and on
+//      the demo roster, at 320 to 640px and the four text scales, in each face:
+//      three columns exactly where the wrapper's width over the root font size
+//      is 16.5 or more; in three-up each count's text ends at least 6px before
+//      the next tile; no text box of one tile crosses another's and none passes
+//      the headline's content edge; each label one line; count, label,
+//      denominator and share present as text; no page scroll sideways; and
+//      three-up at 320 and 390px at 100%. It never asserts that a count stays
+//      inside its own tile: at 320px and 100% a five-digit count is 2px past
+//      its column by design, in the gap.
+//   7. FIND BESIDE EXIT in the phone full screen at 320 and 390px and the four
+//      text scales (design-spec 10.3, D-73(c)): Find shares Exit's row.
+//   8. THE STILL'S FIGURES WHOLE at 320 and 390px and the four text scales
+//      (design-spec 10.1, D-73(c)): the still's plane is no wider than its box
+//      and every drawn figure lies inside the box.
 //
 // Lines starting `MEASURE` are the readings recorded in the run's evidence. The
 // run declares how many configurations each leg measures and fails on a short
 // count. `--expect-broken` forces one defect per leg (a tool natively disabled
 // at its limit, the captions forced on, the panel's Exit hidden, the table held
-// wider than a phone, the asset's fault left in place across the Reload) and
+// wider than a phone, the asset's fault left in place across the Reload, the
+// headline held at three columns, Find given its old 11rem basis, the still's
+// names untruncated) and
 // must then see a failure in EVERY leg, so the harness is shown able to see
 // what it guards.
 //
@@ -82,7 +100,7 @@
 // moved here, where `run.mjs` picks it up. It still finds the shared helpers
 // from either place:
 //
-//   node website/tools/verify/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5]
+//   node website/tools/verify/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5,6,7,8]
 
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -99,8 +117,8 @@ const { dismissWelcome } = await import(pathToFileURL(join(VERIFY, 'dismissWelco
 const { chromium, webkit } = requirePlaywright()
 const DIST = resolve(process.argv.slice(2).find(a => !a.startsWith('--')) ?? process.env.SR_VERIFY_DIST ?? join(ROOT, 'frontend/dist'))
 const MODE = process.argv.includes('--expect-broken') ? 'broken' : 'fixed'
-// `--legs=1,3` runs only those legs (a development aid; the gate runs all five).
-const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4,5').slice(7).split(',').map(Number)
+// `--legs=1,3` runs only those legs (a development aid; the gate runs all eight).
+const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4,5,6,7,8').slice(7).split(',').map(Number)
 /** Asked to measure in the stack's first face: a page that draws another fails. */
 const ASK_FIRST = process.env.CI === 'true' || Boolean(process.env.SR_VERIFY_FACE_DIR) || process.argv.includes('--face=first')
 /** The stack without its first family resolves to a shipped platform's face here (macOS: SF). */
@@ -111,7 +129,7 @@ const FALLBACK_SHIPPED = process.platform === 'darwin'
 // tree is as wide as a real life list's and the table holds every long family
 // name the asset carries in its first species.
 
-function roster() {
+function roster(every = 8) {
   const A = join(ROOT, 'frontend/src/assets/')
   const fam = JSON.parse(readFileSync(A + 'ebird-families.json', 'utf8'))
   const snap = JSON.parse(readFileSync(A + 'ebird-taxonomy.json', 'utf8'))
@@ -123,7 +141,7 @@ function roster() {
         for (let i = 0; i < list.length; i += 2) {
           const code = snap.byCom[list[i]]
           const name = code ? snap.byCode[code] : null
-          if (typeof name === 'string' && n++ % 8 === 0) out.push([name, `${genus} ${list[i + 1]}`])
+          if (typeof name === 'string' && n++ % every === 0) out.push([name, `${genus} ${list[i + 1]}`])
         }
       }
     }
@@ -138,6 +156,16 @@ const CSV = [HEADER, ...SPECIES.map(([cn, sci], i) => [
   `20${10 + (i % 15)}-0${1 + (i % 9)}-1${i % 10}`, '07:15 AM', 'Traveling', '60', '1', '1.2', '', '1', '', '', '', '',
 ].map(q).join(','))].join('\n') + '\n'
 const FILES_STATUS = { ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T00:00:00Z' }, ml: null }
+/** Every species of the asset (a five-digit count), for the headline leg. */
+const FIVE_DIGIT = roster(1)
+const FIVE_CSV = [HEADER, ...FIVE_DIGIT.map(([cn, sci], i) => [
+  `S9${String(Math.floor(i / 10)).padStart(9, '0')}`, cn, sci, String(i), '1', 'US-NY', 'Kings', 'L100001', 'Prospect Park', '40.66', '-73.97',
+  `20${10 + (i % 15)}-0${1 + (i % 9)}-1${i % 10}`, '07:15 AM', 'Traveling', '60', '1', '1.2', '', '1', '', '', '', '',
+].map(q).join(','))].join('\n') + '\n'
+/** The demo export the website's pictures are made from (synthetic, S9 ids). */
+const DEMO_CSV = readFileSync(join(ROOT, 'website/tools/demo-data/ebird-backup.csv'), 'utf8')
+/** What the stub serves as the backup; a leg that needs another roster sets it before opening a page. */
+let servedCsv = CSV
 
 /** Backend paths a real server answers by asking a third party. */
 const THIRD_PARTY = /^\/(map|checklists|hotspot|weather|tide|nominatim|media)(\/|$)|^\/version\/check/
@@ -147,7 +175,7 @@ const thirdParty = []
 const taxonomyCalls = []
 function stubBackend(p, _req, res) {
   if (p === '/settings/files') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(FILES_STATUS)); return true }
-  if (p === '/settings/files/ebird') { res.writeHead(200, { 'content-type': 'text/csv' }); res.end(CSV); return true }
+  if (p === '/settings/files/ebird') { res.writeHead(200, { 'content-type': 'text/csv' }); res.end(servedCsv); return true }
   if (p === '/settings/keys') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ebird: null, openweather: null })); return true }
   if (THIRD_PARTY.test(p)) { thirdParty.push(p); res.writeHead(404); res.end('not found'); return true }
   if (p.startsWith('/taxonomy')) taxonomyCalls.push(p)
@@ -190,12 +218,19 @@ const BREAK_FOCUS = `new MutationObserver(() => {
 const BREAK_CAPTIONS = '.sr-ft-host.sr-map-fs-panel .sr-ft-tools .sr-ft-tool .cap { display: block !important; }'
 const BREAK_EXIT = '.sr-ft-host.sr-map-fs-panel .sr-map-fullscreen-btn { display: none !important; }'
 const BREAK_TABLE = '.sr-ft-list { min-width: 27rem !important; }'
+// Leg 6: the headline held at three columns whatever its width (the 1.0.76 shape).
+const BREAK_HEADLINE = '.sr-ft-glance { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } .sr-ft-tile { flex-direction: column !important; flex-wrap: nowrap !important; }'
+// Leg 7: Find's old basis, which dropped it under Exit at large text.
+const BREAK_FIND = '.sr-ft-host.sr-map-fs-panel .sr-ft-find { flex: 1 1 11rem !important; min-width: min(11rem, 100%) !important; }'
+// Leg 8: the still's rows at their natural width (their inline width is the
+// plane's), so a long name pushes its figure past the box, as the 17rem plane did.
+const BREAK_STILL = '.sr-ft-boxwrap.is-still .sr-ft-node { width: max-content !important; max-width: none !important; }'
 
 // -- Measurement ---------------------------------------------------------------
 
 const failures = []
-const legFailures = [0, 0, 0, 0, 0]
-const legMeasured = [0, 0, 0, 0, 0]
+const legFailures = [0, 0, 0, 0, 0, 0, 0, 0]
+const legMeasured = [0, 0, 0, 0, 0, 0, 0, 0]
 function check(leg, name, ok, detail = '') {
   legMeasured[leg - 1]++
   if (!ok) legFailures[leg - 1]++
@@ -684,6 +719,167 @@ async function assetLeg(name, browser, base) {
   }
 }
 
+// Leg 6 ------------------------------------------------------------------------
+
+const HEADLINE = () => {
+  const panel = document.getElementById('panel-family-tree')
+  const glance = panel.querySelector('.sr-ft-glance')
+  // The wrapper the rule queries; a build without it (1.0.76) is read by the
+  // headline's own box, the same width (the card's inner width).
+  const wrap = panel.querySelector('.sr-ft-glance-wrap') ?? glance
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+  const g = glance.getBoundingClientRect(), gcs = getComputedStyle(glance)
+  const contentL = g.left + parseFloat(gcs.paddingLeft), contentR = g.right - parseFloat(gcs.paddingRight)
+  const range = document.createRange()
+  const textBoxes = el => {
+    const out = []
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let t = w.nextNode(); t; t = w.nextNode()) {
+      if (!t.textContent.trim()) continue
+      range.selectNodeContents(t)
+      for (const r of range.getClientRects()) if (r.width > 0) out.push({ l: r.left, r: r.right, t: r.top, b: r.bottom })
+    }
+    return out
+  }
+  const tiles = [...glance.querySelectorAll('.sr-ft-tile')].map(tile => {
+    const value = tile.querySelector('.sr-ft-tile-value'), label = tile.querySelector('dt'), den = tile.querySelector('.sr-ft-tile-den')
+    const tb = tile.getBoundingClientRect()
+    range.selectNodeContents(value)
+    const vr = [...range.getClientRects()].filter(r => r.width > 0)
+    const lcs = getComputedStyle(label)
+    const lh = lcs.lineHeight === 'normal' ? parseFloat(lcs.fontSize) * 1.25 : parseFloat(lcs.lineHeight)
+    range.selectNodeContents(label)
+    const labelLines = new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size
+    return {
+      l: tb.left, t: tb.top, valueRight: vr.length ? Math.max(...vr.map(r => r.right)) : null,
+      texts: textBoxes(tile), labelLines, labelTall: label.getBoundingClientRect().height <= lh + 0.5,
+      parts: [value?.textContent.trim(), label?.textContent.trim(), den?.children[0]?.textContent.trim(), den?.children[1]?.textContent.trim()],
+    }
+  })
+  const threeUp = tiles.length === 3 && tiles.every(t => Math.abs(t.t - tiles[0].t) < 1) && tiles[1].l > tiles[0].l
+  let gap = Infinity, cross = 0, past = 0
+  if (threeUp) for (let i = 0; i < 2; i++) gap = Math.min(gap, tiles[i + 1].l - tiles[i].valueRight)
+  for (let i = 0; i < tiles.length; i++) {
+    for (const a of tiles[i].texts) {
+      past = Math.max(past, contentL - a.l, a.r - contentR)
+      for (let j = i + 1; j < tiles.length; j++) {
+        for (const b of tiles[j].texts) {
+          const ox = Math.min(a.r, b.r) - Math.max(a.l, b.l), oy = Math.min(a.b, b.b) - Math.max(a.t, b.t)
+          if (ox > 0.5 && oy > 0.5) cross = Math.max(cross, Math.min(ox, oy))
+        }
+      }
+    }
+  }
+  return {
+    wrapRem: +(wrap.getBoundingClientRect().width / rem).toFixed(3), threeUp, tiles: tiles.length,
+    gap: gap === Infinity ? null : +gap.toFixed(2), cross: +cross.toFixed(2), past: +past.toFixed(2),
+    labelsOneLine: tiles.every(t => t.labelLines === 1 && t.labelTall),
+    partsPresent: tiles.every(t => t.parts.every(x => typeof x === 'string' && x.length > 0)),
+    count: tiles[0]?.parts[0], pageOver: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }
+}
+
+const HEADLINE_WIDTHS = [320, 360, 390, 430, 640]
+async function headlineLeg(name, browser, base, pass) {
+  for (const [rosterName, csv] of [['five-digit', FIVE_CSV], ['demo', DEMO_CSV]]) {
+    servedCsv = csv
+    const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: (MODE === 'broken' ? BREAK_HEADLINE : '') + pass.css })
+    servedCsv = CSV
+    await assertFace(6, page, name, `headline (${rosterName})`, pass, '#panel-family-tree .sr-ft-tile-value')
+    const rows = []
+    for (const w of HEADLINE_WIDTHS) {
+      await page.setViewportSize({ width: w, height: 844 })
+      for (const s of SCALES) {
+        await setScale(page, s)
+        await page.waitForTimeout(80)
+        const h = await page.evaluate(HEADLINE)
+        const wantThree = h.wrapRem >= 16.5
+        const approved = (w === 320 || w === 390) && s === 1
+        const ok = h.tiles === 3 && h.threeUp === wantThree && (!h.threeUp || h.gap >= 6) && h.cross === 0 && h.past <= 0.5
+          && h.labelsOneLine && h.partsPresent && h.pageOver <= 0 && (!approved || h.threeUp)
+        rows.push(`${w}px/${s * 100}%: ${h.wrapRem}rem ${h.threeUp ? 'three-up' : 'one column'}${h.threeUp ? `, gap ${h.gap}px` : ''}${h.cross ? `, CROSS ${h.cross}px` : ''}`)
+        check(6, `${name} [${pass.id}] headline ${rosterName} ${w}px ${s * 100}%`, ok,
+          `count ${h.count}, wrapper ${h.wrapRem}rem, ${h.threeUp ? 'three-up' : 'one column'} (want ${wantThree ? 'three-up' : 'one column'}), count-to-next-tile ${h.gap}px, tile text crossing ${h.cross}px, past the content edge ${h.past}px, labels one line ${h.labelsOneLine}, parts present ${h.partsPresent}, page over ${h.pageOver}px`)
+      }
+    }
+    console.log(`MEASURE ${name} [${pass.id}] headline ${rosterName} ${rows.join('; ')}`)
+    await ctx.close()
+  }
+}
+
+// Leg 7 ------------------------------------------------------------------------
+
+async function findLeg(name, browser, base, pass) {
+  const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: (MODE === 'broken' ? BREAK_FIND : '') + pass.css })
+  await showView(page, 'Tree')
+  await openFullScreen(page)
+  await assertFace(7, page, name, 'full-screen toolbar', pass, '#panel-family-tree .sr-ft-host.sr-map-fs-panel .sr-ft-fsbtn')
+  const rows = []
+  for (const w of [320, 390]) {
+    await page.setViewportSize({ width: w, height: 844 })
+    for (const s of SCALES) {
+      await setScale(page, s)
+      await page.waitForTimeout(100)
+      const f = await page.evaluate(() => {
+        const host = document.querySelector('#panel-family-tree .sr-ft-host.sr-map-fs-panel')
+        const exit = host.querySelector('.sr-ft-fsbtn').getBoundingClientRect()
+        const find = host.querySelector('.sr-ft-find').getBoundingClientRect()
+        const box = host.querySelector('.sr-ft-box').getBoundingClientRect()
+        const mid = find.top + find.height / 2
+        return {
+          sameRow: mid > exit.top && mid < exit.bottom, beside: find.left >= exit.right - 0.5,
+          findW: +find.width.toFixed(1), boxShare: +(box.height / host.getBoundingClientRect().height * 100).toFixed(1),
+        }
+      })
+      rows.push(`${w}px/${s * 100}%: Find ${f.sameRow && f.beside ? 'beside' : 'BELOW'} Exit, ${f.findW}px, box ${f.boxShare}% of the panel`)
+      check(7, `${name} [${pass.id}] Find beside Exit ${w}px ${s * 100}%`, f.sameRow && f.beside,
+        `same row ${f.sameRow}, right of Exit ${f.beside}, Find ${f.findW}px wide, the tree's box ${f.boxShare}% of the panel`)
+    }
+  }
+  console.log(`MEASURE ${name} [${pass.id}] full-screen toolbar ${rows.join('; ')}`)
+  await ctx.close()
+}
+
+// Leg 8 ------------------------------------------------------------------------
+
+async function stillLeg(name, browser, base, pass) {
+  const rows = []
+  for (const w of [320, 390]) {
+    const { ctx, page } = await open(browser, base, { width: w, height: 844 }, { css: (MODE === 'broken' ? BREAK_STILL : '') + pass.css })
+    await showView(page, 'Tree')
+    await page.waitForSelector('#panel-family-tree .sr-ft-boxwrap.is-still')
+    if (w === 320) await assertFace(8, page, name, 'still', pass, '#panel-family-tree .sr-ft-plane .sr-ft-nm')
+    for (const s of SCALES) {
+      await setScale(page, s)
+      await page.waitForTimeout(250)
+      const r = await page.evaluate(() => {
+        const wrap = document.querySelector('#panel-family-tree .sr-ft-boxwrap.is-still')
+        const box = wrap.querySelector('.sr-ft-box'), plane = wrap.querySelector('.sr-ft-plane')
+        const b = box.getBoundingClientRect()
+        const range = document.createRange()
+        let cut = 0, worst = 0, figures = 0
+        for (const ct of wrap.querySelectorAll('.sr-ft-ct')) {
+          const er = ct.getBoundingClientRect()
+          if (er.width === 0 || er.bottom <= b.top || er.top >= b.bottom) continue
+          figures++
+          range.selectNodeContents(ct)
+          for (const t of range.getClientRects()) {
+            if (t.width === 0) continue
+            const o = Math.max(b.left - t.left, t.right - b.right)
+            if (o > 0.5) { cut++; worst = Math.max(worst, o) }
+          }
+        }
+        return { planeW: +plane.getBoundingClientRect().width.toFixed(2), boxW: +b.width.toFixed(2), figures, cut, worst: +worst.toFixed(2) }
+      })
+      rows.push(`${w}px/${s * 100}%: plane ${r.planeW} of ${r.boxW}px, ${r.figures} figures, ${r.cut} cut`)
+      check(8, `${name} [${pass.id}] still figures whole ${w}px ${s * 100}%`, r.planeW <= r.boxW + 0.5 && r.figures > 0 && r.cut === 0,
+        `plane ${r.planeW}px in a ${r.boxW}px box, ${r.figures} figures drawn, ${r.cut} past the box (worst ${r.worst}px)`)
+    }
+    await ctx.close()
+  }
+  console.log(`MEASURE ${name} [${pass.id}] still ${rows.join('; ')}`)
+}
+
 // -- The run --------------------------------------------------------------------
 
 const threshold = await captionThreshold()
@@ -706,9 +902,11 @@ const FALLBACK = { id: 'fallback', css: `:root { --font-sans: ${STACK.rest} !imp
 let passCount = 0
 // Per engine: leg 1 eight presses, leg 2 eight settings per face, leg 3 six
 // checks at each of four scales plus two on the desktop, leg 4 eight settings
-// per face, leg 5 four checks for each of two faults. The text legs' counts are
+// per face, leg 5 four checks for each of two faults, leg 6 two rosters at five
+// widths and four scales per face, legs 7 and 8 two widths and four scales per
+// face. The text legs' counts are
 // set once the faces each engine offers are known (below).
-const PER_ENGINE = [8, 8, 26, 8, 8]
+const PER_ENGINE = [8, 8, 26, 8, 8, 2 * HEADLINE_WIDTHS.length * 4, 8, 8]
 const EXPECTED = PER_ENGINE.map(() => 0)
 try {
   for (const [name, engine] of ENGINES) {
@@ -721,7 +919,7 @@ try {
       if (has && !FALLBACK_SHIPPED) console.log(`MEASURE ${name} face: the fallback here is not a face a shipped platform draws, so the text legs measured ${STACK.first} only`)
       passCount += passes.length
       PER_ENGINE.forEach((n, i) => {
-        if (LEGS_RUN.includes(i + 1)) EXPECTED[i] += n * (i === 1 || i === 3 ? passes.length : 1)
+        if (LEGS_RUN.includes(i + 1)) EXPECTED[i] += n * ([1, 3, 5, 6, 7].includes(i) ? passes.length : 1)
       })
       if (LEGS_RUN.includes(1)) await focusLeg(name, browser, base)
       for (const pass of passes) {
@@ -732,6 +930,11 @@ try {
         if (LEGS_RUN.includes(4)) await tableLeg(name, browser, base, pass)
       }
       if (LEGS_RUN.includes(5)) await assetLeg(name, browser, base)
+      for (const pass of passes) {
+        if (LEGS_RUN.includes(6)) await headlineLeg(name, browser, base, pass)
+        if (LEGS_RUN.includes(7)) await findLeg(name, browser, base, pass)
+        if (LEGS_RUN.includes(8)) await stillLeg(name, browser, base, pass)
+      }
     } finally {
       await browser.close()
     }
@@ -741,7 +944,8 @@ try {
 }
 
 const seconds = Math.round((Date.now() - started) / 1000)
-const LEGS = ['focus at a limit', 'tools row captions', 'still and round trip', 'table at phone widths', 'a failed family asset']
+const LEGS = ['focus at a limit', 'tools row captions', 'still and round trip', 'table at phone widths', 'a failed family asset',
+  'headline tile against tile', 'Find beside Exit', 'the still\'s figures whole']
 for (let i = 0; i < LEGS.length; i++) {
   if (!LEGS_RUN.includes(i + 1)) continue
   const full = legMeasured[i] === EXPECTED[i]
