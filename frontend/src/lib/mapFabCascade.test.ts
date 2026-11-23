@@ -317,6 +317,8 @@ const NEVER_A_FAB_ANCESTOR: Record<string, string> = {
   'sr-proj-portalrow': 'the subordinate portal row in the same section; same reasoning',
   'sr-tg-table': 'the Targets tab\'s target list table (its sort-header icons); the Targets tab mounts no map at all',
   'sr-dlg-actions': 'the shared modal dialog action row (components/ui/ModalDialog.tsx); a dialog panel never wraps a map, so no FAB sits under it',
+  'sr-ft-sp': 'a species row in the Family Tree tab\'s table (its narrow form, design-spec 11, family-rollups-and-tree D-80); it holds one BirdName and one media cell, and that tab draws no map FAB anywhere',
+  'sr-ft-frow': 'a family row in the same table, itself a button holding the family\'s name and figures; same tab, no map FAB',
   'sr-map-sidebar-overlay': 'the filters sidebar, which the cluster sits outside of (and is hidden while it is open)',
   'maplibregl-ctrl-group': "maplibre's own control stack, injected inside the canvas container",
   'maplibregl-ctrl': 'same, one level up',
