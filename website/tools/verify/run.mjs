@@ -139,18 +139,19 @@ const BUDGET_MS = {
   // about 3x the loaded reading and 4.7x the quiet one, the 4x-or-more the plan
   // harnesses carry for a shared runner. CI's job bound counts it (D-12).
   'verify-hotspot-reports.mjs': 1_800_000,
-  // Family Tree (family-rollups-and-tree schema 17): eight legs in both
+  // Family Tree (family-rollups-and-tree schema 17): ten legs in both
   // engines, focus at each tool's limit, the phone full screen's caption
   // threshold, the still and its round trip, every family opened at phone
   // widths, a failed family asset across a Reload, the headline tile against
-  // tile on two rosters, Find beside Exit, and the still's figures whole. The
-  // text legs run once per face the machine has (Inter only on the Linux
-  // runner; Inter and SF on a Mac with SR_VERIFY_FACE_DIR). MEASURED 570 s on
-  // the dev Mac with both faces at a one-minute load near 2.5 (283 s for the
-  // first five legs in one face, at 1.0.76), so 2,400 s is 4.2x, the
-  // 4x-or-more the other budgeted harnesses carry for a shared runner
-  // (family-rollups-and-tree D-74).
-  'verify-family-tree.mjs': 2_400_000,
+  // tile on two rosters, Find beside Exit, the still's figures whole, the
+  // table's narrow form, and family names whole at 100% across the tablet
+  // stretches. The text legs run once per face the machine has (Inter only on
+  // the Linux runner; Inter and SF on a Mac with SR_VERIFY_FACE_DIR).
+  // MEASURED 989 s on the dev Mac with both faces at a one-minute load near
+  // 2.5 (570 s for the first eight legs, family-rollups-and-tree D-74), so
+  // 4,200 s is 4.2x, the 4x-or-more the other budgeted harnesses carry for a
+  // shared runner; at 2,400 s it would have been 2.4x (D-80).
+  'verify-family-tree.mjs': 4_200_000,
 }
 const rawTimeout = Number(process.env.SR_VERIFY_TIMEOUT_MS)
 const OVERRIDE_MS = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : null

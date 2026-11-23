@@ -50,16 +50,18 @@ jobs:
     # the 180 s default (1,080 s), `verify-plan-readout.mjs` and
     # `verify-plan-daylabels.mjs` at 600 s each (1,200 s),
     # `verify-hotspot-reports.mjs` at 1,800 s, and `verify-family-tree.mjs` at
-    # 2,400 s (added at 1.0.76 at 1,200 s; raised when it grew to eight legs,
-    # measured 570 s on the dev Mac with both faces, family-rollups-and-tree
-    # D-74): 6,480 s, 108 min. The measured
+    # 4,200 s (added at 1.0.76 at 1,200 s; raised to 2,400 s when it grew to
+    # eight legs, measured 570 s on the dev Mac with both faces,
+    # family-rollups-and-tree D-74; raised again at ten legs, measured 989 s,
+    # D-80): 8,280 s, 138 min. The measured
     # rest of this job is 944 s, about 16 min: 888 s from setup to the end of
     # the vitest step on 2026-11-11 (the run at 2253d047), plus 56 s for the
     # build, the tooling install and the browser download on the last green run
-    # (1.0.67), the newest that reached them. 108 + 16 is 124 min; 130 keeps
-    # headroom over that sum (it was 88 + 16 = 104 against 110 before the
-    # Family Tree harness grew, and 68 + 16 = 84 against 90 before it joined
-    # the gate). A healthy run is now about 35 to 45 min (1.0.67's
+    # (1.0.67), the newest that reached them. 138 + 16 is 154 min; 160 keeps
+    # headroom over that sum (it was 108 + 16 = 124 against 130 at eight legs,
+    # 88 + 16 = 104 against 110 before the Family Tree harness grew, and
+    # 68 + 16 = 84 against 90 before it joined the gate). A healthy run is now
+    # about 35 to 45 min (1.0.67's
     # gate took 485 s before the Hotspot Reports harness existed, and that
     # harness measured 570 to 590 s on the dev Mac under heavy load), which is
     # why the previous 40 could no longer hold even a green job. Recompute this
@@ -69,7 +71,7 @@ jobs:
     # so the 944 s stands; the suite now also runs the 20
     # bundle rows and skips the local-only timing rows, and the first runs on
     # the branch give the new step times.
-    timeout-minutes: 130
+    timeout-minutes: 160
     defaults:
       run:
         working-directory: frontend
@@ -179,7 +181,7 @@ jobs:
     # runner's core count) compiled 353 crates and ran the 140 rows in 80 s
     # wall, 201 s CPU. 30 minutes covers that build several times over on a
     # slower runner, plus the crate download, the toolchain install and the
-    # cache upload, and still ends a hung job long before the frontend job's 130.
+    # cache upload, and still ends a hung job long before the frontend job's 160.
     # The first runs on the pull request give the runner's own times.
     timeout-minutes: 30
     defaults:
