@@ -10,10 +10,9 @@
 // it (the test, the capture scripts) writes nothing.
 //
 // The file is plain ASCII on purpose: every non-ASCII character it emits (the
-// curly apostrophes in three species names, the en dash in Age/Sex, the degree
-// sign, the weather emoji) is written as an escape, because an editing tool can
-// silently swap a literal for a look-alike or drop an invisible U+FE0F. The
-// test above holds the source to that.
+// en dash in Age/Sex, the degree sign, the weather emoji) is written as an
+// escape, because an editing tool can silently swap a literal for a look-alike
+// or drop an invisible U+FE0F. The test above holds the source to that.
 import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -104,11 +103,11 @@ const SP = [
   ['Lesser Yellowlegs','Tringa flavipes',2270,2,[4,5,8,9],0],
   ['Laughing Gull','Leucophaeus atricilla',2400,3,[4,5,6,7,8,9,10],1],
   ['Ring-billed Gull','Larus delawarensis',2450,5,ALLM,0],
-  ['Herring Gull','Larus argentatus',2470,5,ALLM,1],
+  ['American Herring Gull','Larus smithsonianus',2470,5,ALLM,1],
   ['Great Black-backed Gull','Larus marinus',2490,3,ALLM,1],
   ['Least Tern','Sternula antillarum',2550,2,[5,6,7,8],1],
   ['Common Tern','Sterna hirundo',2570,3,[5,6,7,8,9],1],
-  ['Forster\u2019s Tern','Sterna forsteri',2580,2,[5,8,9],0],
+  ["Forster's Tern",'Sterna forsteri',2580,2,[5,8,9],0],
   ['Common Loon','Gavia immer',2600,2,[1,2,3,4,11,12],0],
   ['Northern Gannet','Morus bassanus',2650,2,[1,2,3,4,11,12],0],
   ['Double-crested Cormorant','Nannopterum auritum',2700,4,[3,4,5,6,7,8,9,10,11],1],
@@ -116,13 +115,13 @@ const SP = [
   ['Great Egret','Ardea alba',2820,3,[4,5,6,7,8,9,10],1],
   ['Snowy Egret','Egretta thula',2830,3,[4,5,6,7,8,9],1],
   ['Green Heron','Butorides virescens',2860,2,[5,6,7,8,9],1],
-  ['Black-crowned Night-Heron','Nycticorax nycticorax',2880,2,[4,5,6,7,8,9],1],
+  ['Black-crowned Night Heron','Nycticorax nycticorax',2880,2,[4,5,6,7,8,9],1],
   ['Glossy Ibis','Plegadis falcinellus',2900,2,[4,5,6,7,8],1],
   ['Black Vulture','Coragyps atratus',2950,2,ALLM,0],
   ['Turkey Vulture','Cathartes aura',2960,4,[3,4,5,6,7,8,9,10,11],1],
   ['Osprey','Pandion haliaetus',3000,3,[4,5,6,7,8,9],1],
   ['Northern Harrier','Circus hudsonius',3050,2,[1,3,4,9,10,11,12],0],
-  ['Cooper\u2019s Hawk','Astur cooperii',3100,3,ALLM,1],
+  ["Cooper's Hawk",'Astur cooperii',3100,3,ALLM,1],
   ['Bald Eagle','Haliaeetus leucocephalus',3150,2,ALLM,1],
   ['Red-shouldered Hawk','Buteo lineatus',3200,2,[1,2,3,4,9,10,11,12],1],
   ['Red-tailed Hawk','Buteo jamaicensis',3250,4,ALLM,1],
@@ -143,7 +142,7 @@ const SP = [
   ['Great Crested Flycatcher','Myiarchus crinitus',3870,2,[5,6,7,8],1],
   ['Eastern Kingbird','Tyrannus tyrannus',3900,2,[5,6,7,8],1],
   ['White-eyed Vireo','Vireo griseus',3950,2,[5,6,7,8,9],1],
-  ['Warbling Vireo','Vireo gilvus',3970,2,[5,6,7,8],1],
+  ['Eastern Warbling Vireo','Vireo gilvus',3970,2,[5,6,7,8],1],
   ['Red-eyed Vireo','Vireo olivaceus',3990,3,[5,6,7,8,9],1],
   ['Blue Jay','Cyanocitta cristata',4000,5,ALLM,1],
   ['American Crow','Corvus brachyrhynchos',4050,5,ALLM,1],
@@ -157,15 +156,15 @@ const SP = [
   ['White-breasted Nuthatch','Sitta carolinensis',4300,4,ALLM,1],
   ['Red-breasted Nuthatch','Sitta canadensis',4320,2,[1,2,3,4,9,10,11,12],0],
   ['Brown Creeper','Certhia americana',4350,2,[1,2,3,4,10,11,12],0],
-  ['House Wren','Troglodytes aedon',4400,3,[5,6,7,8,9],1],
+  ['Northern House Wren','Troglodytes aedon',4400,3,[5,6,7,8,9],1],
   ['Carolina Wren','Thryothorus ludovicianus',4450,4,ALLM,1],
-  ['Marsh Wren','Cistothorus palustris',4470,1,[5,6,7,8,9],1],
+  ['Eastern Marsh Wren','Cistothorus palustris',4470,1,[5,6,7,8,9],1],
   ['Blue-gray Gnatcatcher','Polioptila caerulea',4500,2,[4,5,6,7,8],1],
   ['Ruby-crowned Kinglet','Corthylio calendula',4520,3,[1,3,4,10,11,12],0],
   ['Golden-crowned Kinglet','Regulus satrapa',4540,2,[1,3,4,10,11,12],0],
   ['Eastern Bluebird','Sialia sialis',4600,3,ALLM,1],
   ['Veery','Catharus fuscescens',4620,2,[5,6,7,8,9],1],
-  ['Swainson\u2019s Thrush','Catharus ustulatus',4640,2,[5,9],0],
+  ["Swainson's Thrush",'Catharus ustulatus',4640,2,[5,9],0],
   ['Hermit Thrush','Catharus guttatus',4660,3,[1,3,4,10,11,12],0],
   ['Wood Thrush','Hylocichla mustelina',4680,2,[5,6,7,8],1],
   ['American Robin','Turdus migratorius',4700,5,ALLM,1],
@@ -203,7 +202,7 @@ const SP = [
   ['American Redstart','Setophaga ruticilla',5800,3,[5,6,8,9],1],
   ['Northern Parula','Setophaga americana',5820,3,[5,8,9],0],
   ['Magnolia Warbler','Setophaga magnolia',5840,2,[5,9],0],
-  ['Yellow Warbler','Setophaga petechia',5860,3,[5,6,7,8],1],
+  ['Northern Yellow Warbler','Setophaga aestiva',5860,3,[5,6,7,8],1],
   ['Blackpoll Warbler','Setophaga striata',5880,2,[5,9,10],0],
   ['Black-throated Blue Warbler','Setophaga caerulescens',5900,2,[5,9],0],
   ['Palm Warbler','Setophaga palmarum',5920,3,[4,5,9,10],0],

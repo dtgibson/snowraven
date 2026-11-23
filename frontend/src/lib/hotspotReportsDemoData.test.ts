@@ -163,7 +163,7 @@ describe('the demo dataset the screenshots are captured from (QA-60)', () => {
 })
 
 describe('the generator source (CLAUDE.md, the non-ASCII literal rule)', () => {
-  it('holds no literal non-ASCII character: the weather emoji, the degree sign and the curly apostrophes are written as escapes', () => {
+  it('holds no literal non-ASCII character: the weather emoji and the degree sign are written as escapes', () => {
     const src = readFileSync(new URL('../../../website/tools/gen-demo-data.mjs', import.meta.url), 'utf8')
     const lines = src.split('\n')
     expect(lines.length, 'the source was read').toBeGreaterThan(100)
