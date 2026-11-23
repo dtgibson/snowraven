@@ -145,18 +145,23 @@ const PANEL_TOOL: Chain = [
   ['sr-ft-host', 'sr-map-fs-panel'], ['sr-ft-toolbar', 'sr-ctl-row'], ['sr-ft-tools'], ['sr-ft-tool', 'sr-touch-target'],
 ]
 const CAP: Chain = [...PANEL_TOOL, ['cap']]
-const PLAIN = /^(\.[a-zA-Z0-9_-]+)+$/
+// A compound is an optional tag and classes; a chain element lists its
+// classes and, as `<tag>`, its tag (D-70 added tags, for `.sr-ft-genus b`).
+const PLAIN = /^([a-z][a-z0-9]*)?(\.[a-zA-Z0-9_-]+)*$/
 function matches(sel: string, chain: Chain): boolean {
   const compounds = sel.trim().split(/\s+/)
-  if (!compounds.every(c => PLAIN.test(c))) return false
-  const classes = (c: string) => c.split('.').filter(Boolean)
-  const subject = classes(compounds[compounds.length - 1])
+  if (!compounds.every(c => c !== '' && PLAIN.test(c))) return false
+  const want = (c: string) => {
+    const tag = /^[a-z][a-z0-9]*/.exec(c)?.[0]
+    return [...(tag ? [`<${tag}>`] : []), ...c.split('.').slice(1).filter(Boolean)]
+  }
+  const subject = want(compounds[compounds.length - 1])
   const last = chain[chain.length - 1]
   if (!subject.every(c => last.includes(c))) return false
   let at = chain.length - 2
   for (let i = compounds.length - 2; i >= 0; i--) {
-    const want = classes(compounds[i])
-    while (at >= 0 && !want.every(c => chain[at].includes(c))) at--
+    const w = want(compounds[i])
+    while (at >= 0 && !w.every(c => chain[at].includes(c))) at--
     if (at < 0) return false
     at--
   }
@@ -308,5 +313,43 @@ describe('the tree\'s labels are the app\'s body-name size (QA-57, D-55(b))', ()
       expect(resolvedAt(TREE_LABEL, 'font-size', tier), `${tier}: the tree's label`).toBe(body)
       expect(resolvedAt(TREE_ALT, 'font-size', tier), `${tier}: the tree's second name`).toBe(second)
     }
+  })
+})
+
+// -- Every name in an opened family can break inside a word wider than its
+// line (D-70; QA-79, NFR-07; the standing 320px and 200% rule) ---------------
+// In Inter (the stack's first face, which GitHub's runner installs) the genus
+// line's second name "Campylorhamphus" ran 5.45px past its row at 320px and
+// 200%, and a few species names 0.52px, while every fallback face fit. The
+// fix lets these texts break inside a word only when the word is wider than
+// the line, so this row resolves `overflow-wrap` (inherited) at each text the
+// table draws in an opened family, on both tiers, rather than reading one
+// declaration. The browser half, both faces, is the harness's table leg.
+const OPENED: Chain = [['sr-ft-list'], ['<section>', 'sr-ft-order'], ['sr-ft-fblock'], ['sr-ft-open']]
+const GENUS_LINE: Chain = [...OPENED, ['sr-ft-genus-block'], ['<p>', 'sr-ft-genus']]
+const SPECIES_NAME: Chain = [...OPENED, ['sr-ft-genus-block'], ['sr-ft-sp'], ['<span>', 'sr-birdname', 'sr-birdname-md'], ['<span>', 'sr-birdname-row']]
+const OPENED_TEXTS: Record<string, Chain> = {
+  'the genus lead': [...GENUS_LINE, ['<b>']],
+  'the genus second name (common)': [...GENUS_LINE, ['<span>', 'alt']],
+  'the genus second name (scientific)': [...GENUS_LINE, ['<span>', 'alt', 'is-sci']],
+  'the genus count': [...GENUS_LINE, ['<span>']],
+  'a species name that links': [...SPECIES_NAME, ['<button>', 'sr-birdname-link']],
+  'a species name that does not link': [...SPECIES_NAME, ['<span>', 'sr-birdname-text']],
+  'a species second name': [...SPECIES_NAME.slice(0, -1), ['<span>', 'sr-birdname-sci']],
+  'the family name': [['sr-ft-list'], ['<section>', 'sr-ft-order'], ['sr-ft-fblock'], ['<button>', 'sr-ft-frow'], ['sr-ft-fname'], ['<span>', 'n']],
+  'the order name': [['sr-ft-list'], ['<section>', 'sr-ft-order'], ['sr-ft-oband'], ['<h3>'], ['<span>', 'alt']],
+}
+
+describe('every name in an opened family can break inside an over-long word (D-70)', () => {
+  it('overflow-wrap resolves to anywhere at each text, on the desktop and the phone tier', () => {
+    for (const tier of ['desktop', 'phone'] as const) {
+      for (const [what, chain] of Object.entries(OPENED_TEXTS)) {
+        expect(resolvedAt(chain, 'overflow-wrap', tier), `${tier}: ${what}`).toBe('anywhere')
+      }
+    }
+  })
+  it('the matcher reads tags: `.sr-ft-genus b` reaches the lead and not the count', () => {
+    expect(matches('.sr-ft-genus b', OPENED_TEXTS['the genus lead'])).toBe(true)
+    expect(matches('.sr-ft-genus b', OPENED_TEXTS['the genus count'])).toBe(false)
   })
 })

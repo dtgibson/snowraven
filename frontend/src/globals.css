@@ -6977,14 +6977,22 @@ select:focus-visible {
 .sr-ft-open { padding: 0 18px 12px calc(18px + 1rem + 16px); background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle); contain: layout paint; }
 .sr-ft-open.is-new { animation: sr-ft-row-in 180ms cubic-bezier(0.2, 0, 0, 1) both; }
 @keyframes sr-ft-row-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-.sr-ft-genus { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; margin: 0; padding: 11px 0 4px; font-size: 0.75rem; color: var(--sr-text-muted); }
+/* `overflow-wrap: anywhere` on the line, so every name in it (the lead, the
+   second name, the count) can break inside a word that is wider than the
+   line, and a flex item's min-content is not its longest word. The second
+   name had no such rule, and in Inter "Campylorhamphus" at 320px and 200%
+   text ran 5.45px past the row (family-rollups-and-tree D-70); a word that
+   fits is never broken, so nothing moves at any width where it fits. */
+.sr-ft-genus { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; margin: 0; padding: 11px 0 4px; font-size: 0.75rem; color: var(--sr-text-muted); overflow-wrap: anywhere; }
 .sr-ft-genus b { font-weight: 600; color: var(--sr-text); overflow-wrap: anywhere; }
 .sr-ft-genus .is-sci { font-style: italic; }
 .sr-ft-sp { display: grid; grid-template-columns: minmax(0, 1fr) max(46px, 2.5rem); column-gap: 14px; align-items: center; padding: 7px 0; border-top: 1px solid var(--sr-border); }
 .sr-ft-tab[data-media="off"] .sr-ft-sp { grid-template-columns: minmax(0, 1fr); }
 /* The shared cell carries Life Lists' grid area; here it sits in a plain track. */
 .sr-ft-sp .sr-lfl-media { grid-area: auto; justify-self: end; padding-top: 0; }
-.sr-ft-sp .sr-birdname { width: 100%; max-width: 100%; }
+/* The species name likewise: in Inter a "Laughingthrush" at 320px and 200%
+   text is 0.52px wider than its cell (D-70); a name that fits never breaks. */
+.sr-ft-sp .sr-birdname { width: 100%; max-width: 100%; overflow-wrap: anywhere; }
 .sr-ft-sp .sr-birdname-row { flex-wrap: wrap; }
 .sr-ft-sp .sr-birdname-sci { white-space: normal; overflow-wrap: anywhere; }
 /* The family's Birds of the World line, first in its open block (D-55(a)): the
