@@ -8,7 +8,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { facesIn, faceInjection, serveDist } from './verify/serveDist.mjs'
@@ -23,15 +23,19 @@ function fixture() {
   for (const f of ['Inter-Regular.otf', 'Inter-SemiBold.otf', 'Inter-BoldItalic.otf', 'Inter-Italic.otf',
     'InterDisplay-Regular.otf', 'Inter-Wide.otf', 'Inter-Regular.txt', 'notes.otf']) writeFileSync(join(faces, f), f)
   writeFileSync(join(root, 'secret.txt'), 'never served')
+  // A directory and a symlink bearing a face's name are not faces.
+  mkdirSync(join(faces, 'Inter-Medium.otf'))
+  symlinkSync(join(root, 'secret.txt'), join(faces, 'Inter-Light.otf'))
   return { root, dist, faces }
 }
 
 async function get(base, path) {
-  const res = await fetch(base + path)
+  // Bounded, so a handler that fails to answer is a failure, never a hang.
+  const res = await fetch(base + path, { signal: AbortSignal.timeout(5000) })
   return { status: res.status, type: res.headers.get('content-type'), body: await res.text() }
 }
 
-test('facesIn lists one family by weight and style, and nothing else', () => {
+test('facesIn lists one family by weight and style, regular files only, and nothing else', () => {
   const { root, faces } = fixture()
   try {
     const got = facesIn(faces).map(f => `${f.file}:${f.weight}:${f.style}:${f.format}`).sort()
@@ -81,6 +85,7 @@ test('set, the listed files are served by exact name, the page gains the rules, 
     assert.equal(font.type, 'font/otf')
     // In the route, only a listed name answers.
     for (const path of ['/__verify-face/InterDisplay-Regular.otf', '/__verify-face/notes.otf', '/__verify-face/Inter-Regular.txt',
+      '/__verify-face/Inter-Medium.otf', '/__verify-face/Inter-Light.otf',
       '/__verify-face/%2e%2e%2fsecret.txt', '/__verify-face/']) {
       assert.equal((await get(base, path)).status, 404, path)
     }

@@ -52,13 +52,18 @@ const FACE_WEIGHTS = {
 const FACE_FORMATS = { '.otf': 'opentype', '.ttf': 'truetype', '.woff2': 'woff2' }
 
 /**
- * The faces a directory offers for `family`: one entry per file named
+ * The faces a directory offers for `family`: one entry per REGULAR FILE named
  * `<family>-<Style>.<otf|ttf|woff2>`, where Style is a weight name, a weight
- * name followed by `Italic`, or `Italic` alone (Regular italic).
+ * name followed by `Italic`, or `Italic` alone (Regular italic). A directory
+ * or a symlink with a font's name is not a face (security R2-2, D-74): served,
+ * a link would be followed to wherever it points, and a directory would fail
+ * the read.
  */
 export function facesIn(dir, family = 'Inter') {
   const out = []
-  for (const file of readdirSync(dir)) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile()) continue
+    const file = entry.name
     const ext = extname(file)
     if (!Object.hasOwn(FACE_FORMATS, ext)) continue
     const m = /^([A-Za-z]+)-([A-Za-z]+)$/.exec(basename(file, ext))
@@ -149,8 +154,10 @@ export async function serveDist(dist, { routes, fallback = 'index' } = {}) {
     if (faces.length && pathname.startsWith(FACE_ROUTE)) {
       const name = pathname.slice(FACE_ROUTE.length)
       if (!faceFiles.has(name)) { res.writeHead(404); res.end('not found'); return }
+      let body
+      try { body = await readFile(join(faceDir, name)) } catch { res.writeHead(404); res.end('not found'); return }
       res.writeHead(200, { 'content-type': contentTypeFor(name) })
-      res.end(await readFile(join(faceDir, name)))
+      res.end(body)
       return
     }
 
