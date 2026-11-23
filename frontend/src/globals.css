@@ -6844,7 +6844,9 @@ select:focus-visible {
    The table has no scroller of its own on any tier (FR-86, D-17): nothing
    between the tab panel and the rows declares a vertical overflow that scrolls
    or a height cap. The list is an inline-size container so its rows stack when
-   it is narrower than 44em, whatever the window (design-spec 11). Containment,
+   it is narrower than 50em, whatever the window (design-spec 11; 44em until
+   D-79(b), which left family names breaking inside words at 100% text in
+   windows 815 to 903 and 971 to 1066 px wide with media, D-80). Containment,
    argued at the declaration (ui.md v1.0.23): `container-type: inline-size`
    makes the list the containing block for positioned descendants and a
    stacking context; the only positioned descendants are the `.sr-only` spans
@@ -7148,7 +7150,7 @@ select:focus-visible {
 }
 /* The table stacks by the LIST's own width, so a wide window at 200% text and
    the phone both get it; each figure then carries its own glyph. */
-@container sr-ft-list (max-width: 44em) {
+@container sr-ft-list (max-width: 50em) {
   .sr-ft-cols { display: none; }
   .sr-ft-frow { grid-template-columns: 1rem minmax(0, 1fr); row-gap: 6px; column-gap: 12px; }
   .sr-ft-tab[data-media="off"] .sr-ft-frow { grid-template-columns: 1rem minmax(0, 1fr); }
@@ -8371,6 +8373,40 @@ select:focus-visible {
      glyph clear of the Distance column (the gap is the 12px in the tbody tr
      rule above). */
   .sr-tg-table .sr-tg-last { padding-inline-end: calc(var(--sr-tg-glyph-hang) - 12px); }
+}
+
+/* The Family Tree table's narrow form (design-spec 11, D-78, D-79(a)). One
+   query on the LIST's own width in rem, so large text counts as a narrow
+   list; it never matches at 100% text (the list is 16.875rem at 320px). It
+   sits after the phone tier's block, whose .sr-ft-open padding shorthand the
+   padding-left here must follow. A name breaks at a space or a hyphen, and
+   inside a word only when that one word is wider than the whole row.
+   No markup changes: display: contents takes BirdName's two wrapper spans
+   (no role, no name) out of the box tree, so the name, the link marks, the
+   second name and the media cell become the row's own grid items in their
+   document order, which is the reading and tab order; only the second name is
+   drawn above the marks. The marks' wrapper has no class (SpeciesLinks, with
+   an inline 6px margin), so it is the name row's child that is not the name or
+   the trail. overflow-wrap: anywhere stays on the species name, the second
+   name and the genus line as the last resort; on the family name it is
+   break-word here, so the flex line reads the longest word as the name's
+   least width and decides whether it fits beside the chevron. */
+@container sr-ft-list (width < 15rem) {
+  .sr-ft-open { padding-left: 12px; }
+
+  .sr-ft-tab[data-media="on"] .sr-ft-sp { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 1px; align-content: center; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp :is(.sr-birdname, .sr-birdname-row) { display: contents; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp :is(.sr-birdname-link, .sr-birdname-text) { grid-column: 1 / -1; justify-self: start; min-width: 0; max-width: 100%; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp .sr-birdname-sci { order: 1; grid-column: 1 / -1; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp .sr-birdname-row > :not(.sr-birdname-link, .sr-birdname-text, .sr-birdname-trail) { order: 2; grid-column: 1; justify-self: start; position: relative; left: -6px; margin-top: 6px; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp .sr-lfl-media { order: 3; grid-column: 2; margin-top: 6px; }
+
+  .sr-ft-frow,
+  .sr-ft-tab[data-media="off"] .sr-ft-frow { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: 8px; }
+  .sr-ft-rowchev { flex: none; margin-top: calc((0.84375rem * 1.4 - 14px) / 2); }
+  .sr-ft-fname { flex: 1 1 auto; width: min-content; max-width: 100%; }
+  .sr-ft-fname .n, .sr-ft-fname .s { overflow-wrap: break-word; }
+  .sr-ft-frow > :not(.sr-ft-rowchev, .sr-ft-fname) { flex: 0 0 calc(100% - 22px); margin-left: 22px; min-width: 0; }
 }
 
 /* iPhone only, above the phone tier (ios27-iphone-duo). WebKit zooms a focused

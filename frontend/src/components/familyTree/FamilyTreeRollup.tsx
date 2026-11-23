@@ -8,7 +8,7 @@
 // contributes no focusable and no accessibility node, and toggling never
 // unmounts the control that has focus (QA-41). Every species renders through
 // `<BirdName>` in every Names state (FR-81). The list is an inline-size
-// container that stacks its rows under 44em, and it has no scroller of its own
+// container that stacks its rows under 50em, and it has no scroller of its own
 // on any tier (FR-86): it flows with the page.
 //
 // No DOM id or IDREF is minted from file content (FR-45): a row carries its

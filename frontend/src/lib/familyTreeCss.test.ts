@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parseRulesAtAnyDepth } from './cssTopLevelRules'
-import { specificity } from '../test/cssSpecificity'
+import { specificity, splitList } from '../test/cssSpecificity'
 
 const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
 const rules = parseRulesAtAnyDepth(css)
@@ -87,7 +87,7 @@ describe('the table flows with the page on every tier (FR-86, QA-96 static half)
     const list = ft.find(r => r.selector.trim() === '.sr-ft-list' && r.atRules.length === 0)!
     expect(decl(list.body, 'container-type')).toBe('inline-size')
     expect(decl(list.body, 'container-name')).toBe('sr-ft-list')
-    expect(ft.some(r => r.atRules.some(a => /@container sr-ft-list \(max-width: 44em\)/.test(a)))).toBe(true)
+    expect(ft.some(r => r.atRules.some(a => /@container sr-ft-list \(max-width: 50em\)/.test(a)))).toBe(true)
   })
 })
 
@@ -145,15 +145,31 @@ const PANEL_TOOL: Chain = [
   ['sr-ft-host', 'sr-map-fs-panel'], ['sr-ft-toolbar', 'sr-ctl-row'], ['sr-ft-tools'], ['sr-ft-tool', 'sr-touch-target'],
 ]
 const CAP: Chain = [...PANEL_TOOL, ['cap']]
-// A compound is an optional tag and classes; a chain element lists its
-// classes and, as `<tag>`, its tag (D-70 added tags, for `.sr-ft-genus b`).
-const PLAIN = /^([a-z][a-z0-9]*)?(\.[a-zA-Z0-9_-]+)*$/
+// A compound is an optional tag, classes and attribute equalities; a chain
+// element lists its classes, as `<tag>` its tag and as `[a="v"]` its
+// attributes (D-70 added tags, for `.sr-ft-genus b`; D-80 attributes, for
+// `.sr-ft-tab[data-media="on"]`). One `:is(...)` in a selector is expanded
+// into its alternatives; a selector with a combinator other than descendant,
+// or with `:not(...)`, is not a candidate this matcher can read.
+const PLAIN = /^([a-z][a-z0-9]*)?(\.[a-zA-Z0-9_-]+|\[[a-z-]+="[^"]*"\])*$/
+function expandIs(sel: string): string[] {
+  const m = /:is\(([^()]*)\)/.exec(sel)
+  if (!m) return [sel]
+  return splitList(m[1]).flatMap(alt => expandIs(sel.slice(0, m.index) + alt + sel.slice(m.index + m[0].length)))
+}
 function matches(sel: string, chain: Chain): boolean {
+  return expandIs(sel).some(one => matchesOne(one, chain))
+}
+function matchesOne(sel: string, chain: Chain): boolean {
   const compounds = sel.trim().split(/\s+/)
   if (!compounds.every(c => c !== '' && PLAIN.test(c))) return false
   const want = (c: string) => {
     const tag = /^[a-z][a-z0-9]*/.exec(c)?.[0]
-    return [...(tag ? [`<${tag}>`] : []), ...c.split('.').slice(1).filter(Boolean)]
+    return [
+      ...(tag ? [`<${tag}>`] : []),
+      ...[...c.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map(x => x[1]),
+      ...[...c.matchAll(/\[[a-z-]+="[^"]*"\]/g)].map(x => x[0]),
+    ]
   }
   const subject = want(compounds[compounds.length - 1])
   const last = chain[chain.length - 1]
@@ -279,18 +295,23 @@ type Tier = 'desktop' | 'phone'
 // The headline's container query (D-74) is the one container condition this
 // resolver can be told is true; every other container rule stays inactive.
 const GLANCE_QUERY = /^@container sr-ft-glance \(width >= 16\.5rem\)$/
-function activeAt(tier: Tier, atRules: readonly string[], glanceWide = false): boolean {
-  return atRules.every(a => /^@layer/.test(a) || (tier === 'phone' && /max-width:\s*640px/.test(a)) || (glanceWide && GLANCE_QUERY.test(a.trim())))
+// The list's two queries (D-80): stacked under 50em, the narrow form under 15rem.
+const LIST_STACKED_QUERY = /^@container sr-ft-list \(max-width: 50em\)$/
+const LIST_NARROW_QUERY = /^@container sr-ft-list \(width < 15rem\)$/
+type ListWidth = 'wide' | 'stacked' | 'narrow'
+function activeAt(tier: Tier, atRules: readonly string[], glanceWide = false, list: ListWidth = 'wide'): boolean {
+  return atRules.every(a => /^@layer/.test(a) || (tier === 'phone' && /max-width:\s*640px/.test(a)) || (glanceWide && GLANCE_QUERY.test(a.trim()))
+    || (list !== 'wide' && LIST_STACKED_QUERY.test(a.trim())) || (list === 'narrow' && LIST_NARROW_QUERY.test(a.trim())))
 }
-function resolvedAt(chain: Chain, prop: string, tier: Tier, { glanceWide = false, inherit = true } = {}): string | null {
+function resolvedAt(chain: Chain, prop: string, tier: Tier, { glanceWide = false, inherit = true, list = 'wide' as ListWidth } = {}): string | null {
   for (let end = chain.length; end > (inherit ? 0 : chain.length - 1); end--) {
     const sub = chain.slice(0, end)
     let best: { spec: [number, number, number]; order: number; value: string } | null = null
     rules.forEach((r, order) => {
-      if (!activeAt(tier, r.atRules, glanceWide)) return
+      if (!activeAt(tier, r.atRules, glanceWide, list)) return
       const value = decl(r.body, prop)
       if (value === null) return
-      for (const sel of r.selector.split(',')) {
+      for (const sel of splitList(r.selector)) {
         if (!matches(sel, sub)) continue
         const spec = specificity(sel.trim())
         if (best === null || cmpSpec(spec, best.spec) > 0 || (cmpSpec(spec, best.spec) === 0 && order >= best.order)) best = { spec, order, value }
@@ -403,5 +424,70 @@ describe('Find in the phone full screen keeps Exit\'s row (D-74)', () => {
     expect(resolvedAt(FIND, 'min-width', 'phone', { inherit: false })).toBe('0')
     // Outside the panel the tier's own rule stands.
     expect(resolvedAt([['sr-ft-toolbar'], ['sr-ft-find']], 'flex', 'phone', { inherit: false })).toBe('1 1 100%')
+  })
+})
+
+// -- The table's narrow form and its 50em stacking (design-spec 11, D-78,
+// D-79, D-80) --------------------------------------------------------------------
+// Resolved at the species row, its name and media cell, the opened block and
+// the family row, with the list wide, stacked and narrow, on both tiers.
+const TAB_ON: Chain = [['sr-ft-tab', '[data-media="on"]'], ['sr-ft-list']]
+const TAB_OFF: Chain = [['sr-ft-tab', '[data-media="off"]'], ['sr-ft-list']]
+const OPEN_BLOCK = (tab: Chain): Chain => [...tab, ['<section>', 'sr-ft-order'], ['sr-ft-fblock'], ['sr-ft-open']]
+const SP_ROW = (tab: Chain): Chain => [...OPEN_BLOCK(tab), ['sr-ft-genus-block'], ['sr-ft-sp']]
+const SP_NAME_WRAP = (tab: Chain): Chain => [...SP_ROW(tab), ['<span>', 'sr-birdname', 'sr-birdname-md']]
+const SP_NAME_ROW = (tab: Chain): Chain => [...SP_NAME_WRAP(tab), ['<span>', 'sr-birdname-row']]
+const SP_MEDIA = (tab: Chain): Chain => [...SP_ROW(tab), ['<span>', 'sr-lfl-media']]
+const FAM_ROW = (tab: Chain): Chain => [...tab, ['<section>', 'sr-ft-order'], ['sr-ft-fblock'], ['<button>', 'sr-ft-frow']]
+const FAM_NAME = (tab: Chain): Chain => [...FAM_ROW(tab), ['sr-ft-fname'], ['<span>', 'n']]
+
+describe('the table\'s narrow form under 15rem, and stacking under 50em (D-80)', () => {
+  const at = (chain: Chain, prop: string, tier: Tier, list: ListWidth, inherit = false) => resolvedAt(chain, prop, tier, { list, inherit })
+  it('narrow, with media marks: the row is a two-track grid and BirdName\'s wrappers leave the box tree', () => {
+    for (const tier of ['desktop', 'phone'] as const) {
+      expect(at(SP_ROW(TAB_ON), 'grid-template-columns', tier, 'narrow'), tier).toBe('minmax(0, 1fr) auto')
+      expect(at(SP_NAME_WRAP(TAB_ON), 'display', tier, 'narrow'), tier).toBe('contents')
+      expect(at(SP_NAME_ROW(TAB_ON), 'display', tier, 'narrow'), tier).toBe('contents')
+      expect(at(SP_MEDIA(TAB_ON), 'grid-column', tier, 'narrow'), tier).toBe('2')
+    }
+  })
+  it('narrow, without media marks: BirdName keeps its own form; only the indent goes', () => {
+    for (const tier of ['desktop', 'phone'] as const) {
+      expect(at(SP_NAME_WRAP(TAB_OFF), 'display', tier, 'narrow'), tier).not.toBe('contents')
+      expect(at(OPEN_BLOCK(TAB_OFF), 'padding-left', tier, 'narrow'), tier).toBe('12px')
+    }
+  })
+  it('narrow: the opened block gives up its indent, the family row is a wrapping flex row, its name breaks only a word wider than the row', () => {
+    for (const tier of ['desktop', 'phone'] as const) {
+      expect(at(OPEN_BLOCK(TAB_ON), 'padding-left', tier, 'narrow'), tier).toBe('12px')
+      expect(at(FAM_ROW(TAB_ON), 'display', tier, 'narrow'), tier).toBe('flex')
+      expect(at(FAM_ROW(TAB_OFF), 'display', tier, 'narrow'), tier).toBe('flex')
+      expect(at(FAM_NAME(TAB_ON), 'overflow-wrap', tier, 'narrow', true), tier).toBe('break-word')
+      // The species name keeps the last resort.
+      expect(at([...SP_NAME_ROW(TAB_ON), ['<button>', 'sr-birdname-link']], 'overflow-wrap', tier, 'narrow', true), tier).toBe('anywhere')
+    }
+  })
+  it('not narrow (every width at 100% text): none of it applies, stacked or not', () => {
+    for (const list of ['wide', 'stacked'] as const) {
+      for (const tier of ['desktop', 'phone'] as const) {
+        expect(at(SP_NAME_WRAP(TAB_ON), 'display', tier, list), `${tier} ${list}`).not.toBe('contents')
+        expect(at(FAM_ROW(TAB_ON), 'display', tier, list), `${tier} ${list}`).not.toBe('flex')
+        expect(at(FAM_NAME(TAB_ON), 'overflow-wrap', tier, list, true), `${tier} ${list}`).toBe('anywhere')
+        expect(at(OPEN_BLOCK(TAB_ON), 'padding-left', tier, list), `${tier} ${list}`).not.toBe('12px')
+      }
+    }
+    // Stacked hides the column header; wide does not.
+    expect(at([...TAB_ON, ['sr-ft-cols']], 'display', 'desktop', 'stacked')).toBe('none')
+    expect(at([...TAB_ON, ['sr-ft-cols']], 'display', 'desktop', 'wide')).not.toBe('none')
+  })
+  it('the two queries read 15rem and 50em, and the narrow rules follow the phone tier\'s opened-block shorthand', () => {
+    const narrow = rules.filter(r => r.atRules.some(a => LIST_NARROW_QUERY.test(a.trim())))
+    expect(narrow.length).toBeGreaterThanOrEqual(8)
+    expect(rules.some(r => r.atRules.some(a => LIST_STACKED_QUERY.test(a.trim())))).toBe(true)
+    expect(rules.some(r => r.atRules.some(a => /@container sr-ft-list \(max-width: 44em\)/.test(a)))).toBe(false)
+    const phoneShorthand = rules.findIndex(r => r.selector === '.sr-ft-open' && /max-width:\s*640px/.test(r.atRules.join()) && decl(r.body, 'padding') !== null)
+    const narrowOpen = rules.findIndex(r => r.selector === '.sr-ft-open' && r.atRules.some(a => LIST_NARROW_QUERY.test(a.trim())))
+    expect(phoneShorthand).toBeGreaterThanOrEqual(0)
+    expect(narrowOpen).toBeGreaterThan(phoneShorthand)
   })
 })
