@@ -2217,11 +2217,26 @@ struct FetchGate {
     per_listing: Duration,
     per_window: Duration,
     window: Duration,
+    /// Tests only, and compiled only into them: the wait each listing's loop
+    /// asked for (its deadline less its start), in order, so the rows that
+    /// hold the I8 bounds count the waits the code REQUESTS instead of timing
+    /// them on the clock of a machine that may be slow
+    /// (family-rollups-and-tree D-70; DECISIONS.md v1.0.75, the timing bar).
+    #[cfg(test)]
+    requested: Mutex<Vec<Duration>>,
 }
 
 impl FetchGate {
     fn new(per_listing: Duration, per_window: Duration, window: Duration) -> FetchGate {
-        FetchGate { in_flight: Arc::new(AtomicBool::new(false)), spent: Mutex::new((None, Duration::ZERO)), per_listing, per_window, window }
+        FetchGate {
+            in_flight: Arc::new(AtomicBool::new(false)),
+            spent: Mutex::new((None, Duration::ZERO)),
+            per_listing,
+            per_window,
+            window,
+            #[cfg(test)]
+            requested: Mutex::new(Vec::new()),
+        }
     }
     /// What one listing may wait now: its own budget, capped by what is left
     /// of the window's (a new window starts when the last one has run out).
@@ -2530,6 +2545,10 @@ fn read_fetched_records<I: ContainerIo>(
     };
     let started = Instant::now();
     let deadline = started + allowance;
+    #[cfg(test)]
+    if let Ok(mut requested) = gate.requested.lock() {
+        requested.push(deadline.saturating_duration_since(started));
+    }
     loop {
         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
             Ok(answer) => take(answer),
@@ -4986,6 +5005,10 @@ mod tests {
         /// Every coordinated directory creation.
         dirs: std::sync::Arc<Mutex<Vec<PathBuf>>>,
         read_delay: Duration,
+        /// When set, every read waits for one permit the test hands out
+        /// (`release_reads`), so a row decides when a read answers instead of
+        /// racing a sleep against the listing's wait.
+        held: Option<std::sync::Arc<(Mutex<usize>, std::sync::Condvar)>>,
     }
 
     impl FakeIo {
@@ -4997,7 +5020,17 @@ mod tests {
                 deletes: Default::default(),
                 dirs: Default::default(),
                 read_delay,
+                held: None,
             }
+        }
+        /// Reads that answer only when the test releases them, one permit each.
+        fn held() -> FakeIo {
+            FakeIo { held: Some(Default::default()), ..FakeIo::new(Duration::ZERO) }
+        }
+        fn release_reads(&self, n: usize) {
+            let (permits, cv) = &**self.held.as_ref().expect("a held FakeIo");
+            *permits.lock().unwrap() += n;
+            cv.notify_all();
         }
         fn set(&self, path: PathBuf, status: FakeStatus, newer: Option<&str>, refreshes: bool) {
             self.records.lock().unwrap().insert(path, FakeRecord { status, newer: newer.map(str::to_string), refreshes });
@@ -5018,6 +5051,14 @@ mod tests {
             let path = dir.join(name);
             self.reads.lock().unwrap().push(path.clone());
             std::thread::sleep(self.read_delay);
+            if let Some(held) = &self.held {
+                let (permits, cv) = &**held;
+                let mut n = permits.lock().unwrap();
+                while *n == 0 {
+                    n = cv.wait(n).unwrap();
+                }
+                *n -= 1;
+            }
             if let Some(r) = self.records.lock().unwrap().get_mut(&path) {
                 if r.refreshes {
                     if let Some(text) = r.newer.take() {
@@ -5077,6 +5118,38 @@ mod tests {
     /// per-listing wait and a window allowance that never runs out.
     fn test_gate(per_listing: Duration) -> FetchGate {
         FetchGate::new(per_listing, Duration::from_secs(3600), Duration::from_secs(3600))
+    }
+
+    /// LIVENESS, not speed: how long a row lets a listing run before it reads
+    /// as never returning. A listing that keeps its bound returns at its
+    /// allowance (milliseconds here) whatever the machine; one that waits on a
+    /// read the test is holding never returns at all. Thirty seconds is a
+    /// deadlock detector, not a timing limit (DECISIONS.md v1.0.75).
+    const NEVER_RETURNED: Duration = Duration::from_secs(30);
+
+    /// List on a thread of its own and hand back what it listed, or fail the
+    /// row if it does not return while the test holds its reads.
+    fn listing_that_returns(docs: &Path, io: &FakeIo, gate: &std::sync::Arc<FetchGate>) -> ListResult {
+        let (tx, rx) = mpsc::channel();
+        let (docs, io, gate) = (docs.to_path_buf(), io.clone(), gate.clone());
+        std::thread::spawn(move || {
+            let _ = tx.send(list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate));
+        });
+        rx.recv_timeout(NEVER_RETURNED).expect("the listing did not return while its read was held: it waited on the read, not its allowance")
+    }
+
+    /// Wait until the helper a listing started has ended (the poll between a
+    /// check's listings, long enough for its read to return).
+    fn until_no_read_in_flight(gate: &FetchGate) {
+        let started = std::time::Instant::now();
+        while gate.in_flight.load(Ordering::Acquire) {
+            assert!(started.elapsed() < NEVER_RETURNED, "the helper never ended after its read was released");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    fn requested(gate: &FetchGate) -> Vec<Duration> {
+        gate.requested.lock().unwrap().clone()
     }
 
     /// The phone's case: the county was added HERE (this device wrote its
@@ -5153,20 +5226,24 @@ mod tests {
         let docs = tmp_dir("items-budget");
         let sub = docs.join("barcharts");
         fs::create_dir_all(&sub).unwrap();
-        let io = FakeIo::new(Duration::from_millis(400));
+        // Reads that answer only when the test says: none does while the listing runs.
+        let io = FakeIo::held();
         for code in ["US-CA-001", "US-NY-005", "US-TX-201"] {
             let path = sub.join(format!("{}.record.json", code));
             fs::write(&path, COUNTY_RECORD_GOLDEN.replace("US-CA-001", code)).unwrap();
             io.set(path, FakeStatus::Stale, Some(&COUNTY_CLEARED_GOLDEN.replace("US-CA-001", code)), true);
         }
-        let started = std::time::Instant::now();
-        let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &test_gate(Duration::from_millis(100)));
-        let took = started.elapsed();
+        let gate = std::sync::Arc::new(test_gate(Duration::from_millis(100)));
+        // It returns with its reads unanswered (a listing that waited on them never would).
+        let listed = listing_that_returns(&docs, &io, &gate);
         assert_eq!(listed.items.len(), 3);
         assert!(listed.items.iter().all(|i| i.present && i.record.is_none()), "{:?}", listed.items.iter().map(|i| &i.record).collect::<Vec<_>>());
         // Every download was asked for up front, whatever the budget.
         assert_eq!(io.downloads.lock().unwrap().len(), 3);
-        assert!(took < Duration::from_millis(350), "the listing waited {:?}", took);
+        // One wait, of the budget: not one per record, and not longer.
+        assert_eq!(requested(&gate), vec![Duration::from_millis(100)]);
+        io.release_reads(3);
+        until_no_read_in_flight(&gate);
         let _ = fs::remove_dir_all(&docs);
     }
 
@@ -5181,30 +5258,41 @@ mod tests {
         fs::create_dir_all(&sub).unwrap();
         let path = sub.join("US-CA-001.record.json");
         fs::write(&path, COUNTY_RECORD_GOLDEN).unwrap();
-        let io = FakeIo::new(Duration::from_millis(600));
+        // The coordinated read does not answer until the test releases it.
+        let io = FakeIo::held();
         io.set(path.clone(), FakeStatus::Stale, Some(COUNTY_CLEARED_GOLDEN), true);
         let gate = std::sync::Arc::new(test_gate(Duration::from_millis(300)));
         let (io_a, gate_a, docs_a) = (io.clone(), gate.clone(), docs.clone());
-        let first = std::thread::spawn(move || list_items_with(&docs_a, ItemKind::Barchart, MAX_LISTED_ITEMS, &io_a, &gate_a));
-        std::thread::sleep(Duration::from_millis(50));
-        // Concurrent with the first listing, whose read is under way.
+        let first = std::thread::spawn(move || listing_that_returns(&docs_a, &io_a, &gate_a));
+        // Once the first listing's helper is reading (not after a fixed sleep).
         let started = std::time::Instant::now();
-        let second = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
-        let took = started.elapsed();
+        while io.reads.lock().unwrap().is_empty() {
+            assert!(started.elapsed() < NEVER_RETURNED, "the first listing never started its read");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        // Concurrent with the first listing, whose read is under way: no
+        // second helper and no wait.
+        let second = listing_that_returns(&docs, &io, &gate);
         assert!(second.items[0].present && second.items[0].record.is_none());
         assert_eq!(io.reads.lock().unwrap().len(), 1, "a second helper was started");
-        assert!(took < Duration::from_millis(150), "the second listing waited {:?}", took);
         let first = first.join().unwrap();
         assert!(first.items[0].record.is_none()); // it gave up at its 300 ms
-        // Again, after the first listing gave up but while its read still runs.
-        let third = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
+        // Again, after the first listing gave up but while its read is still held.
+        let third = listing_that_returns(&docs, &io, &gate);
         assert!(third.items[0].record.is_none());
         assert_eq!(io.reads.lock().unwrap().len(), 1, "a second helper was started");
+        // Only the first listing asked for a wait.
+        assert_eq!(requested(&gate), vec![Duration::from_millis(300)], "a later listing waited");
         // Once that read returns, the flag is clear and the record it brought
-        // down is read as Current, with no fetch.
-        std::thread::sleep(Duration::from_millis(500));
-        let fourth = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
+        // down is read as Current by the listing's own read (one more permit),
+        // with no fetch and no wait.
+        io.release_reads(1);
+        until_no_read_in_flight(&gate);
+        io.release_reads(1);
+        let fourth = listing_that_returns(&docs, &io, &gate);
         assert_eq!(fourth.items[0].record.as_deref(), Some(COUNTY_CLEARED_GOLDEN));
+        assert_eq!(io.reads.lock().unwrap().len(), 2, "the held read and the listing's own read of the current record");
+        assert_eq!(requested(&gate).len(), 1);
         assert!(!gate.in_flight.load(Ordering::Acquire));
         let _ = fs::remove_dir_all(&docs);
     }
@@ -5220,29 +5308,39 @@ mod tests {
         fs::create_dir_all(&sub).unwrap();
         let path = sub.join("US-CA-001.record.json");
         fs::write(&path, COUNTY_RECORD_GOLDEN).unwrap();
-        // Out of date every time: the read never brings it current.
-        let io = FakeIo::new(Duration::from_millis(200));
+        // Out of date every time, and each read held until its listing has
+        // given up on it: every listing that waits, waits its whole allowance.
+        let io = FakeIo::held();
         io.set(path, FakeStatus::Stale, None, false);
         // 150 ms per listing, 300 ms per window: two listings' worth.
-        let gate = FetchGate::new(Duration::from_millis(150), Duration::from_millis(300), Duration::from_secs(3600));
-        let mut inside = Duration::ZERO;
+        let gate = std::sync::Arc::new(FetchGate::new(Duration::from_millis(150), Duration::from_millis(300), Duration::from_secs(3600)));
         for _ in 0..5 {
-            let started = std::time::Instant::now();
-            let listed = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &gate);
-            inside += started.elapsed();
+            let listed = listing_that_returns(&docs, &io, &gate);
             assert!(listed.items[0].present && listed.items[0].record.is_none());
-            // The poll between the wait's listings, long enough for each read to return.
-            std::thread::sleep(Duration::from_millis(150));
+            // The poll between the wait's listings: a read under way returns before the next.
+            if gate.in_flight.load(Ordering::Acquire) {
+                io.release_reads(1);
+            }
+            until_no_read_in_flight(&gate);
         }
-        // Unbounded: five reads and 750 ms of waiting. Bounded: two and 300 ms.
-        assert!(io.reads.lock().unwrap().len() <= 2, "{} reads", io.reads.lock().unwrap().len());
-        assert!(inside < Duration::from_millis(550), "the listings waited {:?}", inside);
+        // Unbounded: five reads and five waits of 150 ms. Bounded: two of each,
+        // the window's 300 ms, and the other three listings ask for no wait.
+        assert_eq!(io.reads.lock().unwrap().len(), 2, "reads");
+        assert_eq!(requested(&gate), vec![Duration::from_millis(150), Duration::from_millis(150)], "the waits the listings asked for");
+        assert_eq!(gate.spent.lock().unwrap().1, Duration::from_millis(300), "what the window was charged");
         // A new window restores the allowance.
-        let fresh = FetchGate::new(Duration::from_millis(150), Duration::from_millis(300), Duration::from_millis(1));
-        std::thread::sleep(Duration::from_millis(250));
+        // A window spent in full, then past its 1 ms (a sleep is never shorter
+        // than asked, so this holds on any machine).
+        let fresh = std::sync::Arc::new(FetchGate::new(Duration::from_millis(150), Duration::from_millis(300), Duration::from_millis(1)));
+        assert_eq!(fresh.allowance(), Duration::from_millis(150));
+        fresh.charge(Duration::from_millis(300));
+        std::thread::sleep(Duration::from_millis(5));
         let before = io.reads.lock().unwrap().len();
-        let _ = list_items_with(&docs, ItemKind::Barchart, MAX_LISTED_ITEMS, &io, &fresh);
+        let _ = listing_that_returns(&docs, &io, &fresh);
         assert_eq!(io.reads.lock().unwrap().len(), before + 1);
+        assert_eq!(requested(&fresh), vec![Duration::from_millis(150)]);
+        io.release_reads(1);
+        until_no_read_in_flight(&fresh);
         let _ = fs::remove_dir_all(&docs);
     }
 
