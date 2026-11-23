@@ -137,21 +137,27 @@ describe('hover and the phone tier', () => {
 // five-class showing rule, so it never applied while its declaration was
 // present. These rows resolve the cascade over every rule that can reach the
 // surface (a chain of class sets, descendant combinators only; a selector this
-// matcher cannot read, such as one with `:is()` or an attribute, is not a
-// candidate, and none of the tools row's own rules has one), under the phone
-// tier, with the container query on and off.
+// matcher cannot read, such as one with a child combinator or `:not()`, is not
+// a candidate, and none of the tools row's own rules has one; the matcher's
+// reach is stated above PLAIN), under the phone tier, with the container query
+// on and off.
 type Chain = readonly (readonly string[])[]
 const PANEL_TOOL: Chain = [
   ['sr-ft-host', 'sr-map-fs-panel'], ['sr-ft-toolbar', 'sr-ctl-row'], ['sr-ft-tools'], ['sr-ft-tool', 'sr-touch-target'],
 ]
 const CAP: Chain = [...PANEL_TOOL, ['cap']]
-// A compound is an optional tag, classes and attribute equalities; a chain
-// element lists its classes, as `<tag>` its tag and as `[a="v"]` its
-// attributes (D-70 added tags, for `.sr-ft-genus b`; D-80 attributes, for
-// `.sr-ft-tab[data-media="on"]`). One `:is(...)` in a selector is expanded
+// A compound is an optional tag, classes, attribute equalities and a closing
+// `:hover`; a chain element lists its classes, as `<tag>` its tag, as `[a="v"]`
+// its attributes and as `:hover` a pointer resting on it (D-70 added tags, for
+// `.sr-ft-genus b`; D-80 attributes, for `.sr-ft-tab[data-media="on"]`; D-86
+// `:hover`, for the family row). One `:is(...)` in a selector is expanded
 // into its alternatives; a selector with a combinator other than descendant,
-// or with `:not(...)`, is not a candidate this matcher can read.
-const PLAIN = /^([a-z][a-z0-9]*)?(\.[a-zA-Z0-9_-]+|\[[a-z-]+="[^"]*"\])*$/
+// or with `:not(...)`, is not a candidate this matcher can read. What covers
+// the rules it skips (the narrow form's child-combinator and `:not()` rules
+// among them) is the rendered result: legs 9 and 10 of
+// `website/tools/verify/verify-family-tree.mjs` measure the rows those rules
+// lay out, in both engines (D-84 R4-2).
+const PLAIN = /^([a-z][a-z0-9]*)?(\.[a-zA-Z0-9_-]+|\[[a-z-]+="[^"]*"\])*(:hover)?$/
 function expandIs(sel: string): string[] {
   const m = /:is\(([^()]*)\)/.exec(sel)
   if (!m) return [sel]
@@ -169,6 +175,7 @@ function matchesOne(sel: string, chain: Chain): boolean {
       ...(tag ? [`<${tag}>`] : []),
       ...[...c.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map(x => x[1]),
       ...[...c.matchAll(/\[[a-z-]+="[^"]*"\]/g)].map(x => x[0]),
+      ...(c.endsWith(':hover') ? [':hover'] : []),
     ]
   }
   const subject = want(compounds[compounds.length - 1])
@@ -299,16 +306,21 @@ const GLANCE_QUERY = /^@container sr-ft-glance \(width >= 16\.5rem\)$/
 const LIST_STACKED_QUERY = /^@container sr-ft-list \(max-width: 50em\)$/
 const LIST_NARROW_QUERY = /^@container sr-ft-list \(width < 15rem\)$/
 type ListWidth = 'wide' | 'stacked' | 'narrow'
-function activeAt(tier: Tier, atRules: readonly string[], glanceWide = false, list: ListWidth = 'wide'): boolean {
+// `@media (hover: hover)` is true only when the resolver is told the device
+// hovers (a mouse or trackpad); a touch screen keeps `:hover` after a tap and
+// does not match it (ui.md v1.0.65).
+const HOVER_MEDIA = /^@media \(hover: hover\)$/
+function activeAt(tier: Tier, atRules: readonly string[], glanceWide = false, list: ListWidth = 'wide', hoverDevice = false): boolean {
   return atRules.every(a => /^@layer/.test(a) || (tier === 'phone' && /max-width:\s*640px/.test(a)) || (glanceWide && GLANCE_QUERY.test(a.trim()))
-    || (list !== 'wide' && LIST_STACKED_QUERY.test(a.trim())) || (list === 'narrow' && LIST_NARROW_QUERY.test(a.trim())))
+    || (list !== 'wide' && LIST_STACKED_QUERY.test(a.trim())) || (list === 'narrow' && LIST_NARROW_QUERY.test(a.trim()))
+    || (hoverDevice && HOVER_MEDIA.test(a.trim())))
 }
-function resolvedAt(chain: Chain, prop: string, tier: Tier, { glanceWide = false, inherit = true, list = 'wide' as ListWidth } = {}): string | null {
+function resolvedAt(chain: Chain, prop: string, tier: Tier, { glanceWide = false, inherit = true, list = 'wide' as ListWidth, hoverDevice = false } = {}): string | null {
   for (let end = chain.length; end > (inherit ? 0 : chain.length - 1); end--) {
     const sub = chain.slice(0, end)
     let best: { spec: [number, number, number]; order: number; value: string } | null = null
     rules.forEach((r, order) => {
-      if (!activeAt(tier, r.atRules, glanceWide, list)) return
+      if (!activeAt(tier, r.atRules, glanceWide, list, hoverDevice)) return
       const value = decl(r.body, prop)
       if (value === null) return
       for (const sel of splitList(r.selector)) {
@@ -489,5 +501,45 @@ describe('the table\'s narrow form under 15rem, and stacking under 50em (D-80)',
     const narrowOpen = rules.findIndex(r => r.selector === '.sr-ft-open' && r.atRules.some(a => LIST_NARROW_QUERY.test(a.trim())))
     expect(phoneShorthand).toBeGreaterThanOrEqual(0)
     expect(narrowOpen).toBeGreaterThan(phoneShorthand)
+  })
+})
+
+// -- The family row's second name on the hover fill (D-83, D-85, D-86) -------------
+// What these rows check: the resolved `color` of a family row's second name,
+// with a pointer resting on the row or not, on a device that hovers or not,
+// both tiers, the list wide, stacked and narrow, the row collapsed and
+// expanded. The contrast itself (4.5:1 on `--sr-surface-subtle`) is measured on
+// the built app by harness leg 10, in both themes and both engines.
+const FAM_SECOND = (row: readonly string[]): Chain => [...TAB_ON, ['<section>', 'sr-ft-order'], ['sr-ft-fblock'], row, ['sr-ft-fname'], ['<span>', 's']]
+const ROW_REST = ['<button>', 'sr-ft-frow']
+const ROW_HOVER = ['<button>', 'sr-ft-frow', ':hover']
+const ROW_HOVER_OPEN = ['<button>', 'sr-ft-frow', '[aria-expanded="true"]', ':hover']
+
+describe('the family row\'s second name takes the muted token on the hover fill (D-86)', () => {
+  const at = (row: readonly string[], tier: Tier, list: ListWidth, hoverDevice: boolean) =>
+    resolvedAt(FAM_SECOND(row), 'color', tier, { list, inherit: false, hoverDevice })
+  it('a pointer resting on the row, collapsed or expanded: muted, at every list width on both tiers', () => {
+    for (const tier of ['desktop', 'phone'] as const) for (const list of ['wide', 'stacked', 'narrow'] as const) {
+      expect(at(ROW_HOVER, tier, list, true), `${tier} ${list}`).toBe('var(--sr-text-muted)')
+      expect(at(ROW_HOVER_OPEN, tier, list, true), `${tier} ${list} open`).toBe('var(--sr-text-muted)')
+    }
+  })
+  it('at rest, and on a touch screen that keeps :hover after a tap: the gray it always had', () => {
+    for (const tier of ['desktop', 'phone'] as const) for (const list of ['wide', 'stacked', 'narrow'] as const) {
+      expect(at(ROW_REST, tier, list, true), `${tier} ${list} rest`).toBe('var(--sr-text-gray)')
+      expect(at(ROW_HOVER, tier, list, false), `${tier} ${list} touch`).toBe('var(--sr-text-gray)')
+    }
+  })
+  it('the hover look is two rules, both inside @media (hover: hover), and touches only the fill and the second name', () => {
+    const hovered = rules.filter(r => splitList(r.selector).some(sel => /\.sr-ft-frow:hover\b/.test(sel)))
+    expect(hovered.map(r => r.selector).sort()).toEqual(['.sr-ft-frow:hover', '.sr-ft-frow:hover .sr-ft-fname .s'])
+    for (const r of hovered) expect(r.atRules.map(a => a.trim()), r.selector).toEqual(['@media (hover: hover)'])
+    const props = (body: string) => body.split(';').map(d => d.split(':')[0].trim()).filter(Boolean)
+    expect(props(hovered.find(r => r.selector === '.sr-ft-frow:hover')!.body)).toEqual(['background'])
+    expect(props(hovered.find(r => r.selector !== '.sr-ft-frow:hover')!.body)).toEqual(['color'])
+  })
+  it('the matcher can fail: a hover rule does not reach a row the pointer is not on', () => {
+    expect(matches('.sr-ft-frow:hover .sr-ft-fname .s', FAM_SECOND(ROW_REST))).toBe(false)
+    expect(matches('.sr-ft-frow:hover .sr-ft-fname .s', FAM_SECOND(ROW_HOVER))).toBe(true)
   })
 })

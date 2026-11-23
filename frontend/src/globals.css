@@ -6973,6 +6973,9 @@ select:focus-visible {
 .sr-ft-mline { display: none; }
 @media (hover: hover) {
   .sr-ft-frow:hover { background: var(--sr-surface-subtle); }
+  /* The second name's gray reads 4.40:1 (light) and 4.35:1 (dark) on the
+     hover fill; the muted token reads 4.80:1 and 5.81:1 there (D-83, D-85). */
+  .sr-ft-frow:hover .sr-ft-fname .s { color: var(--sr-text-muted); }
 }
 /* An opened family: genera, each over its species. Rows a press adds fade in
    from 4px above over 180ms (the Life Lists rule); a re-sort is instant. */
