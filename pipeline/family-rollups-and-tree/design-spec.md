@@ -37,7 +37,7 @@ There is one width query and one measured threshold. Nothing else decides layout
 - The still tier is a window width, not a device and not a text size. A desktop window dragged to 640 px or under gets it. A phone in landscape wider than 640 px does not.
 - The form (columns or outline) is chosen by the box's own width through `formFor`, so full screen can change it: at 150% text on a 1440 px window the page box is an outline and the full-screen box is columns. State is kept across that change (section 9.6).
 - The mockup bar's "Narrow tree: Columns" choice is a comparison that was not taken. Only the outline is built for the narrow form.
-- Inside the still tier three things follow a width in rem, so that large text counts as a narrow window: the headline's form (three-up from 16.5rem of its wrapper, one column below, section 5), the full-screen tools' captions (section 10.3) and the full-screen readout's form (section 10.3). None of them is a second window breakpoint.
+- Inside the still tier four things follow a width in rem, so that large text counts as a narrow window: the headline's form (three-up from 16.5rem of its wrapper, one column below, section 5), the full-screen tools' captions (section 10.3), the full-screen readout's form (section 10.3) and the table rows' narrow form (the list narrower than 15rem, section 11). None of them is a second window breakpoint.
 
 ## 3. The tab in the shell
 
@@ -493,15 +493,96 @@ The app's `ChartViewTip`, with `page="family-tree"` and its body and accessible 
 
 Hover: `--sr-surface-subtle`, inside `@media (hover: hover)`. Focus: the global ring, inset 3 px.
 
-**An opened family** (`.sr-ft-open`, conditionally rendered, on `--sr-surface-faint`, indented to the name column): for each genus a line with its leading name at 600 (italic when it is the scientific name), the second name after it in Both, and "{n} species"; then its species, each a row with `<BirdName>` and the media cell, divided by `--sr-border`. `<BirdName>` takes `showSci` in Both, neither in Common, and `lead="scientific"` in Scientific (D-30).
+**An opened family** (`.sr-ft-open`, conditionally rendered, on `--sr-surface-faint`, indented to the name column except in the narrow form below): for each genus a line with its leading name at 600 (italic when it is the scientific name), the second name after it in Both, and "{n} species"; then its species, each a row with `<BirdName>` and the media cell, divided by `--sr-border`. `<BirdName>` takes `showSci` in Both, neither in Common, and `lead="scientific"` in Scientific (D-30).
 
-**Long names in an opened family** (decided 2026-11-23, on D-70). The genus line and the species name carry `overflow-wrap: anywhere` (`.sr-ft-genus`, `.sr-ft-sp .sr-birdname`), so a name wider than its row breaks inside the word and can never run past the row. This is accepted as built. Its one visible cost is a single letter carried to a second line where a word is a few pixels wider than the row: measured in Inter at 320 px and 200% text only ("Campylorhamphus" carries its "s", each "Laughingthrush" its "h"); in SF nothing moves at any width. No rule that avoids the lone letter is taken, because each one costs more than it buys:
+**The narrow form of the rows** (decided 2026-11-23 on D-78, which withdraws the acceptance this paragraph recorded earlier the same day). Where the list is narrower than 15rem, the species row, the opened block and the family row take a form of their own, so that a name breaks at a space or a hyphen, and inside a word only when that one word is wider than the whole row. The switch is one container query on the list's own width in rem, so large text counts as a narrow list, as the headline's switch does (section 5). It is not a window breakpoint and it never matches at 100% text: the list is 16.875rem in a 320 px window.
 
-- Hyphenation (`hyphens: auto`) depends on the engine and its dictionary, cannot be held to one result across WebKit, Chromium 111 and WebView2, and would still need this rule behind it.
-- `text-wrap: balance` or `pretty` is not in the app's engine floor.
-- Releasing the block's indent at that size would move every row of the block in SF as well, at a size where nothing is wrong in SF.
+*What was wrong.* Measured on main at `380632de`, at 320 px and 200% text with a media export loaded. The list is 270 px. The opened block's hanging indent takes 56 px of it (12 px, 1rem and 12 px, and the rem has doubled), its right padding 12 px, the column gap 14 px, and the media track 80 px (`max(46px, 2.5rem)`) for three glyphs that are 44 px wide together and do not grow with the text. The name keeps 108 px, 40% of the list, and 36 px of the track stands empty beside it. Giving the name that free width is not enough on its own. Species of the bundled taxonomy (11,201) holding a word wider than the name's width at that size, counted from the measured width of every distinct word in the app's own fonts:
 
-What would reverse it: a user reports the lone letter, or the app comes to draw Inter on a shipped platform. The fix then, and where: in the tab's block of `globals.css`, `@container sr-ft-list (width < 9rem) { .sr-ft-open { padding-left: 12px; } }`, which gives the row back the chevron column's indent (1rem plus 12 px, 44 px at 200%) only where the list is narrower than 9rem, which is a 320 px window at 200% text and nothing wider. That rule is written from the measured widths (a 207.45 px word in a 202 px row) and has not been tried in a browser. `overflow-wrap: anywhere` stays behind it.
+| The name's width at 320 px and 200% | SF: Common, Both, Scientific | Inter: Common, Both, Scientific |
+|---|---|---|
+| As built, 108 px | 5,082, 8,416, 9,436 | 7,015, 9,871, 10,178 |
+| The media track at the marks' own width, 144 px | 1,029, 1,926, 4,411 | 1,624, 3,672, 6,070 |
+| That and the indent released, 188 px | 67, 83, 415 | 85, 177, 1,032 |
+| The whole row, 246 px | 0, 0, 2 | 0, 0, 18 |
+
+So the marks leave the name's line, and the name takes the row.
+
+*The species row, with media marks* (`data-media="on"`). Top to bottom: the name on the row's whole width; the second name (Both only); one line of marks, the two link marks at its left end and the media marks at its right end. Every row has the same parts in the same places whatever the length of its name. Nothing is removed, renamed or resized: the name's link, the two link marks with their names and their 24 px targets, the second name, the media cell with its accessible name, and the row's least height of 2.75rem all stand.
+
+*The species row, without media marks* (`data-media="off"`). `<BirdName>` keeps its own form, the two link marks after the name and the second name beneath, which already gives the name the whole row. Only the indent changes.
+
+*The opened block.* Left padding 12 px, the tier's side padding, in place of the hanging indent. The block's tint and top rule still set it under its family. The genus line and the family's link line gain the same width and are otherwise as they were.
+
+*The family row.* The chevron's column is the chevron's own 14 px with an 8 px gap, in place of 1rem and 12 px, and the chevron is centered on the name's first line at any text size. A name whose longest word does not fit beside the chevron takes the next line whole, at the row's full width, with the chevron left alone on the first line. The figures, the bar and the media line keep a 22 px hanging indent.
+
+```css
+/* In the tab's block of globals.css, AFTER the still tier's rules for this tab
+   (the tier sets .sr-ft-open's padding as a shorthand; this padding-left must come later). */
+@container sr-ft-list (width < 15rem) {
+  .sr-ft-open { padding-left: 12px; }
+
+  .sr-ft-tab[data-media="on"] .sr-ft-sp { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 1px; align-content: center; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp :is(.sr-birdname, .sr-birdname-row) { display: contents; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp :is(.sr-birdname-link, .sr-birdname-text) { grid-column: 1 / -1; justify-self: start; min-width: 0; max-width: 100%; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp .sr-birdname-sci { order: 1; grid-column: 1 / -1; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp .sr-birdname-row > :not(.sr-birdname-link, .sr-birdname-text, .sr-birdname-trail) { order: 2; grid-column: 1; justify-self: start; position: relative; left: -6px; margin-top: 6px; }
+  .sr-ft-tab[data-media="on"] .sr-ft-sp .sr-lfl-media { order: 3; grid-column: 2; margin-top: 6px; }
+
+  .sr-ft-frow,
+  .sr-ft-tab[data-media="off"] .sr-ft-frow { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: 8px; }
+  .sr-ft-rowchev { flex: none; margin-top: calc((0.84375rem * 1.4 - 14px) / 2); }
+  .sr-ft-fname { flex: 1 1 auto; width: min-content; max-width: 100%; }
+  .sr-ft-fname .n, .sr-ft-fname .s { overflow-wrap: break-word; }
+  .sr-ft-frow > :not(.sr-ft-rowchev, .sr-ft-fname) { flex: 0 0 calc(100% - 22px); margin-left: 22px; min-width: 0; }
+}
+```
+
+This is the rule that was tried, injected as a stylesheet into the build of `380632de`; no product file was changed for the trial. Notes for the build:
+
+- **No markup changes.** `display: contents` is put on `<BirdName>`'s two wrapper spans, neither of which has a role or a name, so the name's button, the marks, the second name and the media cell become the row's own grid items. The document order is untouched, so the reading order and the tab order are what they were: the name, eBird, Birds of the World, the second name, the media cell. Only the second name is drawn above the marks line, and it takes no focus.
+- **The link marks' wrapper** has no class and carries an inline `margin-left: 6px`; the selector reaches it as the name row's child that is not the name, and `left: -6px` lines the first mark up with the name's left edge. A class on that wrapper would read better, at the price of a change to the shared component's markup. The Engineer chooses.
+- **`overflow-wrap: anywhere` stays** on the species name, the second name and the genus line as the last resort that makes overflow impossible. On the family name it becomes `break-word` inside this query only, because `width: min-content` must mean the longest word for the flex line to decide whether the name fits beside the chevron; it still breaks a word wider than the row.
+- **The row's rule lines.** `width: min-content` with `flex: 1 1 auto` gives the name the longest word as its starting size and lets it grow to fill the line; `min-width: 0` is already on `.sr-ft-fname`.
+- **Engines.** A size container query with the range form (already used by the tools row), `display: contents` on plain spans, `:is()` and `min-content` are all inside the app's floor (Chromium 111 and the WebKit the tab already needs for its container queries).
+
+*Where it shows.* On the still tier the list is the window less 50 px.
+
+| In-app text | The narrow form shows in windows narrower than | Phones in portrait that get it |
+|---|---|---|
+| 100% | never (the list would have to be under 240 px) | none |
+| 125% | 350 px | 320 px wide |
+| 150% | 410 px | 320 to 402 px wide |
+| 200% | 530 px | all |
+
+*Why 15rem.* Two limits, both measured. It has to stay under 16.875rem, the list at 320 px and 100%, which the user approved in the wide form; 15rem leaves 30 px of room. And it has to be high enough that the wide form never needs a mid-word break: beside the marks the name has the list less 3.5rem and 50 px from 125% text up (the indent, the right padding, the gap and the media track), which at a list of 15rem is 9rem at 125%, 9.42rem at 150% and 9.94rem at 200%, and the widest single word the bundled taxonomy can put in a species row is 8.63rem (Inter, the scientific name leading; 8.02rem in SF). At 100% and 320 px the name has 9.875rem. So wherever the wide form shows, every word of the taxonomy fits beside the marks, and wherever one might not, the narrow form shows.
+
+*What can still break inside a word* (measured, in Chromium and WebKit, which agree to 0.01rem). The row is 246 px at 320 px and 200%, 7.6875rem. No word of the taxonomy is wider than that in the Common or the Both state, in either face, in any row of the table. In the Scientific state, where the scientific name leads at the larger size:
+
+| | SF | Inter |
+|---|---|---|
+| Species (of 11,201) | 2: *Stilpnia meyerdeschauenseei*, *Empidonomus aurantioatrocristatus* | 18, through 11 words: those two, *Pseudocalyptomena*, *Kurochkinegramma*, *promeropirhynchus*, *Sylviorthorhynchus*, *margaritaceiventer*, *Campylorhamphus*, *cinnamomeiventris*, *Catamblyrhynchus*, *cinnamomeipectus* |
+| Families (of 250) | 1: Machaerirhynchidae | 2: Machaerirhynchidae, Onychorhynchidae |
+| Orders (of 45) | 1: Phoenicopteriformes | 2: Phoenicopteriformes, Opisthocomiformes |
+
+Each of these is one word wider than the whole row, the one case D-78 leaves to `overflow-wrap`. All of them fit from a 351 px window at 200% (331 px in SF), and at 150% and below in a 320 px window.
+
+*What it costs.*
+
+- **Height.** With media marks, every row is three lines where the name fits on one. Against the build of `380632de` on the demo roster with every family open, the opened blocks are shorter wherever names used to fold: 0.67 of their height at 320 px and 200% (Both), 0.81 at 390 px and 200%, 0.83 at 320 px and 150%. They are slightly taller in two places where nothing was broken: 1.07 at 390 px and 150% (Both) and 1.05 at 480 px and 200% (Both). In Common and Scientific they are never taller. Without media marks they are never taller at any size tried.
+- **A lone chevron.** A family whose longest word does not fit beside the chevron shows the chevron on a line of its own above the name, whole. At 320 px and 200%, of the asset's 250 families: in Common and Both, none in SF and one in Inter ("Laughingthrushes and Allies"); in Scientific, 3 in SF (Phalacrocoracidae, Onychorhynchidae, Machaerirhynchidae) and 13 in Inter.
+- **Containment.** `.sr-ft-open` keeps `contain: layout paint`. With the indent released, the focus ring of the first link mark (3 px ring, 3 px offset) ends 1 px inside the block's left edge, whole, in both engines at 320 px and 200%, 320 px and 125%, and 390 px and 150% (6 px inside without media marks); every other stop of the species rows has more room. The family link's ring at the block's top edge is a separate, older matter (section 18).
+- **Expand all.** The rows arrive in the same steps of 75 and 150 as before, and each step adds less height where the rows are shorter. Timed on the generated roster's 1,401 rows with nothing else running, twice each: in WebKit 0.94 and 0.96 s as built against 1.00 and 0.91 s with the rule at 320 px and 200%, and in Chromium 0.49 s against 0.49 s, with the longest frame the same (about 95 ms in WebKit, 57 ms in Chromium). The whole list at 320 px and 200% goes from 495,364 px tall to 328,508 px; at 390 px and 150% from 219,184 to 217,996 px; at 390 px and 100% it is 141,180 px both ways.
+
+*What a harness leg asserts* (a new leg beside the table's, with the face asked for and proven):
+
+1. With every family open and a media export loaded, at 320, 360, 390 and 430 px, at 125%, 150% and 200%, in the three Names states: no species name, second name, family name, genus name or order name breaks between two letters (the letter before the break is not a space, a hyphen or a slash) unless that word, measured alone in the element's own font, is wider than the content width of its row (`.sr-ft-sp`, `.sr-ft-frow`, `.sr-ft-genus`, `.sr-ft-oband`).
+2. On a roster that holds the long words (a laughingthrush, a scythebill, Green-capped Tanager, Crowned Slaty Flycatcher, a boatbill, a flamingo): at 320 px and 200% in Common and Both nothing breaks inside a word; in Scientific exactly the words wider than the row do.
+3. In the same configurations: the page does not scroll sideways; in no species row does the name, the second name, a link mark's slot or the media cell overlap another or leave the row; every row has its media cell with an accessible name and both link marks with theirs, each mark's target at least 24 px.
+4. At 100% text, at every width from 320 px, the narrow form is off (`.sr-ft-sp .sr-birdname` does not compute to `display: contents`, the family row is a grid), and the box-by-box comparison with the previous build finds nothing moved.
+5. Under `--expect-broken`, the built form forced back (`.sr-ft-sp { grid-template-columns: minmax(0, 1fr) max(46px, 2.5rem) !important } .sr-ft-sp .sr-birdname { display: inline-flex !important } .sr-ft-open { padding-left: calc(12px + 1rem + 12px) !important }`) fails row 1.
+
+*How it was tried.* `frontend/dist` of `380632de` served on loopback from the scratchpad, the demo export and its media export answered by the probe (and a generated roster of every eighth species of the asset, 1,401 species in 177 families across every order), every write refused, no outside host reached, the candidate injected as a stylesheet, Inter served from the scratch face folder and each page's face proven by the width test. On the demo roster, 504 configurations with the candidate at 125% to 200% (seven widths from 320 to 480 px, three Names states, with and without a media export, SF and Inter, Chromium and WebKit): in the 288 where the narrow form shows, no name of any kind breaks inside a word, no text or mark overlaps another, no page scrolls sideways, and every mark is present and named; in the 216 where it does not show, no box moved. On the generated roster, 144 configurations: the only breaks left are the words of the table above. At 100% text nothing moved: 408 configurations and 1,397,468 boxes on the demo roster (seventeen widths from 320 to 1440 px, three Names states, with and without a media export, both faces, both engines), and 36 configurations and 1,050,936 boxes on the generated roster. Pictures, now beside proposed: `qa/d2-*.png`.
 
 **The family's outside link, in the opened family** (added 2026-11-22 for NFR-07 and QA-79; the family's Birds of the World link was in the tree's readout only). The table carries the same link the readout does, as the first line of the opened family block, above the first genus line. It is never inside the family row, which stays one disclosure `Button` with no interactive content in it.
 
@@ -520,6 +601,14 @@ What would reverse it: a user reports the lone letter, or the app comes to draw 
 **Footer** (`.sr-ft-tablefoot`): the two footer lines of section 9.10, the first without its button.
 
 **Stacked** (the list narrower than 44em, which includes the still tier): the header is not shown; a family row is the chevron beside a stack of name, seen with its bar, and one media line of three glyph and count pairs, each with its words for assistive technology ("{n} species photographed,").
+
+**The stacking threshold: 44em is too low. Proposed 50em, waiting for the user's yes because it changes 100% text** (found 2026-11-23 while measuring the narrow form; the 44em is this spec's own figure). With a media export the column form's fixed tracks (1rem, 12.5rem and three of 6.75rem), its five 16 px gaps and its 36 px of padding take 33.75rem and 116 px, so at a list of 44em and 100% text the family name's column is 48 px wide, and names break inside words until the list is about 50em. Measured on main at `380632de` at 100% text, in both engines and both faces: in windows from 815 to 905 px and from 971 to 1066 px wide (the two stretches where the list is over 44em and at most 50em; the side menu widens at 906 px), family names break inside a word, for example "Pheasant / s, Grouse, / and Allies", "Humming / birds" and "Caprimulgid / ae" at 834 px, 62 of the demo roster's 90 family name lines at 820 px. Those widths include current iPads held upright (820, 834, 1024 and 1032 px). Without a media export the column form has room and nothing breaks.
+
+- **The change.** One number: `@container sr-ft-list (max-width: 44em)` becomes `(max-width: 50em)`, here, in section 2 and in the component's comment. Rows stay stacked until the list is wider than 50em, which is a 1067 px window at 100% text, where the name's column is 145 px, 9.06rem (measured), against the widest family word of 8.42rem (Machaerirhynchidae in Inter, leading).
+- **What it moves.** At 100% text the table changes from columns to stacked rows in exactly those two stretches of window width, and nowhere else: outside them no box moved (225 configurations per face and engine on the demo roster, sampled every 7 px from 641 to 1100 px and every 40 px to 1440 px, three Names states). At 125% the stretch is windows of about 1204 to 1318 px and at 150% about 1434 to 1571 px; at 200% the list did not reach 44em in any window tried, up to 2880 px.
+- **Counts.** Family name lines broken inside a word, summed over those 225 configurations at 100%: 881 as built in SF and 889 in Inter on the demo roster (4,036 and 4,076 on the generated roster), none with 50em, in both engines.
+- **Tried** as an injected stylesheet that adds the stacked rules to the band between 44em and 50em. Pictures: `qa/d2-found-columns-834-100pct-webkit-sf.png` and `qa/d2-found-columns-1024-100pct-webkit-sf.png`.
+- Until the user says yes, the build stays at 44em and this defect stands at those widths.
 
 ## 12. Loading, empty, error, media-less and not-placed states
 
@@ -566,7 +655,7 @@ Focus rings and the field halo are the global rules. No pure black and no untoke
 ## 14. Touch targets, text size and reduced motion
 
 - **Touch targets, still tier:** every control in the strip, the view bar and the toolbar is at least 2.75rem tall (`.sr-touch-target` and the tier's rules); tool cells are 3rem; the opener is 2.75rem; a table family row is at least 2.75rem; region and find options are at least 2.75rem. Tree rows at full zoom are 2.125rem, or 2.75rem in Both; they are diagram items, not controls, and every action on one has a toolbar, readout or keyboard path.
-- **Text size:** every length that holds text is in rem, so the layout follows the in-app text scale. At 150% and 200% in a window wider than 640 px the tree takes the outline form live in the page, the box is never taller than the window, and the toolbar wraps. No page scrolls sideways at 320 px and 200%, in either view (checked on the mockup). The table is the full equivalent of the tree for a reader at 320 px and 200%. On the still tier the headline goes from three columns to one where its wrapper is narrower than 16.5rem, so no count is ever drawn over another and no label breaks inside a word (section 5).
+- **Text size:** every length that holds text is in rem, so the layout follows the in-app text scale. At 150% and 200% in a window wider than 640 px the tree takes the outline form live in the page, the box is never taller than the window, and the toolbar wraps. No page scrolls sideways at 320 px and 200%, in either view (checked on the mockup). The table is the full equivalent of the tree for a reader at 320 px and 200%. On the still tier the headline goes from three columns to one where its wrapper is narrower than 16.5rem, so no count is ever drawn over another and no label breaks inside a word (section 5). In the table, where the list is narrower than 15rem the rows take their narrow form, so a name breaks inside a word only when that one word is wider than the whole row (section 11).
 - **Reduced motion:** every transition and animation below collapses under the global `prefers-reduced-motion` block. A scroll that brings a node or the box into view uses `behavior: 'auto'` when reduced motion matches at that moment.
 
 ## 15. Motion spec
@@ -598,7 +687,8 @@ All motion is CSS; no library is added. Zoom, pan, fit, a filter change and a re
 | The mockup's level-of-detail walk | Schema 11.4's clamp and guards | The mockup lays out every child of a visited branch; the build may search the slot range. The look is section 9.4 |
 | Computed positions | Inline position values, or custom properties, on the plane's own elements | They are geometry from data, as a chart's marks are. No responsive behavior lives in an inline style |
 | The headline on the still tier | This spec, section 5 | The mockup draws only the three-up form and was never looked at above 100% text on a phone with a four-digit count. The mockup is not changed |
-| A long name's lone letter in an opened family | This spec, section 11: accepted as built | D-70's rule cannot overflow; the alternatives cost more than the lone letter at one size in one face |
+| Names breaking inside a word in the table | This spec, section 11: the narrow form of the rows | D-78 withdrew the acceptance of D-73(b). `overflow-wrap` stays only as the last resort for a single word wider than the whole row |
+| The table's stacking threshold | 44em as built, until the user answers section 11's proposal of 50em | The change moves 100% text at tablet widths, which the user approved as it stands without having been shown the broken names there |
 | The mockup's data | Not built | Media figures, the two escapees and the state-level Region list are inventions of the mockup |
 
 ## 17. Copy rules and the strings
@@ -626,6 +716,8 @@ No em dashes, American spelling, the serial comma, tab names from `TAB_LABELS`, 
 
 Not checked on the mockup, and owed a look in the built app before the deploy gate:
 
+- **The table rows' narrow form on a real phone** at 150% and 200% text (section 11): the look of the marks line under a thumb, and the lone chevron in the Scientific state. It was tried only in the test browsers.
+- **The family link's focus ring on the still tier** (found 2026-11-23 on main at `380632de`, not part of the narrow form and not changed by it): the link starts 1 px under the opened block's top edge, so the block's paint containment cuts the top 5 px of its ring (a 3 px ring at a 3 px offset) at 390 px and 100% and at 320 px and 200%; the sides and the bottom show. A fix that moves nothing, not yet tried in a browser: on the still tier give the link 6 px of side padding with a matching negative side margin and draw its ring inside (`outline-offset: -3px`), as the family row does.
 - **Touch pinch** on a real touch screen, and the **trackpad pinch in WebKit** (both are wired in the mockup; neither could be driven from the test browsers).
 - **Real devices:** the top and side safe-area insets of the panel, the readout's bottom inset over the home indicator, and the Android inset twins. The mockup simulates only a 34 px home indicator.
 - **The focus trap** in full screen. The mockup has Escape and Exit and no trap; the hook supplies it.
