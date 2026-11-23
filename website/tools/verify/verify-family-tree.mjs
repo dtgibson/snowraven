@@ -47,7 +47,10 @@
 //      inside its own tile: at 320px and 100% a five-digit count is 2px past
 //      its column by design, in the gap.
 //   7. FIND BESIDE EXIT in the phone full screen at 320 and 390px and the four
-//      text scales (design-spec 10.3, D-73(c)): Find shares Exit's row.
+//      text scales (design-spec 10.3, D-73(c)): Find shares Exit's row, with
+//      the longest-named family selected (the readout at its tallest), and at
+//      150% and 200% the tree's box holds at least BOX_SHARE_FLOOR of the
+//      panel.
 //   8. THE STILL'S FIGURES WHOLE at 320 and 390px and the four text scales
 //      (design-spec 10.1, D-73(c)): the still's plane is no wider than its box
 //      and every drawn figure lies inside the box.
@@ -162,8 +165,11 @@ const FIVE_CSV = [HEADER, ...FIVE_DIGIT.map(([cn, sci], i) => [
   `S9${String(Math.floor(i / 10)).padStart(9, '0')}`, cn, sci, String(i), '1', 'US-NY', 'Kings', 'L100001', 'Prospect Park', '40.66', '-73.97',
   `20${10 + (i % 15)}-0${1 + (i % 9)}-1${i % 10}`, '07:15 AM', 'Traveling', '60', '1', '1.2', '', '1', '', '', '', '',
 ].map(q).join(','))].join('\n') + '\n'
-/** The demo export the website's pictures are made from (synthetic, S9 ids). */
-const DEMO_CSV = readFileSync(join(ROOT, 'website/tools/demo-data/ebird-backup.csv'), 'utf8')
+/** The demo export the website publishes (synthetic, S9 ids): the TRACKED copy
+ *  under website/demo/, which the frontend's suites read too. Never
+ *  website/tools/demo-data/, which is gitignored, so a clone and GitHub's
+ *  runner have none (family-rollups-and-tree D-77, the Auditor's N-1). */
+const DEMO_CSV = readFileSync(join(ROOT, 'website/demo/snowraven-demo-ebird-backup.csv'), 'utf8')
 /** What the stub serves as the backup; a leg that needs another roster sets it before opening a page. */
 let servedCsv = CSV
 
@@ -809,11 +815,36 @@ async function headlineLeg(name, browser, base, pass) {
 
 // Leg 7 ------------------------------------------------------------------------
 
+/** The tree's box as a share of the full-screen panel (%), with a family
+ *  selected, at 150% and 200% text. The floor comes from the Tester's round 5
+ *  readings (family-rollups-and-tree D-75): the least was 28.9% at 320px and
+ *  200% in Inter, against 19.9% on the build before Find's 4rem basis
+ *  (be2c667a), when Find dropped under Exit and the toolbar grew. With the
+ *  longest-named family selected here the least reads 28.5% (320px, 200%,
+ *  Inter and SF alike), so 27% keeps 1.5 points of margin under it (D-77). */
+const BOX_SHARE_FLOOR = 27
+/** The roster's family whose readout is tallest: the longest common and
+ *  scientific names together (Timaliidae, 54 characters, on every 8th
+ *  species of the asset). */
+const TALLEST_FAMILY = 'Tree-Babblers, Scimitar-Babblers, and Allies'
+
 async function findLeg(name, browser, base, pass) {
   const { ctx, page } = await open(browser, base, { width: 390, height: 844 }, { css: (MODE === 'broken' ? BREAK_FIND : '') + pass.css })
   await showView(page, 'Tree')
   await openFullScreen(page)
   await assertFace(7, page, name, 'full-screen toolbar', pass, '#panel-family-tree .sr-ft-host.sr-map-fs-panel .sr-ft-fsbtn')
+  // The family with the longest names on this roster selected through Find, so
+  // the readout takes its tallest form (its height follows the name's lines).
+  const find = page.locator('#panel-family-tree .sr-ft-host.sr-map-fs-panel .sr-ft-find [role="combobox"]')
+  await find.fill(TALLEST_FAMILY)
+  await page.waitForSelector('#panel-family-tree .sr-ft-host.sr-map-fs-panel [role="option"]', { timeout: 10_000 })
+  await find.press('Enter')
+  await page.waitForTimeout(400)
+  const selected = await page.evaluate(() => {
+    const t = document.querySelector('#panel-family-tree .sr-ft-host.sr-map-fs-panel [role="tree"]')
+    const a = t.getAttribute('aria-activedescendant')
+    return a ? document.getElementById(a)?.getAttribute('aria-label') ?? null : null
+  })
   const rows = []
   for (const w of [320, 390]) {
     await page.setViewportSize({ width: w, height: 844 })
@@ -834,9 +865,14 @@ async function findLeg(name, browser, base, pass) {
       rows.push(`${w}px/${s * 100}%: Find ${f.sameRow && f.beside ? 'beside' : 'BELOW'} Exit, ${f.findW}px, box ${f.boxShare}% of the panel`)
       check(7, `${name} [${pass.id}] Find beside Exit ${w}px ${s * 100}%`, f.sameRow && f.beside,
         `same row ${f.sameRow}, right of Exit ${f.beside}, Find ${f.findW}px wide, the tree's box ${f.boxShare}% of the panel`)
+      if (s >= 1.5) {
+        check(7, `${name} [${pass.id}] the tree's box holds ${BOX_SHARE_FLOOR}% of the panel, a family selected, ${w}px ${s * 100}%`,
+          selected !== null && selected.startsWith(`Family, ${TALLEST_FAMILY}`) && f.boxShare >= BOX_SHARE_FLOOR,
+          `selected ${selected ?? 'nothing'}, the tree's box ${f.boxShare}% of the panel (floor ${BOX_SHARE_FLOOR}%)`)
+      }
     }
   }
-  console.log(`MEASURE ${name} [${pass.id}] full-screen toolbar ${rows.join('; ')}`)
+  console.log(`MEASURE ${name} [${pass.id}] full-screen toolbar, ${selected ?? 'nothing'} selected: ${rows.join('; ')}`)
   await ctx.close()
 }
 
@@ -903,10 +939,10 @@ let passCount = 0
 // Per engine: leg 1 eight presses, leg 2 eight settings per face, leg 3 six
 // checks at each of four scales plus two on the desktop, leg 4 eight settings
 // per face, leg 5 four checks for each of two faults, leg 6 two rosters at five
-// widths and four scales per face, legs 7 and 8 two widths and four scales per
-// face. The text legs' counts are
+// widths and four scales per face, leg 7 two widths and four scales plus its
+// four box floors per face, leg 8 two widths and four scales per face. The text legs' counts are
 // set once the faces each engine offers are known (below).
-const PER_ENGINE = [8, 8, 26, 8, 8, 2 * HEADLINE_WIDTHS.length * 4, 8, 8]
+const PER_ENGINE = [8, 8, 26, 8, 8, 2 * HEADLINE_WIDTHS.length * 4, 12, 8]
 const EXPECTED = PER_ENGINE.map(() => 0)
 try {
   for (const [name, engine] of ENGINES) {
