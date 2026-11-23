@@ -45,3 +45,7 @@ fdroid/tenInchScreenshots/5.png	fastlane/metadata/android/en-US/images/tenInchSc
 fdroid/tenInchScreenshots/6.png	fastlane/metadata/android/en-US/images/tenInchScreenshots/6.png
 fdroid/phoneScreenshots/5.png	fastlane/metadata/android/en-US/images/phoneScreenshots/5.png
 fdroid/phoneScreenshots/6.png	fastlane/metadata/android/en-US/images/phoneScreenshots/6.png
+appstore/raw/ipad-13/03-weather-tide.png	appstore/screenshots/raw/ipad-13/03-weather-tide.png
+appstore/ipad-13/03-weather-tide.png	appstore/screenshots/ipad-13/03-weather-tide.png
+appstore/raw/iphone-duo/03-weather-tide.png	appstore/screenshots/raw/iphone-duo/03-weather-tide.png
+appstore/iphone-duo/03-weather-tide.png	appstore/screenshots/iphone-duo/03-weather-tide.png
