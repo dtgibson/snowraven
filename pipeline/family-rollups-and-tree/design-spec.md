@@ -37,6 +37,7 @@ There is one width query and one measured threshold. Nothing else decides layout
 - The still tier is a window width, not a device and not a text size. A desktop window dragged to 640 px or under gets it. A phone in landscape wider than 640 px does not.
 - The form (columns or outline) is chosen by the box's own width through `formFor`, so full screen can change it: at 150% text on a 1440 px window the page box is an outline and the full-screen box is columns. State is kept across that change (section 9.6).
 - The mockup bar's "Narrow tree: Columns" choice is a comparison that was not taken. Only the outline is built for the narrow form.
+- Inside the still tier three things follow a width in rem, so that large text counts as a narrow window: the headline's form (three-up from 16.5rem of its wrapper, one column below, section 5), the full-screen tools' captions (section 10.3) and the full-screen readout's form (section 10.3). None of them is a second window breakpoint.
 
 ## 3. The tab in the shell
 
@@ -86,7 +87,60 @@ Still tier: Region takes the first line whole; every control is at least 2.75rem
 - the count (headline figure), the label ("SPECIES", "FAMILIES", "ORDERS") in the label register with `--sr-text`, then "of **{world}** in the world" and the share at the right, both in the note register;
 - a 5 px bar (`--sr-surface-subtle` track, `--sr-accent` fill, radius 3, `aria-hidden`), its width from the two integers. A zero count draws no fill.
 
-On the still tier the three tiles sit in three equal columns and each stacks: label, count, denominator, share, bar.
+**The headline on the still tier** (amended 2026-11-23 for QA-79, NFR-07 and FR-36; it read "three equal columns" with no rule for when they cannot hold their figures, and a four-digit count was drawn over the next tile's count at large text). It has two forms there, and which one shows follows the headline's own width in rem, so it answers the text size as well as the window. There is no two-up form: three tiles in two columns leave one alone.
+
+- **The container.** The `<dl>` gains a wrapper, `<div class="sr-ft-glance-wrap">`, with `container-type: inline-size; container-name: sr-ft-glance; min-width: 0`. Its width is the card's inner width. It exists on every tier and nothing queries it outside the still tier's block.
+- **Three-up, where the wrapper is 16.5rem or wider.** The form the user approved, unchanged: three equal columns (`repeat(3, minmax(0, 1fr))`), gap 12px 14px, padding 14px 12px 12px; each tile stacks label (0.6875rem / 600, `--sr-text-muted`), count (1.375rem / 700), denominator, share, bar.
+- **One column, where the wrapper is narrower than 16.5rem.** One tile per row, left aligned, 12 px between tiles, the same padding. Each tile takes the wide tier's own tile form at the still tier's count size: the count (1.375rem / 700) and its label (0.6875rem / 700, `--sr-text`) on one baseline 8 px apart; then "of **{world}** in the world" with the share at the row's right end (`flex: 1 1 8rem`, `justify-content: space-between`); then the bar, full width, 5 px tall, 4 px below. The tile is a wrapping row, so a part that does not fit beside the one before it moves to a line of its own whole: the label under the count, the share under the denominator. Nothing breaks inside a word, and every figure keeps its words.
+- **Type.** No size changes in either form.
+
+Where each form shows, at the app's four text sizes: a 320 px window is three-up at 100% and one column from 125%; a 360 px window the same; a 390 px window is three-up at 100% and 125% and one column from 150%; a 430 px window the same; a 600 or 640 px window is three-up at all four.
+
+**The rule, in the tab's own blocks of `globals.css`** (class names as built; the five three-up declarations move inside the query and nothing else changes):
+
+```css
+/* beside .sr-ft-glance, every tier */
+.sr-ft-glance-wrap { container-type: inline-size; container-name: sr-ft-glance; min-width: 0; }
+
+/* in the tab's still-tier block, inside @media (max-width: 640px) */
+.sr-ft-glance { padding: 14px 12px 12px; gap: 12px 14px; }
+.sr-ft-tile-value { font-size: 1.375rem; }
+@container sr-ft-glance (width >= 16.5rem) {
+  .sr-ft-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sr-ft-tile { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  .sr-ft-tile dt { order: 0; color: var(--sr-text-muted); font-weight: 600; }
+  .sr-ft-tile-den { flex: none; }
+  .sr-ft-tile .sr-ft-bar { flex: none; }
+}
+```
+
+Under 16.5rem the base rules stand, which is the one-column form: the base grid (`repeat(auto-fit, minmax(min(15rem, 100%), 1fr))`) is one column at these widths, and the base tile is the wrapping row.
+
+**Why 16.5rem.** Measured on the built app (main at `1adfc0b3`) in Chromium and WebKit, in Inter (Debian's `fonts-inter` 4.1, served to the page from the scratchpad and proven by a width test in which `'Inter', serif` and `'Inter', monospace` agree only when Inter resolves) and in SF (this Mac's fallback for the same stack):
+
+| Measure | Inter | SF |
+|---|---|---|
+| A five-digit count ("11,070", tabular, so any five digits) at 1.375rem / 700 | 4.649rem | 4.668rem |
+| A four-digit count | 3.788rem | 3.806rem |
+| The longest label, "FAMILIES", at 0.6875rem / 600 | 3.494rem | 3.597rem |
+
+- A three-up column is a third of the wrapper less 52 px (24 px of side padding and two 14 px gaps).
+- The wrapper is 16.875rem in a 320 px window at 100% text and 21.25rem in a 390 px window at 100%. Both were approved as three-up, so the threshold cannot be above 16.875rem; 16.5rem leaves 6 px under the 320 px window.
+- At exactly 16.5rem with a 16 px root, the worst case because the pixel parts weigh most there, a column is 70.67 px: the five-digit count (74.7 px in SF) ends 4 px past its own column and 10 px short of the next tile, and every label fits on one line with 13 px to spare.
+- Tried on the built page with this rule added and the worst case written into the tiles (11,070 of 11,070 species, 250 of 250 families, 45 of 45 orders), at 320, 360, 390, 430, 600 and 640 px and at 100%, 125%, 150% and 200%, in both faces and both engines, 96 configurations with the face proven in each: the form is three-up exactly where the wrapper is 16.5rem or wider; in three-up the species count ends at least 12.0 px short of the families tile (the least is the 320 px window at 100%, where it sits 1.7 px in Inter and 2.0 px in SF past its own column, inside the gap); every label is one line; the headline's text never passes the headline's right edge; the page never scrolls sideways.
+- With the app's own data, at 320, 390 and 640 px and 100% text, in both faces and both engines, every box in the headline is in the same place before and after the rule is added.
+
+**What a check of tile against tile asserts** (a leg of the real-engine harness, with the face named and proven, in Inter and in the fallback face, in both engines; at 320 and 390 px and all four text sizes at least; on a roster or fixture that gives a five-digit species count, and on the demo roster):
+
+1. The form: three columns exactly where the wrapper's width over the root font size is 16.5 or more, one column otherwise.
+2. In three-up, each tile's count (its text's own box, not its element's) ends at least 6 px before the next tile's left edge.
+3. In either form, no text box of one tile crosses a text box of another, and no text in the headline passes the headline's content edge.
+4. Each label is one line: its box is no taller than one line of its own line height. A label never breaks inside the word.
+5. Each tile's count, label, denominator and share are present as text.
+6. The page does not scroll sideways.
+7. At 320 and 390 px and 100% text the form is three-up (the approved look is not traded away by a later change of the threshold).
+
+It must not assert that a count stays inside its own tile: at the approved 320 px and 100%, a five-digit count is 2 px past its column by design, in the gap.
 
 The species figure is the whole roster, unplaced species included. Shares go through `fmtSharePct`.
 
@@ -366,6 +420,7 @@ Everything in this section is the shared pattern (D-19 update, D-26, D-27, schem
 - The box's wrapper (`.sr-ft-boxwrap`) is the image: `role="img"`, not a tab stop, and a press anywhere on it calls `fs.open()`. Its name: "Your family tree: {N} species in {F} {family | families} and {O} {order | orders}", where N is the species drawn on the tree.
 - The box inside carries the literal `inert` attribute, no `tabIndex`, no `aria-activedescendant` and no listener. It does not scroll, so a swipe that starts on it moves the page.
 - **What it shows.** The tree from its top, at the larger of the true fit and one line per order, with the current expansion. Its view is derived and never written to the tab's view. Where the tree at that pitch is taller than the box, the box cuts it and a 3.5rem fade to `--sr-surface` covers the bottom edge. Where it is not, there is no fade. This is the still the user approved; it is not the Fit of section 9.5.
+- **Its width** (decided 2026-11-23). In the still the outline's plane is exactly the box's width: the 17rem least width of section 9.3 does not apply, because the still cannot be panned. A row's name ends in an ellipsis inside the box and its figure stays whole. Measured on the built app (main at `1adfc0b3`, WebKit, in SF and in Inter): the 17rem plane is wider than the box from 125% text in a 320 px window and from 150% in a 390 px window, and rows are cut at the box's right edge, a figure mid-number among them ("Pigeons and Doves 7/3" at 390 px and 200%; 1 row at 320 px and 125%, up to 6 rows at 320 px and 200%). At 100% text nothing is cut at either width. The change narrows the plane by 2 px at 320 px and 100% (17rem against a 16.9rem box) and moves nothing drawn there, because the still's rows are left aligned; the built comparison of line boxes, old against new, is the check. In full screen the 17rem least width stays: there the box pans sideways and the readout carries the whole name.
 - The tools, the toggle and the readout are not rendered. Find stays.
 
 ### 10.2 The opener
@@ -388,7 +443,7 @@ The host with the shared class. Inside it, under the compound selector `.sr-ft-h
 **The toolbar in the panel.**
 
 - Wider than the still tier: the page's toolbar, unchanged, wrapping as it does in the page. The toggle is the glyph button with `aria-pressed="true"` and the name "Exit fullscreen".
-- Still tier: the toggle leads the toolbar (`order: -1`) as the shared Exit form: the `Minimize2` glyph, the visible word "Exit", the accessible name "Exit fullscreen", min-height 2.75rem. Find shares its row. The six tools are ONE row that neither wraps nor scrolls: six equal cells, a glyph over its caption while six captions fit, and the glyph alone, with the same accessible names, when the row is narrower than 20.75rem (a 320 px phone at every text size, and a 390 px phone from 125% text). Glyph-only cells are `max(44px, 2.25rem)` tall. The figure is measured on the built toolbar (amended 2026-11-22; it was 19.5rem, taken from the mockup): the widest caption, "Zoom out", is 2.98rem, each cell adds 1 px of padding and 1 px of border on each side, and the five gaps are 4 px, so six captions need `6 * 2.98rem + 44px`, which is 20.63rem at a 16 px root and less at every larger text size. At 19.5rem a row between the two figures showed captions up to 3 px wider than their cells. The rule that hides the captions must outrank the rule that shows them.
+- Still tier: the toggle leads the toolbar (`order: -1`) as the shared Exit form: the `Minimize2` glyph, the visible word "Exit", the accessible name "Exit fullscreen", min-height 2.75rem. Find shares its row at every text size: `flex: 1 1 4rem; min-width: 0`, so it narrows beside Exit and never drops under it (made exact 2026-11-23: built with a basis of 11rem, Find dropped to a row of its own at 320 px from 150% text and at 390 px at 200%, the toolbar grew from 189 px to 285 px, and at 320 px and 200% the tree's box was 85 px, 15% of the panel, with the readout cut; with the 4rem basis the box is 177 px, 31%, and the readout is whole; the same in Inter and in SF; where Find already sits beside Exit its width is the same before and after, measured at 320 px and 100% and at 390 px and 150%). The six tools are ONE row that neither wraps nor scrolls: six equal cells, a glyph over its caption while six captions fit, and the glyph alone, with the same accessible names, when the row is narrower than 20.75rem (a 320 px phone at every text size, and a 390 px phone from 125% text). Glyph-only cells are `max(44px, 2.25rem)` tall. The figure is measured on the built toolbar (amended 2026-11-22; it was 19.5rem, taken from the mockup): the widest caption, "Zoom out", is 2.98rem, each cell adds 1 px of padding and 1 px of border on each side, and the five gaps are 4 px, so six captions need `6 * 2.98rem + 44px`, which is 20.63rem at a 16 px root and less at every larger text size. At 19.5rem a row between the two figures showed captions up to 3 px wider than their cells. The rule that hides the captions must outrank the rule that shows them.
 
 **The readout in the panel.** In the columns form it is the page's three-column band. In the outline form it is the page's stacked readout, and it gives up its lower parts as the panel gets short, by the panel's height in rem, so that a large text size counts as a short panel:
 
@@ -439,6 +494,14 @@ The app's `ChartViewTip`, with `page="family-tree"` and its body and accessible 
 Hover: `--sr-surface-subtle`, inside `@media (hover: hover)`. Focus: the global ring, inset 3 px.
 
 **An opened family** (`.sr-ft-open`, conditionally rendered, on `--sr-surface-faint`, indented to the name column): for each genus a line with its leading name at 600 (italic when it is the scientific name), the second name after it in Both, and "{n} species"; then its species, each a row with `<BirdName>` and the media cell, divided by `--sr-border`. `<BirdName>` takes `showSci` in Both, neither in Common, and `lead="scientific"` in Scientific (D-30).
+
+**Long names in an opened family** (decided 2026-11-23, on D-70). The genus line and the species name carry `overflow-wrap: anywhere` (`.sr-ft-genus`, `.sr-ft-sp .sr-birdname`), so a name wider than its row breaks inside the word and can never run past the row. This is accepted as built. Its one visible cost is a single letter carried to a second line where a word is a few pixels wider than the row: measured in Inter at 320 px and 200% text only ("Campylorhamphus" carries its "s", each "Laughingthrush" its "h"); in SF nothing moves at any width. No rule that avoids the lone letter is taken, because each one costs more than it buys:
+
+- Hyphenation (`hyphens: auto`) depends on the engine and its dictionary, cannot be held to one result across WebKit, Chromium 111 and WebView2, and would still need this rule behind it.
+- `text-wrap: balance` or `pretty` is not in the app's engine floor.
+- Releasing the block's indent at that size would move every row of the block in SF as well, at a size where nothing is wrong in SF.
+
+What would reverse it: a user reports the lone letter, or the app comes to draw Inter on a shipped platform. The fix then, and where: in the tab's block of `globals.css`, `@container sr-ft-list (width < 9rem) { .sr-ft-open { padding-left: 12px; } }`, which gives the row back the chevron column's indent (1rem plus 12 px, 44 px at 200%) only where the list is narrower than 9rem, which is a 320 px window at 200% text and nothing wider. That rule is written from the measured widths (a 207.45 px word in a 202 px row) and has not been tried in a browser. `overflow-wrap: anywhere` stays behind it.
 
 **The family's outside link, in the opened family** (added 2026-11-22 for NFR-07 and QA-79; the family's Birds of the World link was in the tree's readout only). The table carries the same link the readout does, as the first line of the opened family block, above the first genus line. It is never inside the family row, which stays one disclosure `Button` with no interactive content in it.
 
@@ -503,7 +566,7 @@ Focus rings and the field halo are the global rules. No pure black and no untoke
 ## 14. Touch targets, text size and reduced motion
 
 - **Touch targets, still tier:** every control in the strip, the view bar and the toolbar is at least 2.75rem tall (`.sr-touch-target` and the tier's rules); tool cells are 3rem; the opener is 2.75rem; a table family row is at least 2.75rem; region and find options are at least 2.75rem. Tree rows at full zoom are 2.125rem, or 2.75rem in Both; they are diagram items, not controls, and every action on one has a toolbar, readout or keyboard path.
-- **Text size:** every length that holds text is in rem, so the layout follows the in-app text scale. At 150% and 200% in a window wider than 640 px the tree takes the outline form live in the page, the box is never taller than the window, and the toolbar wraps. No page scrolls sideways at 320 px and 200%, in either view (checked on the mockup). The table is the full equivalent of the tree for a reader at 320 px and 200%.
+- **Text size:** every length that holds text is in rem, so the layout follows the in-app text scale. At 150% and 200% in a window wider than 640 px the tree takes the outline form live in the page, the box is never taller than the window, and the toolbar wraps. No page scrolls sideways at 320 px and 200%, in either view (checked on the mockup). The table is the full equivalent of the tree for a reader at 320 px and 200%. On the still tier the headline goes from three columns to one where its wrapper is narrower than 16.5rem, so no count is ever drawn over another and no label breaks inside a word (section 5).
 - **Reduced motion:** every transition and animation below collapses under the global `prefers-reduced-motion` block. A scroll that brings a node or the box into view uses `behavior: 'auto'` when reduced motion matches at that moment.
 
 ## 15. Motion spec
@@ -534,6 +597,8 @@ All motion is CSS; no library is added. Zoom, pan, fit, a filter change and a re
 | Focus on entering full screen | The hook's default (the toggle) | Schema 11.9 offers a box-focus effect; this spec does not ask for it |
 | The mockup's level-of-detail walk | Schema 11.4's clamp and guards | The mockup lays out every child of a visited branch; the build may search the slot range. The look is section 9.4 |
 | Computed positions | Inline position values, or custom properties, on the plane's own elements | They are geometry from data, as a chart's marks are. No responsive behavior lives in an inline style |
+| The headline on the still tier | This spec, section 5 | The mockup draws only the three-up form and was never looked at above 100% text on a phone with a four-digit count. The mockup is not changed |
+| A long name's lone letter in an opened family | This spec, section 11: accepted as built | D-70's rule cannot overflow; the alternatives cost more than the lone letter at one size in one face |
 | The mockup's data | Not built | Media figures, the two escapees and the state-level Region list are inventions of the mockup |
 
 ## 17. Copy rules and the strings
