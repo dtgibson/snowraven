@@ -54,6 +54,24 @@
 //   8. THE STILL'S FIGURES WHOLE at 320 and 390px and the four text scales
 //      (design-spec 10.1, D-73(c)): the still's plane is no wider than its box
 //      and every drawn figure lies inside the box.
+//   9. THE TABLE'S NARROW FORM (design-spec 11, D-78, D-79(a)). The demo export
+//      with its media export and the link marks' codes, every family open, at
+//      320, 360, 390 and 430px and the four scales, in the three Names states:
+//      no name breaks between two letters unless that word, measured alone in
+//      its own font, is wider than its row's content width; no part of a
+//      species row (name, second name, link marks, media cell) overlaps
+//      another or leaves the row; no page scroll sideways; every media cell and
+//      both link marks present and named, each mark at least 24px; and the
+//      narrow form shows exactly where the list is under 15rem. Then a roster
+//      of the long words (a laughingthrush, a scythebill, Green-capped Tanager,
+//      Crowned Slaty Flycatcher, a boatbill, a flamingo) at 320px and 200%:
+//      nothing breaks inside a word in Common and Both, and in Scientific
+//      exactly the words wider than the row do.
+//  10. FAMILY NAMES WHOLE AT 100% across the two tablet stretches where the
+//      list is over 44em and at most 50em (windows of 815 to 903px and 971 to
+//      1066px, measured pixel by pixel in both engines; D-79(b), D-80), with the
+//      media export, in the three Names states: no name breaks inside a word
+//      that fits its row. A window either side of each stretch is measured too.
 //
 // Lines starting `MEASURE` are the readings recorded in the run's evidence. The
 // run declares how many configurations each leg measures and fails on a short
@@ -61,7 +79,8 @@
 // at its limit, the captions forced on, the panel's Exit hidden, the table held
 // wider than a phone, the asset's fault left in place across the Reload, the
 // headline held at three columns, Find given its old 11rem basis, the still's
-// names untruncated) and
+// names untruncated, the rows' built form forced back, the family name held to
+// the 48px column the old threshold left it) and
 // must then see a failure in EVERY leg, so the harness is shown able to see
 // what it guards.
 //
@@ -95,15 +114,19 @@
 // release check) is answered by the stub with a 404 and COUNTED, and the run
 // fails on any, so "no request left the page for a third party" is what it
 // asserts. `/taxonomy/codes`, the tab's one designed codes batch, which a real
-// server answers from its own taxonomy, is counted and reported apart. Every
-// other host is refused in the browser and counted.
+// server answers from its own taxonomy, is counted and reported apart: legs 1
+// to 8 answer it with a 404, and legs 9 and 10, whose rows must carry their
+// link marks, answer it from the app's bundled taxonomy as a real server does
+// offline. Every other host is refused in the browser and counted. It reads
+// tracked files only: the dist, the demo exports under `website/demo/` and the
+// bundled taxonomy under `frontend/src/assets/`.
 //
 // WHERE IT LIVES (schema 17): held in `pipeline/family-rollups-and-tree/held/`
 // until the user approved the `website/` change at the 1.0.76 sign-off, then
 // moved here, where `run.mjs` picks it up. It still finds the shared helpers
 // from either place:
 //
-//   node website/tools/verify/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5,6,7,8]
+//   node website/tools/verify/verify-family-tree.mjs [dist] [--expect-broken] [--legs=1,2,3,4,5,6,7,8,9,10]
 
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -120,8 +143,8 @@ const { dismissWelcome } = await import(pathToFileURL(join(VERIFY, 'dismissWelco
 const { chromium, webkit } = requirePlaywright()
 const DIST = resolve(process.argv.slice(2).find(a => !a.startsWith('--')) ?? process.env.SR_VERIFY_DIST ?? join(ROOT, 'frontend/dist'))
 const MODE = process.argv.includes('--expect-broken') ? 'broken' : 'fixed'
-// `--legs=1,3` runs only those legs (a development aid; the gate runs all eight).
-const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4,5,6,7,8').slice(7).split(',').map(Number)
+// `--legs=1,3` runs only those legs (a development aid; the gate runs all ten).
+const LEGS_RUN = (process.argv.find(a => a.startsWith('--legs=')) ?? '--legs=1,2,3,4,5,6,7,8,9,10').slice(7).split(',').map(Number)
 /** Asked to measure in the stack's first face: a page that draws another fails. */
 const ASK_FIRST = process.env.CI === 'true' || Boolean(process.env.SR_VERIFY_FACE_DIR) || process.argv.includes('--face=first')
 /** The stack without its first family resolves to a shipped platform's face here (macOS: SF). */
@@ -159,6 +182,13 @@ const CSV = [HEADER, ...SPECIES.map(([cn, sci], i) => [
   `20${10 + (i % 15)}-0${1 + (i % 9)}-1${i % 10}`, '07:15 AM', 'Traveling', '60', '1', '1.2', '', '1', '', '', '', '',
 ].map(q).join(','))].join('\n') + '\n'
 const FILES_STATUS = { ebird: { filename: 'MyEBirdData.csv', uploadedAt: '2026-06-01T00:00:00Z' }, ml: null }
+/** The demo media export (tracked, synthetic), and the bundled taxonomy that
+ *  answers the link marks' codes batch, for legs 9 and 10 only. */
+const DEMO_ML = readFileSync(join(ROOT, 'website/demo/snowraven-demo-ml-export.csv'), 'utf8')
+const TAXONOMY = JSON.parse(readFileSync(join(ROOT, 'frontend/src/assets/ebird-taxonomy.json'), 'utf8'))
+/** A leg that needs media or codes sets these before it opens a page. */
+let servedMl = null
+let servedCodes = false
 /** Every species of the asset (a five-digit count), for the headline leg. */
 const FIVE_DIGIT = roster(1)
 const FIVE_CSV = [HEADER, ...FIVE_DIGIT.map(([cn, sci], i) => [
@@ -179,8 +209,34 @@ const THIRD_PARTY = /^\/(map|checklists|hotspot|weather|tide|nominatim|media)(\/
 const thirdParty = []
 /** The tab's designed codes batch, answered by a real server from its own taxonomy. */
 const taxonomyCalls = []
-function stubBackend(p, _req, res) {
-  if (p === '/settings/files') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(FILES_STATUS)); return true }
+/** Codes batches legs 9 and 10 answered from the bundled taxonomy. */
+let codesAnswered = 0
+function stubBackend(p, req, res) {
+  if (p === '/settings/files') {
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify(servedMl ? { ...FILES_STATUS, ml: { filename: 'ml.csv', uploadedAt: '2026-06-01T00:00:00Z' } } : FILES_STATUS))
+    return true
+  }
+  if (p === '/settings/files/ml' && servedMl) { res.writeHead(200, { 'content-type': 'text/csv' }); res.end(servedMl); return true }
+  // The codes a real server reads from its own taxonomy, answered from the
+  // bundled one: no third party involved either way.
+  if (p === '/taxonomy/codes' && servedCodes) {
+    codesAnswered++
+    let body = ''
+    req.on('data', c => { body += c })
+    req.on('end', () => {
+      const codes = {}
+      try {
+        for (const sp of JSON.parse(body).species) {
+          const name = String(sp.commonName).toLowerCase()
+          if (Object.hasOwn(TAXONOMY.byCom, name)) codes[sp.commonName] = TAXONOMY.byCom[name]
+        }
+      } catch { /* a malformed body answers no codes */ }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ codes }))
+    })
+    return true
+  }
   if (p === '/settings/files/ebird') { res.writeHead(200, { 'content-type': 'text/csv' }); res.end(servedCsv); return true }
   if (p === '/settings/keys') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ebird: null, openweather: null })); return true }
   if (THIRD_PARTY.test(p)) { thirdParty.push(p); res.writeHead(404); res.end('not found'); return true }
@@ -231,12 +287,16 @@ const BREAK_FIND = '.sr-ft-host.sr-map-fs-panel .sr-ft-find { flex: 1 1 11rem !i
 // Leg 8: the still's rows at their natural width (their inline width is the
 // plane's), so a long name pushes its figure past the box, as the 17rem plane did.
 const BREAK_STILL = '.sr-ft-boxwrap.is-still .sr-ft-node { width: max-content !important; max-width: none !important; }'
+// Leg 9: the rows' built form forced back (design-spec 11's own mutation).
+const BREAK_NARROW = '.sr-ft-sp { grid-template-columns: minmax(0, 1fr) max(46px, 2.5rem) !important; } .sr-ft-sp .sr-birdname { display: inline-flex !important; } .sr-ft-open { padding-left: calc(12px + 1rem + 12px) !important; }'
+// Leg 10: the family name held to the 48px column the 44em threshold left it.
+const BREAK_FAMILY = '.sr-ft-fname { max-width: 48px !important; } .sr-ft-fname .n { overflow-wrap: anywhere !important; }'
 
 // -- Measurement ---------------------------------------------------------------
 
 const failures = []
-const legFailures = [0, 0, 0, 0, 0, 0, 0, 0]
-const legMeasured = [0, 0, 0, 0, 0, 0, 0, 0]
+const legFailures = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+const legMeasured = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 function check(leg, name, ok, detail = '') {
   legMeasured[leg - 1]++
   if (!ok) legFailures[leg - 1]++
@@ -916,6 +976,244 @@ async function stillLeg(name, browser, base, pass) {
   console.log(`MEASURE ${name} [${pass.id}] still ${rows.join('; ')}`)
 }
 
+// Legs 9 and 10 ------------------------------------------------------------------
+
+/** Names broken between two letters, each with its word measured alone in the
+ *  element's own font against the content width of its row. */
+const BREAKS = () => {
+  const list = document.querySelector('#panel-family-tree .sr-ft-list')
+  const sels = '.sr-ft-sp .sr-birdname-link, .sr-ft-sp .sr-birdname-text, .sr-ft-sp .sr-birdname-sci, .sr-ft-fname .n, .sr-ft-fname .s, .sr-ft-genus b, .sr-ft-genus .alt, .sr-ft-oband h3'
+  const range = document.createRange()
+  const probe = document.createElement('span')
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0'
+  document.body.appendChild(probe)
+  const measure = (el, word) => {
+    const cs = getComputedStyle(el)
+    probe.style.font = cs.font
+    probe.style.letterSpacing = cs.letterSpacing
+    probe.style.textTransform = cs.textTransform
+    probe.textContent = word
+    return probe.getBoundingClientRect().width
+  }
+  const breaks = [], wideWords = new Set()
+  for (const el of list.querySelectorAll(sels)) {
+    if (el.getClientRects().length === 0) continue
+    const row = el.closest('.sr-ft-sp, .sr-ft-frow, .sr-ft-genus, .sr-ft-oband')
+    const rcs = getComputedStyle(row), rr = row.getBoundingClientRect()
+    const rowW = rr.width - parseFloat(rcs.paddingLeft) - parseFloat(rcs.paddingRight)
+    const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+      const s = t.textContent
+      // A node drawn on one line, no wider than its row, holds no break and no
+      // word wider than the row, so only the others are read letter by letter.
+      range.selectNodeContents(t)
+      const lines = [...range.getClientRects()].filter(x => x.height > 0)
+      if (lines.length === 0) continue
+      const oneLine = lines.every(x => Math.abs(x.top - lines[0].top) < x.height * 0.5)
+      if (oneLine && Math.max(...lines.map(x => x.right)) - Math.min(...lines.map(x => x.left)) <= rowW + 0.01) continue
+      // Measured in the text node's own font (a second name sits in a smaller
+      // child), and wider by any amount: a word 0.4px wider than its row is
+      // broken by the engine, as it must be (Inter's Catamblyrhynchus at 320px
+      // and 200%).
+      const own = t.parentElement
+      for (const word of s.split(/[\s\-/]+/)) if (word && measure(own, word) > rowW + 0.01) wideWords.add(word)
+      let prevTop = null
+      for (let i = 0; i < s.length; i++) {
+        range.setStart(t, i)
+        range.setEnd(t, i + 1)
+        const r = [...range.getClientRects()].find(x => x.height > 0)
+        if (!r) continue
+        if (prevTop !== null && r.top > prevTop + r.height * 0.5 && !/[\s\-/]/.test(s[i - 1]) && !/\s/.test(s[i])) {
+          const word = (s.slice(0, i).match(/[^\s\-/]+$/)?.[0] ?? '') + (s.slice(i).match(/^[^\s\-/]+/)?.[0] ?? '')
+          breaks.push({ word, wider: measure(own, word) > rowW + 0.01 })
+        }
+        prevTop = r.top
+      }
+    }
+  }
+  probe.remove()
+  return { breaks, wideWords: [...wideWords] }
+}
+
+/** The species rows' parts: overlaps, parts outside the row, missing or
+ *  unnamed marks, and the narrow form's state against the list's width. */
+const ROWS = () => {
+  const list = document.querySelector('#panel-family-tree .sr-ft-list')
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+  const range = document.createRange()
+  let overlaps = 0, outside = 0, unnamed = 0, small = 0, rows = 0
+  const boxesOf = el => {
+    if (!el) return []
+    range.selectNodeContents(el)
+    return [...range.getClientRects()].filter(r => r.width > 0 && r.height > 0)
+  }
+  for (const row of list.querySelectorAll('.sr-ft-sp')) {
+    if (row.getClientRects().length === 0) continue
+    rows++
+    const rr = row.getBoundingClientRect()
+    const media = row.querySelector('.sr-lfl-media')
+    const marks = [...row.querySelectorAll('a')]
+    if (!media || !media.getAttribute('aria-label') || marks.length !== 2 || marks.some(a => !a.getAttribute('aria-label'))) unnamed++
+    // A mark's target is its anchor (5px of padding round a 14px slot, so two
+    // targets meet by design); what is drawn, and must not overlap, is the slot.
+    for (const a of marks) { const b = a.getBoundingClientRect(); if (b.width < 24 - 0.5 || b.height < 24 - 0.5) small++ }
+    const slots = marks.map(a => (a.querySelector('.sr-favicon-slot') ?? a).getBoundingClientRect())
+    const groups = [
+      boxesOf(row.querySelector('.sr-birdname-link, .sr-birdname-text')),
+      boxesOf(row.querySelector('.sr-birdname-sci')),
+      ...slots.map(r => [r]),
+      media ? [media.getBoundingClientRect()] : [],
+    ]
+    const parts = groups.flat()
+    for (const p of parts) if (p.left < rr.left - 0.5 || p.right > rr.right + 0.5 || p.top < rr.top - 0.5 || p.bottom > rr.bottom + 0.5) outside++
+    for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++) {
+      for (const a of groups[i]) for (const b of groups[j]) {
+        if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5) overlaps++
+      }
+    }
+  }
+  const first = list.querySelector('.sr-ft-sp .sr-birdname')
+  const frow = list.querySelector('.sr-ft-frow')
+  return {
+    rows, overlaps, outside, unnamed, small,
+    listRem: +(list.getBoundingClientRect().width / rem).toFixed(3),
+    narrowSpecies: first ? getComputedStyle(first).display === 'contents' : null,
+    narrowFamily: frow ? getComputedStyle(frow).display === 'flex' : null,
+    pageOver: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }
+}
+
+/** Open the table in a Names state with media and codes served: every family
+ *  open, or (leg 10, which reads family rows only) every family closed. */
+async function openTable(browser, base, css, names, viewport, { expand = true } = {}) {
+  const { ctx, page } = await open(browser, base, viewport, { css })
+  await showView(page, 'Table')
+  await page.locator('#panel-family-tree .sr-ft-namesseg').getByRole('button', { name: names, exact: true }).click()
+  if (!expand) {
+    await page.waitForSelector('#panel-family-tree .sr-ft-tab[data-media="on"] .sr-ft-list .sr-ft-frow', { timeout: 60_000 })
+    return { ctx, page }
+  }
+  await page.locator('#panel-family-tree .sr-ft-toolbar').getByRole('button', { name: 'Expand all', exact: true }).click()
+  await page.waitForFunction(() => {
+    const l = document.querySelector('#panel-family-tree .sr-ft-list')
+    const f = l.querySelectorAll('.sr-ft-frow').length
+    return f > 0 && l.querySelectorAll('.sr-ft-fblock .sr-ft-open').length >= f
+  }, null, { timeout: 60_000 })
+  await page.waitForSelector('#panel-family-tree .sr-ft-list .sr-lfl-media', { timeout: 30_000 })
+  await page.waitForFunction(() => document.querySelectorAll('#panel-family-tree .sr-ft-sp a').length > 0, null, { timeout: 30_000 })
+  return { ctx, page }
+}
+
+/** The long words' roster: a laughingthrush, a scythebill, Green-capped
+ *  Tanager, Crowned Slaty Flycatcher, a boatbill and a flamingo, with a media
+ *  export built on the demo export's own row form. */
+const LONG_NAMES = ['Chestnut-crowned Laughingthrush', 'Red-billed Scythebill', 'Green-capped Tanager', 'Crowned Slaty Flycatcher', 'Yellow-breasted Boatbill', 'Greater Flamingo']
+const LONG = FIVE_DIGIT.filter(([cn]) => LONG_NAMES.includes(cn))
+const LONG_CSV = [HEADER, ...LONG.map(([cn, sci], i) => [
+  `S9${String(900000000 + i).padStart(9, '0')}`, cn, sci, String(i), '1', 'US-NY', 'Kings', 'L100001', 'Prospect Park', '40.66', '-73.97',
+  '2024-01-03', '07:15 AM', 'Traveling', '60', '1', '1.2', '', '1', '', '', '', '',
+].map(q).join(','))].join('\n') + '\n'
+const ML_LINES = DEMO_ML.split('\n')
+const ML_TEMPLATE_REST = ML_LINES[1].split(',').slice(4).join(',')
+const LONG_ML = [ML_LINES[0], ...LONG.map(([cn, sci], i) =>
+  [String(613000000 + i), 'Photo', q(cn), q(sci), ML_TEMPLATE_REST.replace('S9000000000', `S9${String(900000000 + i).padStart(9, '0')}`)].join(','))].join('\n') + '\n'
+
+const NAMES_STATES = ['Common', 'Both', 'Scientific']
+const NARROW_WIDTHS = [320, 360, 390, 430]
+async function narrowLeg(name, browser, base, pass) {
+  servedCodes = true
+  try {
+    servedMl = DEMO_ML
+    servedCsv = DEMO_CSV
+    for (const names of NAMES_STATES) {
+      const { ctx, page } = await openTable(browser, base, (MODE === 'broken' ? BREAK_NARROW : '') + pass.css, names, { width: 390, height: 844 })
+      if (names === 'Both') await assertFace(9, page, name, 'narrow rows', pass, '#panel-family-tree .sr-ft-sp .sr-birdname-link')
+      const rows = []
+      for (const w of NARROW_WIDTHS) {
+        await page.setViewportSize({ width: w, height: 844 })
+        for (const s of SCALES) {
+          await setScale(page, s)
+          await page.waitForTimeout(80)
+          const b = await page.evaluate(BREAKS)
+          const r = await page.evaluate(ROWS)
+          const inside = b.breaks.filter(x => !x.wider)
+          const wantNarrow = r.listRem < 15
+          const ok = inside.length === 0 && r.rows > 0 && r.overlaps === 0 && r.outside === 0 && r.unnamed === 0 && r.small === 0 && r.pageOver <= 0
+            && r.narrowSpecies === wantNarrow && r.narrowFamily === wantNarrow
+          rows.push(`${w}px/${s * 100}%: list ${r.listRem}rem ${r.narrowSpecies ? 'narrow' : 'wide'}, ${b.breaks.length} breaks (${inside.length} inside a word that fits)`)
+          check(9, `${name} [${pass.id}] narrow rows ${names} ${w}px ${s * 100}%`, ok,
+            `list ${r.listRem}rem, narrow form ${r.narrowSpecies}/${r.narrowFamily} (want ${wantNarrow}), ${inside.length} names broken inside a word that fits the row (${inside.slice(0, 3).map(x => x.word).join(', ')}), ${r.rows} rows, ${r.overlaps} overlaps, ${r.outside} parts outside their row, ${r.unnamed} rows missing a named mark, ${r.small} marks under 24px, page over ${r.pageOver}px`)
+        }
+      }
+      console.log(`MEASURE ${name} [${pass.id}] narrow rows ${names}: ${rows.join('; ')}`)
+      await ctx.close()
+    }
+    // The long words, at 320px and 200%.
+    servedMl = LONG_ML
+    servedCsv = LONG_CSV
+    for (const names of NAMES_STATES) {
+      const { ctx, page } = await openTable(browser, base, (MODE === 'broken' ? BREAK_NARROW : '') + pass.css, names, { width: 320, height: 844 })
+      await setScale(page, 2)
+      await page.waitForTimeout(150)
+      const b = await page.evaluate(BREAKS)
+      const broken = [...new Set(b.breaks.map(x => x.word))].sort()
+      const wide = [...b.wideWords].sort()
+      const ok = names === 'Scientific'
+        ? broken.length === wide.length && broken.every((w, i) => w === wide[i]) && b.breaks.every(x => x.wider)
+        : b.breaks.length === 0
+      check(9, `${name} [${pass.id}] long words ${names} 320px 200%`, ok,
+        `broken inside a word: [${broken.join(', ')}]; words wider than their row: [${wide.join(', ')}]`)
+      console.log(`MEASURE ${name} [${pass.id}] long words ${names} 320px 200%: broken [${broken.join(', ')}], wider than the row [${wide.join(', ')}]`)
+      await ctx.close()
+    }
+  } finally {
+    servedMl = null
+    servedCodes = false
+    servedCsv = CSV
+  }
+}
+
+// The two stretches measured pixel by pixel (D-80): the list is over 44em and
+// at most 50em in windows of 815 to 903px (at 904 the side menu widens) and
+// 971 to 1066px; each edge is read on both sides.
+const TABLET_WIDTHS = [812, 814, 815, 820, 834, 860, 880, 903, 904, 940, 970, 971, 980, 1000, 1024, 1032, 1050, 1066, 1067, 1100]
+async function familyNamesLeg(name, browser, base, pass) {
+  servedCodes = true
+  servedMl = DEMO_ML
+  servedCsv = DEMO_CSV
+  try {
+    for (const names of NAMES_STATES) {
+      const { ctx, page } = await openTable(browser, base, (MODE === 'broken' ? BREAK_FAMILY : '') + pass.css, names, { width: 1024, height: 800 }, { expand: false })
+      if (names === 'Both') await assertFace(10, page, name, 'family names', pass, '#panel-family-tree .sr-ft-fname .n')
+      const rows = []
+      for (const w of TABLET_WIDTHS) {
+        await page.setViewportSize({ width: w, height: 800 })
+        await settle(page)
+        await page.waitForTimeout(60)
+        const b = await page.evaluate(BREAKS)
+        const fam = b.breaks.filter(x => !x.wider)
+        const r = await page.evaluate(() => {
+          const l = document.querySelector('#panel-family-tree .sr-ft-list')
+          const cols = document.querySelector('#panel-family-tree .sr-ft-cols')
+          const media = document.querySelector('#panel-family-tree .sr-ft-tab')?.getAttribute('data-media')
+          const names = [...l.querySelectorAll('.sr-ft-fname .n')].filter(n => n.getClientRects().length > 0).length
+          return { em: +(l.getBoundingClientRect().width / 16).toFixed(2), form: cols && getComputedStyle(cols).display !== 'none' ? 'columns' : 'stacked', media, names }
+        })
+        rows.push(`${w}px: ${r.em}em ${r.form}, ${fam.length} breaks`)
+        // Non-vacuity: the media export is loaded and the family names are drawn.
+        check(10, `${name} [${pass.id}] family names whole ${names} ${w}px 100%`, fam.length === 0 && r.media === 'on' && r.names > 0,
+          `list ${r.em}em (${r.form}), media ${r.media}, ${r.names} family names drawn, ${fam.length} broken inside a word that fits (${fam.slice(0, 3).map(x => x.word).join(', ')})`)
+      }
+      console.log(`MEASURE ${name} [${pass.id}] family names ${names} at 100%: ${rows.join('; ')}`)
+      await ctx.close()
+    }
+  } finally {
+    servedMl = null
+    servedCodes = false
+    servedCsv = CSV
+  }
+}
+
 // -- The run --------------------------------------------------------------------
 
 const threshold = await captionThreshold()
@@ -942,7 +1240,8 @@ let passCount = 0
 // widths and four scales per face, leg 7 two widths and four scales plus its
 // four box floors per face, leg 8 two widths and four scales per face. The text legs' counts are
 // set once the faces each engine offers are known (below).
-const PER_ENGINE = [8, 8, 26, 8, 8, 2 * HEADLINE_WIDTHS.length * 4, 12, 8]
+const PER_ENGINE = [8, 8, 26, 8, 8, 2 * HEADLINE_WIDTHS.length * 4, 12, 8,
+  NAMES_STATES.length * (NARROW_WIDTHS.length * 4 + 1), NAMES_STATES.length * TABLET_WIDTHS.length]
 const EXPECTED = PER_ENGINE.map(() => 0)
 try {
   for (const [name, engine] of ENGINES) {
@@ -955,7 +1254,7 @@ try {
       if (has && !FALLBACK_SHIPPED) console.log(`MEASURE ${name} face: the fallback here is not a face a shipped platform draws, so the text legs measured ${STACK.first} only`)
       passCount += passes.length
       PER_ENGINE.forEach((n, i) => {
-        if (LEGS_RUN.includes(i + 1)) EXPECTED[i] += n * ([1, 3, 5, 6, 7].includes(i) ? passes.length : 1)
+        if (LEGS_RUN.includes(i + 1)) EXPECTED[i] += n * ([1, 3, 5, 6, 7, 8, 9].includes(i) ? passes.length : 1)
       })
       if (LEGS_RUN.includes(1)) await focusLeg(name, browser, base)
       for (const pass of passes) {
@@ -970,6 +1269,8 @@ try {
         if (LEGS_RUN.includes(6)) await headlineLeg(name, browser, base, pass)
         if (LEGS_RUN.includes(7)) await findLeg(name, browser, base, pass)
         if (LEGS_RUN.includes(8)) await stillLeg(name, browser, base, pass)
+        if (LEGS_RUN.includes(9)) await narrowLeg(name, browser, base, pass)
+        if (LEGS_RUN.includes(10)) await familyNamesLeg(name, browser, base, pass)
       }
     } finally {
       await browser.close()
@@ -981,7 +1282,7 @@ try {
 
 const seconds = Math.round((Date.now() - started) / 1000)
 const LEGS = ['focus at a limit', 'tools row captions', 'still and round trip', 'table at phone widths', 'a failed family asset',
-  'headline tile against tile', 'Find beside Exit', 'the still\'s figures whole']
+  'headline tile against tile', 'Find beside Exit', 'the still\'s figures whole', 'the table\'s narrow form', 'family names whole at 100%']
 for (let i = 0; i < LEGS.length; i++) {
   if (!LEGS_RUN.includes(i + 1)) continue
   const full = legMeasured[i] === EXPECTED[i]
@@ -991,7 +1292,7 @@ for (let i = 0; i < LEGS.length; i++) {
 console.log(`MEASURE faces: ${passCount} engine-face passes, ${facesChecked} face assertions`)
 const hermetic = thirdParty.length === 0
 console.log(`${hermetic ? 'PASS' : 'FAIL'}  no request left the page for a third party  ${thirdParty.length} backend-forwarded third-party paths answered by the stub (${[...new Set(thirdParty)].slice(0, 5).join(', ')}); ${refusedHosts} requests to other hosts refused in the browser`)
-console.log(`MEASURE the tab's codes batch: ${taxonomyCalls.length} /taxonomy requests across the run, answered by the stub with a 404`)
+console.log(`MEASURE the tab's codes batch: ${taxonomyCalls.length} /taxonomy requests answered by the stub with a 404 (legs 1 to 8), ${codesAnswered} codes batches answered from the bundled taxonomy (legs 9 and 10)`)
 if (!hermetic) failures.push('a backend-forwarded third-party path was asked for')
 if (MODE === 'fixed') {
   console.log(`${legMeasured.reduce((a, b) => a + b, 0)} checks in ${seconds} s; ${failures.length ? `FAILED: ${failures.length}` : 'all green'}`)
