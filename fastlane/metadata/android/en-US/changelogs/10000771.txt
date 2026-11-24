@@ -1,0 +1,1 @@
+A new Family Tree tab shows your life list by order and family, as a table and as a tree you can zoom. On phones, maps inside a page now open in fullscreen, so swiping the page never moves the map.

@@ -2,6 +2,26 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.77] - 2026-11-23
+
+1.0.76 was tagged but never released: no Mac, Windows, Android or App Store build of it went out. 1.0.77 carries everything listed under 1.0.76 below, the Family Tree tab and maps on phones included, with these changes to the Family Tree made before its first release.
+
+### Changed
+- On a phone at larger text sizes, the Family Tree's headline shows your species, families and orders one per row when three across would not fit, so a four- or five-digit count never runs into the next one and no label breaks inside a word. At the default text size it is three across, as before.
+- At larger text sizes in a narrow window, a species row in the Family Tree's table puts the name on the row's whole width, its second name under it, then the eBird and Birds of the World marks and the photo, audio and video counts on one line, so a name breaks inside a word only when a single word is wider than the whole row. A family name that does not fit beside its arrow moves to the next line whole.
+- The Family Tree's table keeps its stacked form until its list is 50em wide (it was 44em), so on an upright iPad, and in windows of a similar width, family names no longer break inside a word.
+
+### Fixed
+- In the Family Tree's table, a long genus or species name such as Campylorhamphus wraps inside its row instead of running past it, in every font the app may draw, Inter included where it is installed.
+- In the Family Tree's fullscreen on a phone at larger text sizes, Find stays beside Exit, so the tree keeps its room and the panel for a selected family is not cut off.
+- In the Family Tree's still on a phone at larger text sizes, a long name ends in an ellipsis and its figure stays whole, instead of being cut at the still's right edge.
+- Under the mouse pointer, a Family Tree family row's second name keeps a readable contrast in both themes.
+
+### Internal
+- The Family Tree's browser check names the font it measured and holds it. It runs in Inter, the first face in the app's font list, which GitHub's runner installs, and on a Mac in SF as well; on a developer Mac, Inter reaches every check through `SR_VERIFY_FACE_DIR` in `website/tools/verify/serveDist.mjs` without installing a font. It gains checks for the headline, Find, the still, the narrow row form, the 50em stacking and the hovered row, and its budget and the Frontend job's bound (160 minutes) are recounted.
+- The three iCloud timing rows in `src-tauri/src/icloud.rs` count the waits the code asks for and the waits it gives instead of timing them, through test-only fields and a `recv_within` helper that is `recv_timeout` itself in a shipped build.
+- The F-Droid changelog for this release is three identical files (`10000771.txt`, `10000772.txt`, `10000774.txt`), and the in-repo F-Droid recipe names 1.0.77.
+
 ## [1.0.76] - 2026-11-22
 
 ### Added
