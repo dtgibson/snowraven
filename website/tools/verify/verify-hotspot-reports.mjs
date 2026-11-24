@@ -260,14 +260,46 @@ async function openTab(page) {
   }
 }
 
-/** Choose a place by typing `query` and pressing Enter, and wait for ITS report. */
+/** The picker's ACTIVE option names `heading`: the row Enter chooses. */
+const ACTIVE_IS = h => {
+  const id = document.querySelector('input.sr-hsr-input')?.getAttribute('aria-activedescendant')
+  const name = id ? document.getElementById(id)?.querySelector('.sr-hsr-opt-name')?.textContent : null
+  return typeof name === 'string' && name.startsWith(h)
+}
+/** What the page shows when a report did not arrive, so a failure says which
+ *  of its causes it was: the picker's own state, the report, an alert. */
+const PLACE_STATE = () => {
+  const input = document.querySelector('input.sr-hsr-input')
+  const id = input?.getAttribute('aria-activedescendant')
+  return {
+    value: input?.value?.slice(0, 40) ?? null, expanded: input?.getAttribute('aria-expanded') ?? null,
+    active: id ? document.getElementById(id)?.querySelector('.sr-hsr-opt-name')?.textContent?.slice(0, 40) ?? null : null,
+    options: document.querySelectorAll('.sr-hsr-opt').length,
+    report: document.querySelector('.sr-hsr-name')?.textContent?.slice(0, 40) ?? null,
+    rows: document.querySelectorAll('.sr-hsr-report .sr-hsr-ll-row').length,
+    alerts: [...document.querySelectorAll('[role="alert"]')].map(a => a.textContent.trim()).filter(Boolean).join(' | ').slice(0, 120),
+  }
+}
+/** Choose a place by typing `query` and pressing Enter, and wait for ITS report.
+ *  Enter chooses the ACTIVE option, so the wait before it is for the option
+ *  named `heading` to be active: any option at all is already there from the
+ *  click, whose list opens unfiltered with the Overview active (D-96). */
 async function openPlace(page, query, heading) {
   const input = page.locator('input.sr-hsr-input')
   await input.click()
   await input.fill(query)
-  await page.waitForSelector('.sr-hsr-opt')
+  await page.waitForFunction(ACTIVE_IS, heading)
   await input.press('Enter')
-  await page.waitForFunction(h => document.querySelector('.sr-hsr-name')?.textContent.startsWith(h) && document.querySelector('.sr-hsr-report .sr-hsr-ll-row'), heading)
+  try {
+    await page.waitForFunction(h => document.querySelector('.sr-hsr-name')?.textContent.startsWith(h) && document.querySelector('.sr-hsr-report .sr-hsr-ll-row'), heading)
+  } catch (e) {
+    // Read with a bound of its own: a page that cannot answer is the finding.
+    const bounded = p => Promise.race([p, new Promise(r => setTimeout(() => r('no answer in 5 s'), 5000))])
+    const state = await bounded(page.evaluate(PLACE_STATE).catch(err => `unreadable: ${String(err).slice(0, 80)}`))
+    const frame = await bounded(page.evaluate(() => new Promise(r => requestAnimationFrame(() => r('a frame drew')))).catch(() => 'unreadable'))
+    console.log(`MEASURE the report for "${heading}" did not arrive: ${JSON.stringify(state)}; ${frame}`)
+    throw e
+  }
   await page.evaluate(() => document.activeElement?.blur())
 }
 
