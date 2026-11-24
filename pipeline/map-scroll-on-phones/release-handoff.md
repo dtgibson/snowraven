@@ -2,6 +2,8 @@
 
 For whichever session runs the one combined release with `family-rollups-and-tree`. This build landed on `main` unversioned by the user's direction (decisions.md D-40); nothing below has shipped.
 
+**Status, 2026-11-24: taken.** Tagged as 1.0.76 with `family-rollups-and-tree`, whose ship stopped on a red run of record, and released as 1.0.77. The What's New sentence was approved (that run's D-63), the phone pictures retaken (D-64, D-65), the user's iPhone check passed with nothing reported against any step (D-93), and the Android back gesture was measured on the emulator (D-91). DECISIONS.md, v1.0.77.
+
 ## What the release owes for this build
 
 - **Changelog entry (not yet written).** In plain terms: on phones and any window 640 px wide or less, a map inside a page is a still with an "Open the map" button and is used in fullscreen, where the tab bar is hidden and Exit is a labeled button; the tab bar no longer covers an expanded map's Exit and Share buttons (a shipped defect, measured at baseline); dropdown lists stay within the visible screen; in the iPhone and Android apps a page is no longer taller than the window by the top inset, and Android's tab bar height is measured after its inset arrives.

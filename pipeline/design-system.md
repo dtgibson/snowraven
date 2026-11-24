@@ -479,6 +479,31 @@ italic at 0.71875rem `--sr-text-gray`.
   discs have 4px of slack at 320px and 200% text. Above the phone tier and in a
   phone's landscape width none of this applies: the map is live in the page with
   its corner toggle.
+  **A surface that is not a map** (the Family Tree's tree) is one more host of
+  the same hook and panel class and takes nothing of `<SnowMap>`. Its still is
+  its own content drawn at a derived view that is never written back (the tree
+  from its top, at the larger of the true fit and one line per order): the box
+  carries `inert`, does not scroll and holds nothing focusable, its wrapper is
+  `role="img"` named for what it shows (`Your family tree: N species in F
+  families and O orders`) and opens on a press, and where the box cuts the
+  content a 3.5rem fade to `--sr-surface` covers the cut. A still cannot be
+  panned, so its plane is exactly the box's width: a row's label ends in an
+  ellipsis and its figure stays whole. The tools, the toggle and the readout are
+  not drawn in it. The opener is `FsOpenRow` in the surface's own words (`Open
+  the tree`; `It opens in fullscreen, where it scrolls and zooms on its own.`).
+  **The toggle and Exit are drawn by the host in its own toolbar, outside
+  anything lazy**, never by a child that mounts late or portals its tools; on
+  the phone tier Exit leads the toolbar by document order (never `order: -1`,
+  which moves the box and not the tab stop), and the field beside it shares its
+  row (`flex: 1 1 4rem; min-width: 0`) so it never drops under Exit. In the
+  panel the surface's own box is the one scroller; the parts above and below it
+  shed by the panel's height in rem through a size container query declared
+  only under the compound `.host.sr-map-fs-panel` (the host in the page has no
+  definite height), never by script, so large text counts as a short panel. The
+  surface's view (zoom as a fraction of full zoom, place as a node and offset),
+  its expansion and its selection live in the tab, not in the lazy child, so a
+  round trip in either direction keeps all of them. `.sr-ft-host` is the
+  exemplar.
 - **A list opened from a field keeps to the visible room on a phone.** On the
   phone tier a dropdown list that opens under its field (the hotspot, region,
   county and species pickers, the Targets distance chooser) takes the smaller
@@ -723,6 +748,42 @@ italic at 0.71875rem `--sr-text-gray`.
   `width: min-content` (not `max-content`, which sizes to the columns' intrinsic
   width and leaves trailing whitespace) so the card hugs the table. The Breeding
   Codes matrix is the exemplar. No new tokens.
+- **A disclosure table that keeps every name whole: columns, stacked and narrow,
+  each by a container query on the list's own width in rem.** The list is an
+  inline-size container that flows with the page and has no scroller of its own,
+  so a phone page is the only vertical scroller. **Columns** while the list is
+  wider than its stacking threshold, which is derived from the fixed tracks so the
+  name's column never falls under the longest word a name can hold (50em on the
+  Family Tree, where 44em left the name a 48px column and broke family names
+  inside words on upright iPads). **Stacked** at and under it: the column header
+  goes, and a row is the chevron beside a stack of name, the main figure over its
+  bar, and one media line of glyph-and-count pairs, each worded for assistive
+  technology. The threshold is one number on the width and never a state, so the
+  form does not change when a file is added. **Narrow** under the width where a
+  hanging indent and a fixed media track would leave a name about a third of the
+  row (15rem): the opened block gives up its hanging indent; a species row with
+  media puts the name on the row's whole width, the second name under it, then
+  one line with the link marks at its left end and the media cell at its right,
+  by `display: contents` on `<BirdName>`'s two unnamed wrapper spans, so the
+  document, reading and tab order do not move and only the second name is drawn
+  above the marks it follows; a row without media keeps `<BirdName>`'s own form;
+  a family row's chevron takes its own 14px, centered on the name's first line,
+  and a name whose longest word does not fit beside it takes the next line whole.
+  `overflow-wrap: anywhere` stays on every name as the last resort, so a name
+  breaks inside a word only when that one word is wider than the whole row. Each
+  threshold stays under the list's width at 100% text on the narrowest phone the
+  user approved, so the forms change only at larger text or at the widths named
+  above, and both are checked by a real-engine leg that counts words broken
+  inside a word that fits its row. The Family Tree table (`.sr-ft-list`,
+  `@container sr-ft-list`) is the exemplar.
+- **A hovered row's quieter text moves to `--sr-text-muted`.** On a row whose
+  hover fill is `--sr-surface-subtle`, a secondary line in `--sr-text-gray`
+  (4.63:1 or more at rest) falls under 4.5:1 while hovered (4.40:1 light, 4.35:1
+  dark), so it takes `--sr-text-muted` (4.80:1, 5.81:1) in the same
+  `@media (hover: hover)` block as the fill; a tapped row on a touch screen keeps
+  the resting gray. Every piece of text on a hovered row is read against 4.5:1
+  in both themes. The Family Tree's family row is the instance; the same pairing
+  on other tabs' hovered rows is a known gap.
 
 - **An expensive answer the app must go and FETCH is a thing you run, not a number
   that appears.** Where a section's figure costs thousands of provider requests, it
@@ -892,6 +953,24 @@ italic at 0.71875rem `--sr-text-gray`.
   column with no rule above the first row. Both track minimums are measured in
   the built app at every shipped text scale. Hotspot Reports' At a glance card
   (`.sr-hsr-glance`) is the exemplar. No new tokens.
+- **A headline of equal count tiles answers its own width, not the window's.**
+  Each tile is a count, its label, "of N in the world" with the share, and a
+  bar. The tiles' `<dl>` sits alone in a wrapper that is a named inline-size
+  container (`.sr-ft-glance-wrap`, `sr-ft-glance`), so its containment can never
+  become a fixed panel's containing block. On the phone tier the three-up
+  columns (`repeat(3, minmax(0, 1fr))`, label over count over denominator) live
+  inside `@container sr-ft-glance (width >= 16.5rem)`; under it the tiles are one
+  column, each the wide tier's own wrapping row (count and label on one
+  baseline, then the denominator with the share at the row's right end, then the
+  bar), so a part that does not fit moves to its own line whole and no label
+  breaks inside a word. There is no two-up form (three tiles in two columns leave
+  one alone) and no type size changes between the forms. The threshold is a rem
+  figure, so large text counts as narrow: it sits under the wrapper's width on
+  the narrowest phone at 100% text, where three-up is the approved look, and
+  above the width at which the widest count the data can give (five digits, in
+  the widest shipped face) reaches the next tile. Checked tile against tile, never
+  only each tile against its own box: no tile's text crosses another's. The
+  Family Tree headline (`.sr-ft-glance`) is the exemplar.
 - **Distribution rows (a set of named bands, each with a count and a bar):** one row
   per band, always every band, in a fixed domain order that does not re-sort with the
   data. Desktop is a four-column grid `auto minmax(0, 8.5rem) minmax(0, 1fr) auto` --
