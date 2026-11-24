@@ -72,6 +72,9 @@
 //      1066px, measured pixel by pixel in both engines; D-79(b), D-80), with the
 //      media export, in the three Names states: no name breaks inside a word
 //      that fits its row. A window either side of each stretch is measured too.
+//      Then a family row under a real pointer, in the column and the stacked
+//      form, collapsed and expanded, light and dark: every piece of text on it
+//      reads 4.5:1 or more on what is behind it (D-83, D-85, D-86).
 //
 // Lines starting `MEASURE` are the readings recorded in the run's evidence. The
 // run declares how many configurations each leg measures and fails on a short
@@ -80,7 +83,8 @@
 // wider than a phone, the asset's fault left in place across the Reload, the
 // headline held at three columns, Find given its old 11rem basis, the still's
 // names untruncated, the rows' built form forced back, the family name held to
-// the 48px column the old threshold left it) and
+// the 48px column the old threshold left it and the hovered second name to its
+// resting gray) and
 // must then see a failure in EVERY leg, so the harness is shown able to see
 // what it guards.
 //
@@ -291,6 +295,8 @@ const BREAK_STILL = '.sr-ft-boxwrap.is-still .sr-ft-node { width: max-content !i
 const BREAK_NARROW = '.sr-ft-sp { grid-template-columns: minmax(0, 1fr) max(46px, 2.5rem) !important; } .sr-ft-sp .sr-birdname { display: inline-flex !important; } .sr-ft-open { padding-left: calc(12px + 1rem + 12px) !important; }'
 // Leg 10: the family name held to the 48px column the 44em threshold left it.
 const BREAK_FAMILY = '.sr-ft-fname { max-width: 48px !important; } .sr-ft-fname .n { overflow-wrap: anywhere !important; }'
+  // ...and the hovered second name held to its resting gray (D-86).
+  + ' .sr-ft-frow:hover .sr-ft-fname .s { color: var(--sr-text-gray) !important; }'
 
 // -- Measurement ---------------------------------------------------------------
 
@@ -1176,6 +1182,9 @@ async function narrowLeg(name, browser, base, pass) {
 // The two stretches measured pixel by pixel (D-80): the list is over 44em and
 // at most 50em in windows of 815 to 903px (at 904 the side menu widens) and
 // 971 to 1066px; each edge is read on both sides.
+/** Leg 10's hovered-row checks per pass: two forms, collapsed and expanded,
+ *  light and dark. */
+const HOVER_CHECKS = 2 * 2 * 2
 const TABLET_WIDTHS = [812, 814, 815, 820, 834, 860, 880, 903, 904, 940, 970, 971, 980, 1000, 1024, 1032, 1050, 1066, 1067, 1100]
 async function familyNamesLeg(name, browser, base, pass) {
   servedCodes = true
@@ -1205,6 +1214,7 @@ async function familyNamesLeg(name, browser, base, pass) {
           `list ${r.em}em (${r.form}), media ${r.media}, ${r.names} family names drawn, ${fam.length} broken inside a word that fits (${fam.slice(0, 3).map(x => x.word).join(', ')})`)
       }
       console.log(`MEASURE ${name} [${pass.id}] family names ${names} at 100%: ${rows.join('; ')}`)
+      if (names === 'Both') await hoverContrast(name, page, pass)
       await ctx.close()
     }
   } finally {
@@ -1212,6 +1222,65 @@ async function familyNamesLeg(name, browser, base, pass) {
     servedCodes = false
     servedCsv = CSV
   }
+}
+
+/** Every piece of text on a family row under a real pointer, against what is
+ *  behind it (D-83, D-85, D-86): WCAG's contrast, 4.5:1 or more. */
+const ROW_CONTRAST = (idx) => {
+  const row = [...document.querySelectorAll('#panel-family-tree .sr-ft-list .sr-ft-frow')].filter(r => r.getClientRects().length > 0)[idx]
+  const parse = c => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 } }
+  const lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
+  const lum = c => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+  const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 })
+  const behind = el => {
+    const layers = []
+    for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break } }
+    return layers.reverse().reduce((acc, l) => over(l, acc), { r: 255, g: 255, b: 255, a: 1 })
+  }
+  const texts = []
+  const tw = document.createTreeWalker(row, NodeFilter.SHOW_TEXT)
+  for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+    const el = t.parentElement
+    if (!t.textContent.trim() || el.closest('.sr-only') || el.getClientRects().length === 0) continue
+    const bg = behind(el)
+    const fg0 = parse(getComputedStyle(el).color)
+    const fg = fg0.a < 1 ? over(fg0, bg) : fg0
+    const a = lum(fg), b = lum(bg)
+    texts.push({ text: t.textContent.trim().slice(0, 20), ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) })
+  }
+  return { hovered: row.matches(':hover'), expanded: row.getAttribute('aria-expanded') === 'true', second: !!row.querySelector('.sr-ft-fname .s'), texts }
+}
+async function hoverContrast(name, page, pass) {
+  const theme0 = await page.evaluate(() => document.documentElement.getAttribute('data-theme'))
+  for (const [w, form] of [[1100, 'columns'], [1024, 'stacked']]) {
+    await page.setViewportSize({ width: w, height: 800 })
+    await settle(page)
+    // The first row with a second name and, where one is drawn, a zero figure.
+    const idx = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('#panel-family-tree .sr-ft-list .sr-ft-frow')].filter(r => r.getClientRects().length > 0)
+      const i = rows.findIndex(r => r.querySelector('.sr-ft-fname .s') && (r.querySelector('.sr-ft-mc.is-zero') || [...r.querySelectorAll('.sr-ft-mline b')].some(b => b.textContent.trim() === '0')))
+      return i >= 0 ? i : Math.max(0, rows.findIndex(r => r.querySelector('.sr-ft-fname .s')))
+    })
+    const row = page.locator('#panel-family-tree .sr-ft-list .sr-ft-frow:visible').nth(idx)
+    for (const state of ['collapsed', 'expanded']) {
+      if (state === 'expanded') { await row.click(); await page.waitForTimeout(200) }
+      await row.scrollIntoViewIfNeeded()
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), theme)
+        const box = await row.boundingBox()
+        await page.mouse.move(box.x + Math.min(box.width - 4, 60), box.y + box.height / 2)
+        await page.waitForTimeout(200)
+        const r = await page.evaluate(ROW_CONTRAST, idx)
+        const low = r.texts.filter(x => x.ratio < 4.5)
+        const least = Math.min(...r.texts.map(x => x.ratio))
+        check(10, `${name} [${pass.id}] hovered family row ${form} ${state} ${theme}`, r.hovered && r.second && r.expanded === (state === 'expanded') && r.texts.length > 2 && low.length === 0,
+          `hovered ${r.hovered}, expanded ${r.expanded}, second name ${r.second}, ${r.texts.length} pieces of text, least ${least.toFixed(2)}:1, under 4.5:1: ${low.map(x => `${x.text} ${x.ratio.toFixed(2)}`).join(', ') || 'none'}`)
+        await page.mouse.move(1, 1)
+      }
+    }
+    await row.click()
+  }
+  await page.evaluate(t => (t === null ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', t)), theme0)
 }
 
 // -- The run --------------------------------------------------------------------
@@ -1241,7 +1310,7 @@ let passCount = 0
 // four box floors per face, leg 8 two widths and four scales per face. The text legs' counts are
 // set once the faces each engine offers are known (below).
 const PER_ENGINE = [8, 8, 26, 8, 8, 2 * HEADLINE_WIDTHS.length * 4, 12, 8,
-  NAMES_STATES.length * (NARROW_WIDTHS.length * 4 + 1), NAMES_STATES.length * TABLET_WIDTHS.length]
+  NAMES_STATES.length * (NARROW_WIDTHS.length * 4 + 1), NAMES_STATES.length * TABLET_WIDTHS.length + HOVER_CHECKS]
 const EXPECTED = PER_ENGINE.map(() => 0)
 try {
   for (const [name, engine] of ENGINES) {
@@ -1282,7 +1351,7 @@ try {
 
 const seconds = Math.round((Date.now() - started) / 1000)
 const LEGS = ['focus at a limit', 'tools row captions', 'still and round trip', 'table at phone widths', 'a failed family asset',
-  'headline tile against tile', 'Find beside Exit', 'the still\'s figures whole', 'the table\'s narrow form', 'family names whole at 100%']
+  'headline tile against tile', 'Find beside Exit', 'the still\'s figures whole', 'the table\'s narrow form', 'family names whole at 100%, and the hovered row']
 for (let i = 0; i < LEGS.length; i++) {
   if (!LEGS_RUN.includes(i + 1)) continue
   const full = legMeasured[i] === EXPECTED[i]
